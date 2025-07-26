@@ -133,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tokenHash: refreshTokenHash,
         userAgent: getUserAgent(req),
         ip: ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
       });
 
       // Audit log
@@ -203,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tokenHash: refreshTokenHash,
         userAgent: getUserAgent(req),
         ip: ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       });
 
       // Audit log
@@ -261,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tokenHash: newRefreshTokenHash,
         userAgent: getUserAgent(req),
         ip: getClientIP(req),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       });
 
       // Audit log
@@ -479,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createAdminSession({
         id: sessionId,
         adminId: admin.id,
-        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(), // 8 hours
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours
         ip: ip,
         userAgent: getUserAgent(req)
       });
