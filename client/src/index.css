@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Apple-style Beige Palette */
+  --bg: hsl(39, 33%, 97%); /* #FAF0E6 */
+  --surface: hsl(41, 38%, 95%); /* #F5EDDC */
+  --card: hsl(41, 31%, 90%); /* #EDE8D0 */
+  --border: hsl(35, 25%, 85%); /* #E4D5B7 */
+  
+  --text: hsl(25, 18%, 29%); /* #4A4A4A */
+  --muted: hsl(29, 16%, 63%); /* #A0816C */
+
+  --primary: hsl(248, 39%, 25%); /* #272757 */
+  --primary-hover: hsl(248, 39%, 20%);
+  --on-primary: hsl(39, 33%, 97%); /* #FAF0E6 */
+
+  --sage: hsl(90, 25%, 62%); /* #9DC183 */
+  --dusty: hsl(0, 24%, 74%); /* #DCA1A1 */
+  --ring: hsl(35, 25%, 85%); /* #E4D5B7 */
+
+  --success: hsl(90, 25%, 62%); /* #9DC183 */
+  --warning: hsl(35, 71%, 52%);
+  --danger: hsl(0, 60%, 50%);
+  --info: hsl(210, 15%, 65%);
+
+  --shadow-soft: 0 8px 24px hsla(25, 18%, 29%, 0.08);
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+
+  /* Default shadcn overrides */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --muted: var(--card);
+  --muted-foreground: var(--muted);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --border: var(--border);
+  --input: var(--border);
+  --primary: var(--primary);
+  --primary-hover: var(--primary-hover);
+  --primary-foreground: var(--on-primary);
+  --secondary: var(--card);
+  --secondary-foreground: var(--text);
+  --accent: var(--card);
+  --accent-foreground: var(--text);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--on-primary);
+  --ring: var(--ring);
+  --radius: var(--radius-md);
+}
+
+.dark {
+  --bg: hsl(30, 7%, 8%); /* #1C1917 */
+  --surface: hsl(24, 6%, 14%); /* #24211E */
+  --card: hsl(26, 7%, 16%); /* #2A2623 */
+  --border: hsl(29, 12%, 23%); /* #3A332C */
+  --text: hsl(39, 33%, 95%); /* #F5F0EA */
+  --muted: hsl(32, 8%, 72%); /* #B8AFA5 */
+  --primary: hsl(35, 45%, 65%); /* #D4A373 */
+  --primary-hover: hsl(35, 40%, 58%); /* #C8935F */
+  --on-primary: hsl(30, 7%, 17%); /* #2B261F */
+  --sage: hsl(88, 17%, 67%); /* #A5B091 */
+  --dusty: hsl(213, 25%, 68%); /* #9AA8BE */
+  --ring: hsl(35, 38%, 77%); /* #E4C39A */
+  --shadow-soft: 0 12px 28px hsla(0, 0%, 0%, 0.45);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: "SF Pro Text", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .header-blur {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@layer components {
+  .card-easyloyalty {
+    @apply bg-card border border-border rounded-2xl shadow-soft p-5;
+  }
+
+  .btn-primary {
+    @apply h-11 px-5 rounded-xl bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 font-medium transition-colors;
+  }
+
+  .btn-secondary {
+    @apply h-11 px-5 rounded-xl bg-surface border border-border text-text hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-ring font-medium transition-colors;
+  }
+
+  .input-easyloyalty {
+    @apply h-11 w-full rounded-xl bg-surface border border-border px-3 placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors;
+  }
+
+  .qr-panel {
+    @apply card-easyloyalty text-center;
+  }
+
+  .currency-display {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+}

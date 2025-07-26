@@ -1,0 +1,733 @@
+openapi: 3.1.0
+info:
+  title: EasyLoyalty API
+  description: Single-tenant café loyalty system with QR payments, top-up packages, and admin management
+  version: 1.0.0
+  contact:
+    name: EasyLoyalty Support
+    email: support@easyloyalty.dev
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.easyloyalty.dev
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      tags: [System]
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
+  /ready:
+    get:
+      summary: Readiness check endpoint
+      tags: [System]
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  db:
+                    type: string
+                    enum: [ok, down]
+        '503':
+          description: Service not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /version:
+    get:
+      summary: Get application version
+      tags: [System]
+      responses:
+        '200':
+          description: Version information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  commit:
+                    type: string
+                    example: "abc123def"
+                  builtAt:
+                    type: string
+                    format: date-time
+
+  /api/auth/signup:
+    post:
+      summary: Create customer account
+      tags: [Customer Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, name, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "customer@example.com"
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  example: "John Doe"
+                password:
+                  type: string
+                  minLength: 8
+                  example: "SecurePass123!"
+      responses:
+        '200':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/login:
+    post:
+      summary: Customer login
+      tags: [Customer Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/refresh:
+    post:
+      summary: Refresh access token
+      tags: [Customer Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+
+  /api/auth/logout:
+    post:
+      summary: Customer logout
+      tags: [Customer Auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '204':
+          description: Logout successful
+
+  /api/me:
+    get:
+      summary: Get current customer info
+      tags: [Customer]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Customer information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/me/wallet:
+    get:
+      summary: Get customer wallet info
+      tags: [Customer]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Wallet information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletInfo'
+
+  /api/me/topup:
+    post:
+      summary: Top up customer wallet
+      tags: [Customer]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [packageCode]
+              properties:
+                packageCode:
+                  $ref: '#/components/schemas/PackageCode'
+      responses:
+        '200':
+          description: Top-up successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletInfo'
+
+  /api/me/qr:
+    post:
+      summary: Generate payment QR code
+      tags: [Customer]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: QR code generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QRCodeData'
+
+  /api/me/history:
+    get:
+      summary: Get transaction history
+      tags: [Customer]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, topups, transactions]
+            default: all
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  nextCursor:
+                    type: string
+                    nullable: true
+
+  /api/admin/login:
+    post:
+      summary: Admin login
+      tags: [Admin Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '204':
+          description: Login successful (session cookie set)
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/admin/logout:
+    post:
+      summary: Admin logout
+      tags: [Admin Auth]
+      security:
+        - CookieAuth: []
+      responses:
+        '204':
+          description: Logout successful
+
+  /api/admin/me:
+    get:
+      summary: Get current admin info
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Admin information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+
+  /api/admin/charge/init:
+    post:
+      summary: Initialize payment charge
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tokenOrCode]
+              properties:
+                tokenOrCode:
+                  type: string
+                  description: QR token or manual code
+      responses:
+        '200':
+          description: Charge initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeInit'
+        '404':
+          description: Invalid or expired token
+        '409':
+          description: Token already used
+
+  /api/admin/charge/confirm:
+    post:
+      summary: Confirm payment charge
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chargeId, amountCZK, idempotencyKey]
+              properties:
+                chargeId:
+                  type: string
+                  format: uuid
+                amountCZK:
+                  type: number
+                  minimum: 1
+                idempotencyKey:
+                  type: string
+      responses:
+        '200':
+          description: Charge confirmed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  newBalanceCZK:
+                    type: string
+                  newBalanceCents:
+                    type: integer
+        '409':
+          description: Idempotency conflict
+        '422':
+          description: Insufficient funds
+
+  /api/admin/charge/void:
+    post:
+      summary: Void payment charge
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chargeId]
+              properties:
+                chargeId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Charge voided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          description: Charge not found
+        '422':
+          description: Void window expired
+
+  /api/admin/customers:
+    get:
+      summary: Get customer list
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomerSummary'
+                  total:
+                    type: integer
+                  nextCursor:
+                    type: string
+                    nullable: true
+
+  /api/admin/summary:
+    get:
+      summary: Get business summary statistics
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Summary statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSummary'
+
+  /api/admin/adjustment:
+    post:
+      summary: Create manual balance adjustment
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, amountCZK, reason, idempotencyKey]
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                amountCZK:
+                  type: number
+                  description: Positive for credit, negative for debit
+                reason:
+                  type: string
+                  minLength: 1
+                idempotencyKey:
+                  type: string
+      responses:
+        '200':
+          description: Adjustment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  newBalanceCZK:
+                    type: string
+                  newBalanceCents:
+                    type: integer
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: admin_sid
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message, code]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, blocked]
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [manager, staff]
+        status:
+          type: string
+          enum: [active, blocked]
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+
+    WalletInfo:
+      type: object
+      properties:
+        balanceCZK:
+          type: string
+          example: "1 430 CZK"
+        balanceCents:
+          type: integer
+          example: 143000
+        bonusGrantedTotalCZK:
+          type: string
+          example: "320 CZK"
+        bonusGrantedTotalCents:
+          type: integer
+          example: 32000
+        lastActivity:
+          type: string
+          format: date-time
+          nullable: true
+
+    PackageCode:
+      type: string
+      enum: [MINI, STANDARD, MAXI, ULTRA]
+
+    QRCodeData:
+      type: object
+      properties:
+        qrPayload:
+          type: string
+          description: JWT token for QR code
+        shortCode:
+          type: string
+          example: "ABC1-23XY"
+        expiresAt:
+          type: string
+          format: date-time
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [topup, charge, void, adjustment]
+        amountCZK:
+          type: string
+          example: "+980 CZK"
+        amountCents:
+          type: integer
+        meta:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    ChargeInit:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        customerName:
+          type: string
+        balanceCZK:
+          type: string
+        balanceCents:
+          type: integer
+        chargeId:
+          type: string
+          format: uuid
+
+    CustomerSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        balanceCZK:
+          type: string
+        balanceCents:
+          type: integer
+        bonusGrantedTotalCZK:
+          type: string
+        bonusGrantedTotalCents:
+          type: integer
+        lastActivity:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminSummary:
+      type: object
+      properties:
+        membersCount:
+          type: integer
+        liabilityCZK:
+          type: string
+        liabilityCents:
+          type: integer
+        bonusGrantedTotalCZK:
+          type: string
+        bonusGrantedTotalCents:
+          type: integer
+        spendTodayCZK:
+          type: string
+        spendTodayCents:
+          type: integer
+        spendWeekCZK:
+          type: string
+        spendWeekCents:
+          type: integer
+
+tags:
+  - name: System
+    description: Health and system endpoints
+  - name: Customer Auth
+    description: Customer authentication endpoints
+  - name: Customer
+    description: Customer operations
+  - name: Admin Auth
+    description: Admin authentication endpoints
+  - name: Admin
+    description: Admin operations
