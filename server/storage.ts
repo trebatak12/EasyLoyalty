@@ -1,6 +1,6 @@
 import { users, wallets, adminUsers, refreshTokens, adminSessions, transactions, auditLogs, idempotencyKeys, type User, type InsertUser, type Wallet, type AdminUser, type InsertAdminUser, type Transaction, type InsertTransaction, type AuditLog, type InsertAuditLog, type RefreshToken, type AdminSession } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, count, sum, gte, lt } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lt, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -150,7 +150,7 @@ export class DatabaseStorage implements IStorage {
       .from(refreshTokens)
       .where(and(
         eq(refreshTokens.tokenHash, tokenHash),
-        eq(refreshTokens.revokedAt, null),
+        isNull(refreshTokens.revokedAt),
         gte(refreshTokens.expiresAt, sql`now()`)
       ));
     return token || undefined;
@@ -184,7 +184,7 @@ export class DatabaseStorage implements IStorage {
       .from(adminSessions)
       .where(and(
         eq(adminSessions.id, sessionId),
-        eq(adminSessions.revokedAt, null),
+        isNull(adminSessions.revokedAt),
         gte(adminSessions.expiresAt, sql`now()`)
       ));
     return session || undefined;

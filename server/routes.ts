@@ -61,7 +61,6 @@ const qrCodes = new Map<string, { userId: string; expiresAt: number; used: boole
 const pendingCharges = new Map<string, { userId: string; amountCents: number; createdAt: number; adminId: string }>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.use(cookieParser());
   app.use(addRequestId);
 
   // Health endpoints
