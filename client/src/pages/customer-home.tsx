@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Coffee, Plus, QrCode, History, LogOut } from "lucide-react";
+import { Coffee, Plus, QrCode, History, LogOut, Wallet, CreditCard } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -29,8 +29,8 @@ export default function CustomerHome() {
     enabled: isAuthenticated
   });
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setLocation("/");
   };
 
@@ -39,17 +39,17 @@ export default function CustomerHome() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="header-blur border-b border-border">
-        <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card">
+      {/* Modern Header */}
+      <div className="bg-white/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-10">
+        <div className="container mx-auto px-6">
           <div className="flex items-center justify-between py-4">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-sage rounded-xl flex items-center justify-center mr-3">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg">
                 <Coffee className="text-white" size={20} />
               </div>
               <div>
-                <p className="font-medium text-foreground">{user?.name}</p>
+                <h1 className="font-semibold text-lg text-foreground">{user?.name}</h1>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
             </div>
@@ -57,156 +57,178 @@ export default function CustomerHome() {
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="text-muted-foreground hover:text-foreground"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/50 rounded-xl px-4 py-2"
             >
-              <LogOut size={20} />
+              <LogOut size={18} />
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Wallet Summary */}
-        <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-2xl p-8 mb-8">
+      <div className="container mx-auto px-6 py-8 max-w-4xl">
+        {/* Wallet Card */}
+        <Card className="bg-gradient-to-br from-primary via-primary to-primary/90 text-white rounded-3xl p-8 mb-8 shadow-2xl border-0">
           <CardContent className="p-0">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-start justify-between mb-8">
               <div>
-                <p className="text-primary-foreground/80 mb-1">Current Balance</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <Wallet size={20} className="text-white/90" />
+                  <p className="text-white/90 text-sm font-medium">WALLET BALANCE</p>
+                </div>
                 {walletLoading ? (
-                  <div className="h-8 w-32 bg-primary-foreground/20 rounded animate-pulse" />
+                  <div className="h-12 w-32 bg-white/20 rounded-2xl animate-pulse"></div>
                 ) : (
-                  <p className="text-3xl font-bold currency-display">
-                    {wallet?.balanceCZK || "0 CZK"}
-                  </p>
+                  <h2 className="text-4xl font-bold tracking-tight">
+                    {formatCurrency((wallet?.balanceCents || 0) / 100)}
+                  </h2>
                 )}
               </div>
-              <div className="text-right">
-                <p className="text-primary-foreground/80 mb-1">Café Added Total</p>
-                {walletLoading ? (
-                  <div className="h-6 w-24 bg-primary-foreground/20 rounded animate-pulse" />
-                ) : (
-                  <p className="text-xl font-semibold text-sage currency-display">
-                    {wallet?.bonusGrantedTotalCZK || "0 CZK"}
-                  </p>
-                )}
+              <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center">
+                <CreditCard size={24} className="text-white/90" />
               </div>
             </div>
             
-            <div className="flex space-x-4">
-              <Button 
-                onClick={() => setLocation("/topup")}
-                className="flex-1 h-12 bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground border-0"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Top Up
-              </Button>
-              <Button 
-                onClick={() => setLocation("/qr")}
-                className="flex-1 h-12 bg-sage hover:bg-sage/90 text-white border-0"
-              >
-                <QrCode className="w-4 h-4 mr-2" />
-                Pay with QR
-              </Button>
-            </div>
+            {!walletLoading && wallet && (
+              <div className="flex items-center justify-between pt-4 border-t border-white/20">
+                <div>
+                  <p className="text-white/70 text-sm">Total Bonus Earned</p>
+                  <p className="text-lg font-semibold">
+                    {formatCurrency((wallet.bonusGrantedTotalCents || 0) / 100)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white/70 text-sm">Available Credit</p>
+                  <p className="text-lg font-semibold">
+                    {formatCurrency((wallet.balanceCents || 0) / 100)}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card 
+            className="bg-white/70 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            onClick={() => setLocation("/topup")}
+          >
+            <CardContent className="p-0 text-center">
+              <div className="w-16 h-16 bg-sage/10 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                <Plus size={24} className="text-sage" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">Top Up</h3>
+              <p className="text-sm text-muted-foreground">Add money and get bonus credits</p>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="bg-white/70 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            onClick={() => setLocation("/qr")}
+          >
+            <CardContent className="p-0 text-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                <QrCode size={24} className="text-primary" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">Pay with QR</h3>
+              <p className="text-sm text-muted-foreground">Generate payment code</p>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="bg-white/70 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            onClick={() => setLocation("/history")}
+          >
+            <CardContent className="p-0 text-center">
+              <div className="w-16 h-16 bg-dusty/10 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                <History size={24} className="text-dusty" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">History</h3>
+              <p className="text-sm text-muted-foreground">View all transactions</p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Recent Activity */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-foreground">Recent Activity</h3>
-            <Button 
-              variant="ghost"
-              onClick={() => setLocation("/history")}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <History className="w-4 h-4 mr-2" />
-              View All
-            </Button>
-          </div>
-          
-          {historyLoading ? (
-            <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <Card key={i} className="card-easyloyalty">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-muted rounded-xl mr-3 animate-pulse" />
-                        <div>
-                          <div className="h-4 w-24 bg-muted rounded animate-pulse mb-2" />
-                          <div className="h-3 w-16 bg-muted rounded animate-pulse" />
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="h-4 w-20 bg-muted rounded animate-pulse mb-1" />
-                        <div className="h-3 w-12 bg-muted rounded animate-pulse" />
+        <Card className="bg-white/70 backdrop-blur-sm border border-border/50 rounded-2xl">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setLocation("/history")}
+                className="text-primary hover:text-primary/80 hover:bg-primary/5 rounded-xl"
+              >
+                View All
+              </Button>
+            </div>
+            
+            {historyLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between p-4 bg-surface/50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-border rounded-xl animate-pulse"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 w-24 bg-border rounded animate-pulse"></div>
+                        <div className="h-3 w-16 bg-border rounded animate-pulse"></div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : recentTransactions?.transactions?.length > 0 ? (
-            <div className="space-y-3">
-              {recentTransactions.transactions.slice(0, 3).map((transaction: any) => (
-                <Card key={transaction.id} className="card-easyloyalty">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mr-3 ${
-                          transaction.type === "topup" ? "bg-sage" : "bg-dusty"
-                        }`}>
-                          {transaction.type === "topup" ? (
-                            <Plus className="text-white text-sm" size={16} />
-                          ) : (
-                            <Coffee className="text-white text-sm" size={16} />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {transaction.type === "topup" ? 
-                              `Top-up ${transaction.meta?.packageCode || ""}` : 
-                              "Café Payment"
-                            }
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(transaction.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-semibold currency-display ${
-                          transaction.amountCents > 0 ? "text-sage" : "text-foreground"
-                        }`}>
-                          {transaction.amountCents > 0 ? "+" : ""}{transaction.amountCZK}
-                        </p>
-                        {transaction.type === "topup" && transaction.meta?.bonusCents && (
-                          <p className="text-xs text-muted-foreground">
-                            +{formatCurrency(transaction.meta.bonusCents)} bonus
-                          </p>
+                    <div className="h-4 w-16 bg-border rounded animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            ) : recentTransactions && recentTransactions.length > 0 ? (
+              <div className="space-y-3">
+                {recentTransactions.slice(0, 5).map((transaction: any) => (
+                  <div key={transaction.id} className="flex items-center justify-between p-4 bg-surface/30 rounded-xl hover:bg-surface/40 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        transaction.type === 'topup' ? 'bg-sage/10' :
+                        transaction.type === 'charge' ? 'bg-primary/10' :
+                        'bg-dusty/10'
+                      }`}>
+                        {transaction.type === 'topup' ? (
+                          <Plus size={16} className="text-sage" />
+                        ) : transaction.type === 'charge' ? (
+                          <QrCode size={16} className="text-primary" />
+                        ) : (
+                          <History size={16} className="text-dusty" />
                         )}
                       </div>
+                      <div>
+                        <p className="font-medium text-foreground text-sm">
+                          {transaction.type === 'topup' ? 'Top Up' :
+                           transaction.type === 'charge' ? 'Payment' :
+                           transaction.type}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(transaction.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="card-easyloyalty">
-              <CardContent className="p-8 text-center">
-                <History className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <span className={`font-semibold text-sm ${
+                      transaction.amountCents > 0 ? 'text-sage' : 'text-foreground'
+                    }`}>
+                      {transaction.amountCents > 0 ? '+' : ''}
+                      {formatCurrency(Math.abs(transaction.amountCents) / 100)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-muted/20 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                  <History size={24} className="text-muted" />
+                </div>
                 <p className="text-muted-foreground">No transactions yet</p>
-                <Button 
-                  onClick={() => setLocation("/topup")} 
-                  className="btn-primary mt-4"
-                >
-                  Make Your First Top-up
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                <p className="text-sm text-muted-foreground mt-1">Start by topping up your wallet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

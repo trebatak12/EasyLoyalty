@@ -11,7 +11,7 @@ class ApiService {
     };
 
     // Add authorization header for customer routes
-    if (this.authToken && url.startsWith("/api/") && !url.startsWith("/api/admin/")) {
+    if (this.authToken && url.startsWith("/api/") && !url.startsWith("/api/admin/") && !url.startsWith("/api/auth/")) {
       headers.Authorization = `Bearer ${this.authToken}`;
     }
 

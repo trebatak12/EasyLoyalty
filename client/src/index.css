@@ -3,22 +3,22 @@
 @tailwind utilities;
 
 :root {
-  /* Apple-style Beige Palette */
-  --bg: hsl(39, 33%, 97%); /* #FAF0E6 */
-  --surface: hsl(41, 38%, 95%); /* #F5EDDC */
-  --card: hsl(41, 31%, 90%); /* #EDE8D0 */
-  --border: hsl(35, 25%, 85%); /* #E4D5B7 */
+  /* Modern Apple-inspired Palette */
+  --bg: hsl(210, 40%, 98%); /* #F8FAFC */
+  --surface: hsl(210, 40%, 95%); /* #F1F5F9 */
+  --card: hsl(210, 25%, 92%); /* #E2E8F0 */
+  --border: hsl(214, 32%, 91%); /* #E2E8F0 */
   
-  --text: hsl(25, 18%, 29%); /* #4A4A4A */
-  --muted: hsl(29, 16%, 63%); /* #A0816C */
+  --text: hsl(222, 84%, 5%); /* #0F172A */
+  --muted: hsl(215, 16%, 47%); /* #64748B */
 
-  --primary: hsl(248, 39%, 25%); /* #272757 */
-  --primary-hover: hsl(248, 39%, 20%);
-  --on-primary: hsl(39, 33%, 97%); /* #FAF0E6 */
+  --primary: hsl(221, 83%, 53%); /* #3B82F6 */
+  --primary-hover: hsl(221, 83%, 48%);
+  --on-primary: hsl(0, 0%, 100%); /* #FFFFFF */
 
-  --sage: hsl(90, 25%, 62%); /* #9DC183 */
-  --dusty: hsl(0, 24%, 74%); /* #DCA1A1 */
-  --ring: hsl(35, 25%, 85%); /* #E4D5B7 */
+  --sage: hsl(142, 76%, 36%); /* #16A34A */
+  --dusty: hsl(0, 84%, 60%); /* #EF4444 */
+  --ring: hsl(221, 83%, 53%); /* #3B82F6 */
 
   --success: hsl(90, 25%, 62%); /* #9DC183 */
   --warning: hsl(35, 71%, 52%);

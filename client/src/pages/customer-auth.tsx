@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coffee, ArrowLeft } from "lucide-react";
+import { Coffee, ArrowLeft, Mail, Lock, User } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -55,116 +55,157 @@ export default function CustomerAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-16 max-w-md">
-        <Card className="card-easyloyalty">
-          <CardContent className="pt-6">
+    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Back Button */}
+        <Button
+          variant="ghost"
+          onClick={() => setLocation("/")}
+          className="mb-6 text-muted-foreground hover:text-foreground flex items-center gap-2"
+        >
+          <ArrowLeft size={18} />
+          Back to Mode Selection
+        </Button>
+
+        <Card className="bg-white/80 backdrop-blur-sm border border-border/50 rounded-3xl shadow-2xl">
+          <CardContent className="p-8">
+            {/* Header */}
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-sage rounded-xl mx-auto mb-4 flex items-center justify-center">
-                <Coffee className="text-white text-xl" size={24} />
+              <div className="w-20 h-20 bg-gradient-to-br from-primary to-primary/80 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                <Coffee className="text-white" size={28} />
               </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                {activeTab === "signin" ? "Welcome Back" : "Create Account"}
-              </h2>
+              <h1 className="text-2xl font-bold text-foreground mb-2">
+                {activeTab === "signin" ? "Welcome Back" : "Join EasyLoyalty"}
+              </h1>
               <p className="text-muted-foreground">
-                {activeTab === "signin" ? "Sign in to your loyalty account" : "Join the loyalty program"}
+                {activeTab === "signin" ? "Sign in to your loyalty account" : "Create your account and start earning"}
               </p>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+              <TabsList className="grid w-full grid-cols-2 bg-surface/50 rounded-2xl p-1">
+                <TabsTrigger 
+                  value="signin"
+                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  Sign In
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="signup"
+                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  Sign Up
+                </TabsTrigger>
               </TabsList>
-              
-              <TabsContent value="signin">
+
+              <TabsContent value="signin" className="mt-6">
                 <form onSubmit={handleSignIn} className="space-y-6">
                   <div>
-                    <Label htmlFor="signin-email" className="block text-sm font-medium text-foreground mb-2">
-                      Email
+                    <Label htmlFor="signin-email" className="text-sm font-medium text-foreground mb-2 block">
+                      Email Address
                     </Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="demo.customer@easyloyalty.dev"
-                      value={signInData.email}
-                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                      className="input-easyloyalty"
-                      required
-                    />
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        placeholder="customer@test.com"
+                        value={signInData.email}
+                        onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
                   </div>
+                  
                   <div>
-                    <Label htmlFor="signin-password" className="block text-sm font-medium text-foreground mb-2">
+                    <Label htmlFor="signin-password" className="text-sm font-medium text-foreground mb-2 block">
                       Password
                     </Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signInData.password}
-                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                      className="input-easyloyalty"
-                      required
-                    />
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Input
+                        id="signin-password"
+                        type="password"
+                        placeholder="customer123"
+                        value={signInData.password}
+                        onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="btn-primary w-full"
+
+                  <Button
+                    type="submit"
                     disabled={isLoading}
+                    className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary-hover hover:to-primary-hover/90 text-white font-semibold shadow-lg transition-all duration-200"
                   >
                     {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
                 </form>
               </TabsContent>
-              
-              <TabsContent value="signup">
+
+              <TabsContent value="signup" className="mt-6">
                 <form onSubmit={handleSignUp} className="space-y-6">
                   <div>
-                    <Label htmlFor="signup-email" className="block text-sm font-medium text-foreground mb-2">
-                      Email
-                    </Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={signUpData.email}
-                      onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                      className="input-easyloyalty"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-name" className="block text-sm font-medium text-foreground mb-2">
+                    <Label htmlFor="signup-name" className="text-sm font-medium text-foreground mb-2 block">
                       Full Name
                     </Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="John Doe"
-                      value={signUpData.name}
-                      onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
-                      className="input-easyloyalty"
-                      required
-                    />
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Input
+                        id="signup-name"
+                        type="text"
+                        placeholder="Your full name"
+                        value={signUpData.name}
+                        onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
+                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
                   </div>
+
                   <div>
-                    <Label htmlFor="signup-password" className="block text-sm font-medium text-foreground mb-2">
+                    <Label htmlFor="signup-email" className="text-sm font-medium text-foreground mb-2 block">
+                      Email Address
+                    </Label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="your.email@example.com"
+                        value={signUpData.email}
+                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="signup-password" className="text-sm font-medium text-foreground mb-2 block">
                       Password
                     </Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signUpData.password}
-                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                      className="input-easyloyalty"
-                      required
-                    />
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="Create a strong password"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="btn-primary w-full"
+
+                  <Button
+                    type="submit"
                     disabled={isLoading}
+                    className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary-hover hover:to-primary-hover/90 text-white font-semibold shadow-lg transition-all duration-200"
                   >
                     {isLoading ? "Creating Account..." : "Create Account"}
                   </Button>
@@ -172,15 +213,19 @@ export default function CustomerAuth() {
               </TabsContent>
             </Tabs>
 
-            <div className="text-center">
-              <Button 
-                variant="ghost" 
-                onClick={() => setLocation("/")}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to mode selection
-              </Button>
+            {/* Test Credentials */}
+            <div className="mt-8 p-4 bg-surface/30 rounded-2xl">
+              <p className="text-xs text-muted-foreground text-center mb-2">Test Credentials</p>
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <p className="font-medium text-foreground">Email:</p>
+                  <p className="text-muted-foreground">customer@test.com</p>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">Password:</p>
+                  <p className="text-muted-foreground">customer123</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
