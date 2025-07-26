@@ -7,7 +7,7 @@ export default function ModeSelection() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card flex items-center justify-center p-4 text-high-contrast">
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="text-center mb-12">
@@ -24,7 +24,7 @@ export default function ModeSelection() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Customer Mode */}
           <Card 
-            className="bg-white/80 backdrop-blur-sm border border-border/50 rounded-3xl p-8 hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group"
+            className="bg-warm-white border border-warm rounded-3xl p-8 shadow-warm hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group"
             onClick={() => setLocation("/auth/customer")}
           >
             <CardContent className="p-0 text-center">
@@ -53,7 +53,7 @@ export default function ModeSelection() {
 
           {/* Admin Mode */}
           <Card 
-            className="bg-white/80 backdrop-blur-sm border border-border/50 rounded-3xl p-8 hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group"
+            className="bg-warm-white border border-warm rounded-3xl p-8 shadow-warm hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group"
             onClick={() => setLocation("/admin/login")}
           >
             <CardContent className="p-0 text-center">

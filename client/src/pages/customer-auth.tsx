@@ -55,7 +55,7 @@ export default function CustomerAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card flex items-center justify-center p-4 text-high-contrast">
       <div className="w-full max-w-md">
         {/* Back Button */}
         <Button
@@ -67,7 +67,7 @@ export default function CustomerAuth() {
           Back to Mode Selection
         </Button>
 
-        <Card className="bg-white/80 backdrop-blur-sm border border-border/50 rounded-3xl shadow-2xl">
+        <Card className="bg-warm-white border border-warm rounded-3xl shadow-warm">
           <CardContent className="p-8">
             {/* Header */}
             <div className="text-center mb-8">

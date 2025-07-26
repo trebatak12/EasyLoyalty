@@ -3,22 +3,22 @@
 @tailwind utilities;
 
 :root {
-  /* Modern Apple-inspired Palette */
-  --bg: hsl(210, 40%, 98%); /* #F8FAFC */
-  --surface: hsl(210, 40%, 95%); /* #F1F5F9 */
-  --card: hsl(210, 25%, 92%); /* #E2E8F0 */
-  --border: hsl(214, 32%, 91%); /* #E2E8F0 */
+  /* Vibrant, readable color palette */
+  --bg: hsl(35, 60%, 94%); /* #F5F0E8 - Warm cream background */
+  --surface: hsl(35, 45%, 90%); /* #EDE4D3 - Light warm surface */
+  --card: hsl(35, 35%, 85%); /* #E1D2BD - Card background */
+  --border: hsl(35, 25%, 75%); /* #D4C4A8 - Borders */
   
-  --text: hsl(222, 84%, 5%); /* #0F172A */
-  --muted: hsl(215, 16%, 47%); /* #64748B */
+  --text: hsl(20, 40%, 15%); /* #2D1B0E - Dark brown text */
+  --muted: hsl(25, 25%, 45%); /* #8B7355 - Muted brown */
 
-  --primary: hsl(221, 83%, 53%); /* #3B82F6 */
-  --primary-hover: hsl(221, 83%, 48%);
+  --primary: hsl(25, 95%, 53%); /* #FF6B35 - Vibrant orange */
+  --primary-hover: hsl(25, 95%, 48%);
   --on-primary: hsl(0, 0%, 100%); /* #FFFFFF */
 
-  --sage: hsl(142, 76%, 36%); /* #16A34A */
-  --dusty: hsl(0, 84%, 60%); /* #EF4444 */
-  --ring: hsl(221, 83%, 53%); /* #3B82F6 */
+  --sage: hsl(140, 70%, 45%); /* #26A653 - Vibrant green */
+  --dusty: hsl(350, 85%, 55%); /* #E63946 - Vibrant red */
+  --ring: hsl(25, 95%, 53%); /* #FF6B35 */
 
   --success: hsl(90, 25%, 62%); /* #9DC183 */
   --warning: hsl(35, 71%, 52%);
@@ -74,10 +74,30 @@
   * {
     @apply border-border;
   }
-
+  
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
     font-family: "SF Pro Text", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Custom utility classes for better readability */
+  .text-high-contrast {
+    color: hsl(20, 50%, 12%); /* Even darker for high contrast */
+  }
+  
+  .bg-warm-white {
+    background-color: hsl(35, 80%, 96%); /* Warmer white */
+  }
+  
+  .border-warm {
+    border-color: hsl(35, 30%, 70%); /* Warmer border */
+  }
+  
+  .shadow-warm {
+    box-shadow: 0 4px 12px hsla(25, 18%, 29%, 0.12);
   }
 
   .header-blur {
@@ -86,9 +106,7 @@
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     border-bottom: 1px solid var(--border);
   }
-}
 
-@layer components {
   .card-easyloyalty {
     @apply bg-card border border-border rounded-2xl shadow-soft p-5;
   }

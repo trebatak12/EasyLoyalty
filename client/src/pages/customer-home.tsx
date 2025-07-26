@@ -39,9 +39,9 @@ export default function CustomerHome() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card">
+    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card text-high-contrast">
       {/* Modern Header */}
-      <div className="bg-white/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-10">
+      <div className="bg-warm-white backdrop-blur-xl border-b border-warm sticky top-0 z-10">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
@@ -111,7 +111,7 @@ export default function CustomerHome() {
         {/* Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card 
-            className="bg-white/70 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-warm-white border border-warm rounded-2xl p-6 shadow-warm hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/topup")}
           >
             <CardContent className="p-0 text-center">
@@ -124,7 +124,7 @@ export default function CustomerHome() {
           </Card>
 
           <Card 
-            className="bg-white/70 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-warm-white border border-warm rounded-2xl p-6 shadow-warm hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/qr")}
           >
             <CardContent className="p-0 text-center">
@@ -137,7 +137,7 @@ export default function CustomerHome() {
           </Card>
 
           <Card 
-            className="bg-white/70 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-warm-white border border-warm rounded-2xl p-6 shadow-warm hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/history")}
           >
             <CardContent className="p-0 text-center">
@@ -151,7 +151,7 @@ export default function CustomerHome() {
         </div>
 
         {/* Recent Activity */}
-        <Card className="bg-white/70 backdrop-blur-sm border border-border/50 rounded-2xl">
+        <Card className="bg-warm-white border border-warm rounded-2xl shadow-warm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
