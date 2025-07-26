@@ -5,7 +5,7 @@ import { users, adminUsers, wallets } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
-const PEPPER = process.env.AUTH_PEPPER || "default-pepper-change-in-production";
+const PEPPER = process.env.AUTH_PEPPER || "";
 
 async function hashPassword(password: string): Promise<string> {
   const saltRounds = 12;
