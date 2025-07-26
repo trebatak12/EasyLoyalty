@@ -79,9 +79,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.post("/api/auth/login", { email, password });
       const { user: userData, accessToken, refreshToken } = response;
       
+      console.log("Login successful:", userData, accessToken);
+      
       setTokens(accessToken, refreshToken);
       setUser(userData);
+      
+      console.log("User state set:", userData);
     } catch (error) {
+      console.error("Login error:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -147,6 +152,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     refreshAuth
   };
+
+  // Debug logging
+  console.log("Auth state:", { user, isAuthenticated: !!user && isInitialized, isInitialized });
 
   return (
     <AuthContext.Provider value={value}>
