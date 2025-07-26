@@ -1,0 +1,763 @@
+0) GLOBAL CONSTRAINTS & SCOPE
+Single tenant (one café).
+
+Amounts stored in cents; render integer CZK (e.g., 1 430 CZK) in UI (no haléře in UI).
+
+No expiration of balances; void (storno) window 120 s after a charge.
+
+No split payments; refunds only in person, represented as manual adjustments.
+
+Out of scope (PoC): POS integration; device API keys; multitenancy; referrals; notifications; payment compliance review.
+
+JSON everywhere; neutral, safe errors.
+
+Accessibility: WCAG AA, visible focus rings, 44×44 px tap targets, keyboard‑navigable.
+
+Security: strong hashing, token rotation, session cookies for admin, rate limits, audit logs.
+
+1) BRIEF / GOAL
+Goal: Simple loyalty for one café. Customers top up fixed CZK packages; the café grants a one‑time bonus per top‑up. Payment in café via QR (with manual code fallback).
+
+Admin “Accept payment” flow: Enter amount → scan QR / enter code → Charge → show Success with Void (120 s).
+
+PoC success metrics
+
+Top‑ups reliably credit balance + bonus.
+
+QR payments + 120 s void work with idempotency.
+
+Admin can view members, total liability, total bonuses, and accept payments quickly.
+
+Customer Home shows Current balance and “Cafe added to you in total” (lifetime bonuses).
+
+2) BUSINESS RULES
+Top‑up packages (constants)
+
+Package	Pay	Bonus	Wallet Credit	Effective bonus
+MINI	390	+30	420	~7.7%
+STANDARD	890	+90	980	~10.1%
+MAXI	1590	+230	1820	~14.5%
+ULTRA	2090	+400	2490	~19.1%
+
+Bonus is granted once per top‑up; accumulates lifetime as “Cafe added to you in total”; never decreases.
+
+Balance does not expire; valid until fully spent.
+
+No split payments: if balance < amount, deny charge (clear message).
+
+Refunds in person only → manual adjustments (+/‑).
+
+Voids ≤120 s restore the full charged amount; lifetime bonus unchanged.
+
+3) ROLES & AUTH
+Customer: JWT access + refresh; owns exactly one wallet.
+
+Café admin/staff: cookie session (HttpOnly, SameSite=Lax), can accept payments, view members/summaries, create manual adjustments.
+
+Mode selection: “I’m a customer” vs “I’m a café”.
+
+Route guards: /admin/* requires admin session; customer pages require access token.
+
+4) DATA MODEL (PostgreSQL; amounts in cents)
+Tables (create exactly with these columns; use citext & pgcrypto):
+
+users: id uuid PK, email citext UNIQUE, name text, password_hash text, status text DEFAULT 'active' (active|blocked), created_at ts, last_login_at ts.
+
+wallets: id uuid PK, user_id uuid UNIQUE FK→users, balance_cents int DEFAULT 0, bonus_granted_total_cents int DEFAULT 0, last_activity_at ts.
+
+admin_users: id uuid PK, email citext UNIQUE, name text, password_hash text, role text DEFAULT 'manager' (manager|staff), status text DEFAULT 'active', created_at ts, last_login_at ts.
+
+refresh_tokens: id uuid PK, user_id uuid FK, token_hash text, user_agent text, ip inet, created_at ts, expires_at ts, revoked_at ts.
+
+admin_sessions: id uuid PK, admin_id uuid FK, created_at ts, expires_at ts, revoked_at ts, ip inet, user_agent text.
+
+audit_logs: id uuid PK, actor_type text (user|admin|system), actor_id uuid, action text, meta jsonb, created_at ts.
+
+metrics_daily (optional): date PK, members_count int, liability_cents int, bonus_granted_cents int, spend_cents int.
+
+Ledger & idempotency (must‑have additions):
+
+transactions (immutable ledger): see § 8.A SQL.
+
+idempotency_keys: see § 8.B SQL.
+
+Indexes: per FKs + unique constraints; indexes for tokens/sessions/audits; GIN on audit_logs.meta.
+
+5) API — CUSTOMER (JWT)
+POST /auth/signup { email, name, password } → create user+wallet; set last_login_at; audit signup.
+200 { user:{id,email,name}, accessToken, refreshToken }
+
+POST /auth/login { email, password } → rate‑limit & lockout; set last_login_at; audit success/failure.
+200 { user, accessToken, refreshToken }
+
+POST /auth/refresh { refreshToken } → validate (hash in DB), rotate (revoke old, issue new); audit token_refresh.
+200 { accessToken, refreshToken }
+
+POST /auth/logout { refreshToken } (or all) → revoke refresh(es); audit logout.
+204
+
+GET /me (bearer) → { id,email,name,status,lastLoginAt }
+
+GET /me/wallet (bearer) → { balanceCZK, bonusGrantedTotalCZK, lastActivity }
+
+GET /me/history?type=all|topups|transactions&cursor= → paginated list
+
+POST /me/topup { packageCode } → on success:
+
+Create top‑up transaction in ledger (+pay+bonus), update wallet.balance_cents and wallet.bonus_granted_total_cents += bonus atomically; update last_activity_at.
+
+If gateway present, use webhook /payments/callback.
+200 with updated wallet summary.
+
+POST /me/qr → { qrPayload, shortCode, expiresAt }
+
+QR JWT with claims { sub:user_id, nonce, iat, exp<=60s }; manual code 8–10 alphanum + checksum; both bound to same TTL.
+
+Anti‑replay: mark token used on first successful /admin/charge/init.
+
+6) API — ADMIN (SESSION)
+POST /admin/login { email, password } → create admin_sessions (idle 30m, abs 8h), set cookie admin_sid (HttpOnly, SameSite=Lax, Secure in prod); audit login.
+204
+
+POST /admin/logout → revoke session & clear cookie; audit session_revoke.
+204
+
+GET /admin/me → { id,email,name,role,status,lastLoginAt }
+
+POST /admin/charge/init { tokenOrCode } → validate QR/Code (not expired or used); anti‑replay guard;
+200 { userId, customerName, balanceCZK, chargeId }
+
+POST /admin/charge/confirm { chargeId, amountCZK, idempotencyKey } → DB tx:
+
+Ensure idempotency; ensure sufficient funds; insert ledger transaction (-amount); update wallet cache.
+200 { newBalanceCZK }
+
+POST /admin/charge/void { chargeId } → if succeeded and <=120 s: insert ledger transaction (+amount), restore wallet; mark charge voided; audit.
+200
+
+GET /admin/customers?query=&cursor= → list { name,email,balanceCZK,bonusGrantedTotalCZK,lastActivity }
+
+GET /admin/summary → { membersCount, liabilityCZK, bonusGrantedTotalCZK, spendTodayCZK, spendWeekCZK }
+
+POST /admin/adjustment { userId, amountCZK (+/‑), reason, idempotencyKey } → insert ledger transaction (±amount, meta.reason); update wallet.
+200 { newBalanceCZK }
+
+GET /admin/customers/export.csv (rate‑limit 1/min) → CSV; filters: search, minBalance, maxBalance.
+
+7) STATE MACHINES & INTEGRITY
+Charge: pending → succeeded → (≤120 s) voided.
+Top‑up: initiated → succeeded | failed.
+QR token: issued (≤60 s) → used OR expired.
+
+All money movements write to transactions ledger; wallet cache updated in same DB tx.
+
+Lifetime bonus only increases on top‑ups; never reduced by charges/voids/adjustments.
+
+8) MUST‑HAVE APPENDICES (copy into implementation)
+A) SQL — Ledger (immutable)
+sql
+Zkopírovat
+Upravit
+CREATE TYPE txn_type AS ENUM ('topup','charge','void','adjustment');
+
+CREATE TABLE IF NOT EXISTS transactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type txn_type NOT NULL,
+  amount_cents integer NOT NULL, -- + credit, - debit
+  related_id uuid NULL,          -- e.g. charge_id or topup_id
+  idempotency_key text NULL,
+  created_by text NOT NULL,      -- 'user' | 'admin' | 'system'
+  meta jsonb NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_txn_idem ON transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_txn_user_time ON transactions(user_id, created_at DESC);
+B) SQL — Idempotency keys
+sql
+Zkopírovat
+Upravit
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+  key text PRIMARY KEY,
+  first_seen_at timestamptz NOT NULL DEFAULT now(),
+  request_hash text NOT NULL
+);
+C) API adaptations (enforce)
+/me/topup → ledger +pay+bonus, update wallet cache & bonus_granted_total, single DB tx.
+
+/admin/charge/confirm → require idempotencyKey, ledger -amount, update wallet cache, tx.
+
+/admin/charge/void → ≤120 s, ledger +amount, update wallet cache, tx.
+
+/admin/adjustment → require reason, ledger ±amount (meta.reason), update wallet cache, tx.
+
+9) SECURITY & PRIVACY
+Passwords: bcrypt cost 12 (or argon2id). Optional pepper AUTH_PEPPER.
+
+JWT (customers): HS256, secret JWT_ACCESS_SECRET; access TTL 15 min. Refresh: opaque 256‑bit; store SHA‑256 hash; TTL 30 days; rotate on refresh.
+
+Admin sessions: cookie admin_sid, random 256‑bit; HttpOnly, Secure (prod), SameSite=Lax, path /. Idle 30 min, absolute 8 h, sliding window.
+
+Rate‑limit & lockout: 5 attempts/5 min/IP + 10 attempts/15 min/email → 15‑min lockout.
+
+CORS: allow app origin only; credentials for admin routes.
+
+CSRF (admin): rely on same‑site cookie + validate Origin/Referer on state‑changing endpoints.
+
+Headers: CSP (default‑src 'self'), HSTS (prod), X‑Content‑Type‑Options, X‑Frame‑Options deny, Referrer‑Policy strict‑origin.
+
+Logging: never log plaintext secrets; mask PII.
+
+Blocked accounts: status='blocked' → 403 on auth attempts + audit.
+
+Security extras (recommended): password reset (ttl 30m), email verification (optional), soft CAPTCHA after X failures, optional admin IP allowlist.
+
+10) ERROR MODEL
+HTTP codes:
+400 validation · 401 unauthenticated · 403 forbidden/blocked · 404 not found/expired token
+409 idempotency conflict · 410 expired token · 422 insufficient funds · 429 rate‑limited · 500 server error
+
+Canonical codes (example):
+
+json
+Zkopírovat
+Upravit
+{
+  "E_INPUT": 400,
+  "E_AUTH": 401,
+  "E_FORBIDDEN": 403,
+  "E_NOT_FOUND": 404,
+  "E_IDEMPOTENCY_CONFLICT": 409,
+  "E_EXPIRED_TOKEN": 410,
+  "E_INSUFFICIENT_FUNDS": 422,
+  "E_RATE_LIMIT": 429
+}
+Error payload:
+
+json
+Zkopírovat
+Upravit
+{ "error":"BadRequest", "message":"Invalid input", "code":"E_INPUT", "details":{...} }
+11) ENV & CONFIG (examples)
+ini
+Zkopírovat
+Upravit
+DATABASE_URL=postgres://user:pass@localhost:5432/easyloyalty
+JWT_ACCESS_SECRET=change_me_access
+AUTH_PEPPER=optional_pepper_value
+SESSION_COOKIE_NAME=admin_sid
+NODE_ENV=development
+APP_ORIGIN=http://localhost:5173
+12) MIGRATIONS & SEED (must implement)
+Files
+
+pgsql
+Zkopírovat
+Upravit
+migrations/
+  01_init_extensions.sql
+  02_schema.sql
+  03_indexes.sql
+scripts/
+  seed-demo.ts
+migrations/01_init_extensions.sql
+
+sql
+Zkopírovat
+Upravit
+CREATE EXTENSION IF NOT EXISTS citext;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+migrations/02_schema.sql
+Create all tables from §§ 4 & 8 (users, wallets, admin_users, refresh_tokens, admin_sessions, audit_logs, metrics_daily, transactions, idempotency_keys).
+
+migrations/03_indexes.sql
+Create all indexes listed in §§ 4 & 8.
+
+Seed script scripts/seed-demo.ts (TypeScript, idempotent; bcrypt cost 12):
+
+Demo Customer — demo.customer@easyloyalty.dev / Demo1234! (wallet 0/0).
+
+Demo Café (admin) — demo.cafe@easyloyalty.dev / DemoAdmin1234! (role manager).
+
+Block seed in production unless ALLOW_PROD_SEED=1.
+
+Print credentials on completion.
+
+package.json scripts
+
+json
+Zkopírovat
+Upravit
+{
+  "scripts": {
+    "migrate": "psql \"$DATABASE_URL\" -f migrations/01_init_extensions.sql && psql \"$DATABASE_URL\" -f migrations/02_schema.sql && psql \"$DATABASE_URL\" -f migrations/03_indexes.sql",
+    "seed:demo": "ts-node scripts/seed-demo.ts"
+  }
+}
+Acceptance (migrations+seed):
+
+npm run migrate is idempotent and creates all tables+indexes.
+
+npm run seed:demo creates or upserts exactly two demo accounts; no duplicates.
+
+Passwords are hashed; seed blocked in prod by default.
+
+README documents migrate/seed usage.
+
+13) OPENAPI + RUNTIME VALIDATION (must implement)
+Add openapi.yaml (OAS 3.1) covering all endpoints; serve Swagger UI at /docs.
+
+Generate TypeScript types for client and server (e.g., openapi-typescript).
+
+Add Zod/Valibot schemas mirroring OAS; validate request body/params and (in dev) assert response conformance.
+
+14) HEALTH / READY / VERSION (must implement)
+GET /health → 200 { ok:true } (liveness).
+
+GET /ready → 200/503 { db:"ok|down" } (DB ping).
+
+GET /version → { commit:"<git_sha>", builtAt:"ISO8601" }.
+
+On each request: if X-Request-ID missing → generate UUID; echo back and log.
+
+Add response headers: X-Request-ID, X-Version.
+
+15) BACKUPS & RUNBOOK (document in README)
+Nightly DB dump; retention 7–14 days; monthly restore test.
+
+CI: run migrations against a fresh DB as a dry‑run safeguard.
+
+Runbook: rotate JWT_ACCESS_SECRET, block an account, revoke all refresh tokens, invalidate admin sessions.
+
+16) FRONTEND ARCHITECTURE (React + Tailwind + React Router + React Query)
+Structure (keep current if present):
+
+pgsql
+Zkopírovat
+Upravit
+src/
+  app/              # routing/providers (AuthProvider, QueryClientProvider)
+  components/       # UI primitives & composites (Card, Button, Input, QRPanel, Stepper, Toast)
+  pages/            # ModeSelection, CustomerAuth, Home, TopUp, QR, History, AdminAuth, Accept, Members, Summaries
+  hooks/            # useAuth, useAdminSession, useWalletQuery, useTopups, useMembers, useSummaries
+  services/         # api clients: customer.ts, admin.ts (fetch wrapper with interceptors)
+  styles/           # tokens.css, globals.css, tailwind.css
+  utils/            # currency, time, idempotency, validators
+  types/            # DTOs and response types
+State: React Query for server state; Context for auth/session; local state for UI.
+
+HTTP: attach Bearer token for customer; credentials:'include' for admin session.
+
+Errors: central interceptors → toasts; handle 401/419 (logout), 429 (retry message).
+
+Formatting: integers with thin/nbsp spacing: 1 430 CZK.
+
+17) ROUTING MAP
+Public
+
+/ → ModeSelection
+
+/auth/customer → CustomerAuth (Sign in / Sign up)
+
+/admin/login → AdminAuth
+
+Customer (JWT)
+
+/home → CustomerHome
+
+/topup → TopUpPackages
+
+/qr → CustomerQR
+
+/history → History (Top‑ups / Payments)
+
+/settings (optional)
+
+Admin (session)
+
+/admin → redirect to /admin/accept
+
+/admin/accept → AcceptPaymentWizard
+
+/admin/members → MembersList
+
+/admin/summaries → SummariesDashboard
+
+/admin/settings (optional)
+
+Route guards: unauth → redirect; preserve redirectTo for post‑login return.
+
+18) VISUAL SYSTEM — Apple‑style Beige (light first)
+Design principles: clarity, deference, depth (soft shadows, translucent bars), consistency, touch+keyboard, gentle motion (150–220 ms).
+
+Tokens (CSS) — paste into styles/tokens.css
+
+css
+Zkopírovat
+Upravit
+:root{
+  --bg:#FAF7F2; --surface:#FFFFFF; --card:#F7F2EA; --border:#E7DFD2;
+  --text:#2B261F; --muted:#6B6157;
+
+  --primary:#7A4E2D; --primary-hover:#6E4527; --on-primary:#FFFFFF;
+  --sage:#8E9B7A; --dusty:#7C8CA3; --ring:#D4A373;
+
+  --success:#4F8A57; --warning:#C98A2B; --danger:#B64B3A; --info:#7C8CA3;
+
+  --shadow-soft:0 8px 24px rgba(0,0,0,.08);
+  --radius-lg:16px; --radius-md:12px; --radius-sm:10px;
+}
+html,body{
+  background:var(--bg); color:var(--text);
+  font-family:"SF Pro Text",-apple-system,system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+.header-blur{
+  background:rgba(255,255,255,.72);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--border);
+}
+Tailwind mapping
+
+ts
+Zkopírovat
+Upravit
+extend:{
+  colors:{
+    bg:"var(--bg)", surface:"var(--surface)", card:"var(--card)", border:"var(--border)",
+    text:"var(--text)", muted:"var(--muted)",
+    primary:{ DEFAULT:"var(--primary)", hover:"var(--primary-hover)", foreground:"var(--on-primary)" },
+    sage:"var(--sage)", dusty:"var(--dusty)", ring:"var(--ring)",
+    success:"var(--success)", warning:"var(--warning)", danger:"var(--danger)", info:"var(--info)"
+  },
+  boxShadow:{ soft:"var(--shadow-soft)" },
+  borderRadius:{ lg:"var(--radius-lg)", md:"var(--radius-md)", sm:"var(--radius-sm)" }
+}
+Recipe classes
+
+Card: bg-card border border-border rounded-lg shadow-soft p-5
+
+PrimaryButton: h-11 px-5 rounded-md bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50
+
+SecondaryButton: h-11 px-5 rounded-md bg-surface border border-border text-text hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-ring
+
+Input: h-11 w-full rounded-md bg-surface border border-border px-3 placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+
+Divider: <hr class="border-t border-border">
+
+QRPanel: card + centered QR (240–320px) + manual code badge + 60 s countdown ring.
+
+Redlines / measurements
+
+Grid 8‑px; page padding 24 (mobile) / 48 (desktop).
+
+Cards radius 16, padding 20, gap 12–16.
+
+Buttons height 44, radius 12, min‑width 120.
+
+Inputs height 44; labels 14/20; helpers 12/18.
+
+Icons 20–24 px.
+
+QR 240×240 (mobile) / 320×320 (tablet+); quiet zone 16 px.
+
+Void timer ring 24 px (accent --ring).
+
+Do & Don’t
+
+Do: generous spacing; restrained accents; visible focus; large readable currency.
+
+Don’t: multiple primary accents per screen; semi‑transparent text for key info; harsh shadows; show haléře in UI.
+
+Dark Latte (optional future)
+
+css
+Zkopírovat
+Upravit
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1C1917; --surface:#24211E; --card:#2A2623; --border:#3A332C;
+    --text:#F5F0EA; --muted:#B8AFA5;
+    --primary:#D4A373; --primary-hover:#C8935F; --on-primary:#2B261F;
+    --sage:#A5B091; --dusty:#9AA8BE; --ring:#E4C39A;
+    --shadow-soft:0 12px 28px rgba(0,0,0,.45);
+  }
+}
+19) FRONTEND SCREENS — SPEC & BEHAVIOR
+ModeSelection (Public)
+
+Two full‑click cards: Customer → /auth/customer; Café → /admin/login.
+
+A11y: tabbable, visible focus, whole card clickable.
+
+CustomerAuth (Public)
+
+Tabs: Sign in / Sign up; live password hints.
+
+On success: store tokens; goto /home. Errors: 401/429 handled with toasts.
+
+CustomerHome (JWT)
+
+Cards: Current balance; Cafe added to you in total (lifetime bonus).
+
+Actions: Top up, QR, History.
+
+Data from /me/wallet; skeletons on load; optimistic post‑top‑up.
+
+TopUpPackages (JWT)
+
+Show 4 packages (Pay → Total credited and Bonus).
+
+Confirm; call /me/topup; success toast; update wallet & bonus.
+
+CustomerQR (JWT)
+
+Big QR + manual code + 60 s countdown; regenerate on expiry.
+
+Call /me/qr on mount; re‑issue when expired.
+
+History (JWT)
+
+Tabs: Top‑ups / Payments; show date, amount, bonus (top‑ups), status (✓/voided).
+
+Cursor pagination; empty state with CTA.
+
+AdminAuth (Public)
+
+Email/password → /admin/login; cookie set; goto /admin/accept.
+
+AcceptPaymentWizard (Session)
+
+Step 1: amount input + quick picks 85/120/178/250 (confirm if > 500 CZK).
+
+Step 2: camera scan or manual code; after resolve show customer name, current balance, amount; Charge.
+
+Step 3: success with Void 120 s (countdown). Edge cases: insufficient funds, expired QR.
+
+MembersList (Session)
+
+Columns: Name/Email | Balance | Added total | Last activity | Action
+
+Search with debounce; row action Adjust balance → modal.
+
+CustomerAdjustmentModal (Session)
+
+Fields: +/- amount; required reason (presets + free text).
+
+On submit: /admin/adjustment; update row; audit entry.
+
+SummariesDashboard (Session)
+
+Cards: Members | Liability (sum balances) | Total bonuses | Today/Week spend.
+
+Optional auto‑refresh 60 s.
+
+20) CAMERA & PERMISSIONS (Admin Scan)
+Request camera; fallback prominently to manual code if denied.
+
+Use facingMode:'environment' when available; handle portrait/landscape.
+
+Debounce/manual code validation; rate‑limit retries.
+
+Show guidance frame; keep UI responsive.
+
+21) ACCESSIBILITY & I18N
+Keyboard reachable; visible focus rings; tap targets ≥ 44×44.
+
+Contrast AA: --text on --bg/--surface/--card; white on --primary.
+
+Respect prefers-reduced-motion.
+
+Centralize strings for easy EN/CZ switching later.
+
+22) WIREFRAMES (ASCII)
+Mode selection
+
+less
+Zkopírovat
+Upravit
+[logo] EasyLoyalty                                      [EN/CZ]
+
+Welcome! Choose how you want to continue:
+
+┌──────────────────────────┐    ┌──────────────────────────┐
+│ ☕ I’m a customer         │    │ 🏪 I’m a café            │
+│ Sign in / Sign up        │    │ Staff login              │
+└──────────────────────────┘    └──────────────────────────┘
+
+[Privacy] · [Terms] · [Support]
+Customer Home
+
+css
+Zkopírovat
+Upravit
+Welcome back, Peter!                                          [⋮]
+
+┌─────────────────────────────────────────┐
+│ Current balance                         │
+│               1,430 CZK                 │
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ Cafe added to you in total (i)          │
+│                 550 CZK                 │
+└─────────────────────────────────────────┘
+
+[ Top up ]   [ QR ]   [ History ]
+Admin — Accept payment (1/3)
+
+vbnet
+Zkopírovat
+Upravit
+Amount: [  178  CZK ]   Quick picks: [85] [120] [178] [250]
+[ Continue → ]
+Admin — Scan (2/3)
+
+less
+Zkopírovat
+Upravit
+[ camera preview ]   Fallback: Manual code [ J9F2-K7QP-X3 ] [ Verify ]
+
+Found: Peter C.  | Balance: 1,430 CZK | Amount: 178 CZK
+[ Charge ]
+Admin — Confirmation + Void (3/3)
+
+pgsql
+Zkopírovat
+Upravit
+✅ Charged: 178 CZK      New balance: 1,252 CZK
+
+[ ⟲ Void ]  120 s (countdown)        [ New payment ]
+23) PWA MINIMUM (Recommended)
+public/manifest.webmanifest
+
+json
+Zkopírovat
+Upravit
+{
+  "name": "EasyLoyalty",
+  "short_name": "EasyLoyalty",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#7A4E2D",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+Add apple‑touch icon(s); no offline yet.
+
+24) CSV EXPORT (Admin)
+Endpoint: GET /admin/customers/export.csv
+
+Query params: search, minBalance, maxBalance
+
+Rate‑limit: 1/min
+
+Format:
+
+css
+Zkopírovat
+Upravit
+email,name,balance_czk,bonus_total_czk,last_activity
+john@example.com,John Doe,1430,550,2025-07-15T09:12:33Z
+25) OBSERVABILITY & PERFORMANCE
+Sentry (FE+BE) with error & performance tracing.
+
+Structured JSON logs; no PII.
+
+Performance budgets: JS < 200 kB (gzip) on first load; lazy‑load admin area.
+
+Lighthouse (mobile) target: >90 for Performance & PWA.
+
+26) TEST PLAN
+API tests
+
+Signup → creates user+wallet → /me OK.
+
+Wrong password → 401; repeated → 429/lockout.
+
+Refresh rotates tokens; old refresh denied.
+
+Logout revokes refresh; subsequent refresh fails.
+
+Admin login sets cookie; /admin/me OK; idle >30m → 401.
+
+Top‑up 890 → balance +980, lifetime bonus +90; history shows entry.
+
+Charge 178 → balance -178; Void ≤120 s → balance restored; transaction voided.
+
+Insufficient balance → 422; no deduction.
+
+Expired QR → init returns 404/410 style.
+
+Adjustment ± with reason → balance updated; audit recorded.
+
+E2E UI tests
+
+Customer: sign up/in → top‑up → QR → history.
+
+Admin: login → accept payment → void → members & summaries.
+
+Guards: /admin w/o cookie → /admin/login; /home w/o JWT → /auth/customer.
+
+A11y & visual regression (Recommended)
+
+@axe-core checks on key screens (no critical violations).
+
+Visual snapshots for ModeSelection, Customer Home, Accept Payment.
+
+27) BUILD, RUN, CI/CD
+Backend: env, migrations, start script; health endpoints.
+
+Frontend: vite/webpack build; .env for VITE_API_BASE.
+
+CI pipeline:
+
+Lint & typecheck (ESLint, tsc)
+
+npm run migrate (fresh DB), npm run seed:demo (where applicable)
+
+API & E2E tests
+
+Build artifacts (api/web)
+
+Docker compose (suggested): api, web, db (Postgres), nginx TLS; run migrations & (dev) seed on first boot.
+
+28) DELIVERABLES
+Backend: migrations; endpoints; security (hashing/JWT/cookie); rate‑limit; audit logs; ledger + idempotency; OpenAPI + Swagger UI; health/ready/version; seed demo accounts; README (env, migrate, seed, run, runbook).
+
+Frontend: routes, guards, screens; Apple‑style beige tokens & classes; QR screen with timer/code; Accept Payment wizard; Members & Summaries; PWA manifest; CSV export; screenshots/GIF (Mode selection, Customer Home, Accept Payment).
+
+Postman/Insomnia collection or curl scripts for core flows.
+
+Sentry configured (DSN via env), structured logs.
+
+Performance budget enforced.
+
+Commit messages (examples)
+
+feat(auth): implement customer JWT + admin sessions
+
+feat(seed): add demo customer and cafe admin
+
+feat(ui): apple-style beige tokens & component recipes
+
+feat(frontend): routes, guards, QR screen, accept-payment wizard
+
+feat(api): ledger + idempotency + summaries
+
+feat(docs): openapi.yaml + Swagger UI
+
+feat(ops): health/ready/version + request id headers
+
+29) ACCEPTANCE (PoC “Done”)
+All success metrics (§1) met.
+
+All API & E2E tests (§26) pass.
+
+Migrations & seed work idempotently; demo accounts usable.
+
+Visual QA passes (contrast, focus rings, spacing, QR sizes, void countdown).
+
+README updated with setup, credentials, and limitations.
