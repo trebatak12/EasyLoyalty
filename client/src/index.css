@@ -3,22 +3,22 @@
 @tailwind utilities;
 
 :root {
-  /* Vibrant, readable color palette */
-  --bg: hsl(35, 60%, 94%); /* #F5F0E8 - Warm cream background */
-  --surface: hsl(35, 45%, 90%); /* #EDE4D3 - Light warm surface */
-  --card: hsl(35, 35%, 85%); /* #E1D2BD - Card background */
-  --border: hsl(35, 25%, 75%); /* #D4C4A8 - Borders */
+  /* High contrast, vibrant color palette */
+  --bg: hsl(210, 100%, 97%); /* #F0F8FF - Very light blue background */
+  --surface: hsl(210, 100%, 94%); /* #E6F3FF - Light blue surface */
+  --card: hsl(0, 0%, 100%); /* #FFFFFF - Pure white cards */
+  --border: hsl(220, 13%, 69%); /* #9CA3AF - Clear gray borders */
   
-  --text: hsl(20, 40%, 15%); /* #2D1B0E - Dark brown text */
-  --muted: hsl(25, 25%, 45%); /* #8B7355 - Muted brown */
+  --text: hsl(220, 100%, 10%); /* #000033 - Very dark blue text */
+  --muted: hsl(220, 20%, 40%); /* #525864 - Medium gray for secondary text */
 
-  --primary: hsl(25, 95%, 53%); /* #FF6B35 - Vibrant orange */
-  --primary-hover: hsl(25, 95%, 48%);
+  --primary: hsl(220, 100%, 50%); /* #0066FF - Bright blue */
+  --primary-hover: hsl(220, 100%, 45%);
   --on-primary: hsl(0, 0%, 100%); /* #FFFFFF */
 
-  --sage: hsl(140, 70%, 45%); /* #26A653 - Vibrant green */
-  --dusty: hsl(350, 85%, 55%); /* #E63946 - Vibrant red */
-  --ring: hsl(25, 95%, 53%); /* #FF6B35 */
+  --sage: hsl(120, 100%, 35%); /* #00B300 - Bright green */
+  --dusty: hsl(0, 100%, 50%); /* #FF0000 - Bright red */
+  --ring: hsl(220, 100%, 50%); /* #0066FF */
 
   --success: hsl(90, 25%, 62%); /* #9DC183 */
   --warning: hsl(35, 71%, 52%);
@@ -83,21 +83,23 @@
 }
 
 @layer components {
-  /* Custom utility classes for better readability */
+  /* High contrast utility classes */
   .text-high-contrast {
-    color: hsl(20, 50%, 12%); /* Even darker for high contrast */
+    color: hsl(220, 100%, 5%); /* Almost black for maximum contrast */
+    font-weight: 600;
   }
   
-  .bg-warm-white {
-    background-color: hsl(35, 80%, 96%); /* Warmer white */
+  .bg-bright-white {
+    background-color: hsl(0, 0%, 100%); /* Pure white */
   }
   
-  .border-warm {
-    border-color: hsl(35, 30%, 70%); /* Warmer border */
+  .border-visible {
+    border-color: hsl(220, 50%, 50%); /* Clearly visible blue border */
+    border-width: 2px;
   }
   
-  .shadow-warm {
-    box-shadow: 0 4px 12px hsla(25, 18%, 29%, 0.12);
+  .shadow-strong {
+    box-shadow: 0 8px 32px hsla(220, 100%, 10%, 0.15);
   }
 
   .header-blur {

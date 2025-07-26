@@ -39,25 +39,25 @@ export default function CustomerHome() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card text-high-contrast">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white text-high-contrast">
       {/* Modern Header */}
-      <div className="bg-warm-white backdrop-blur-xl border-b border-warm sticky top-0 z-10">
+      <div className="bg-white border-b-2 border-blue-200 sticky top-0 z-10 shadow-lg">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <Coffee className="text-white" size={20} />
               </div>
               <div>
-                <h1 className="font-semibold text-lg text-foreground">{user?.name}</h1>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
+                <h1 className="font-bold text-xl text-gray-900">{user?.name}</h1>
+                <p className="text-base text-gray-700 font-medium">{user?.email}</p>
               </div>
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/50 rounded-xl px-4 py-2"
+              className="flex items-center gap-2 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 font-semibold rounded-xl px-4 py-2"
             >
               <LogOut size={18} />
               <span className="hidden sm:inline">Sign Out</span>
@@ -68,7 +68,7 @@ export default function CustomerHome() {
 
       <div className="container mx-auto px-6 py-8 max-w-4xl">
         {/* Wallet Card */}
-        <Card className="bg-gradient-to-br from-primary via-primary to-primary/90 text-white rounded-3xl p-8 mb-8 shadow-2xl border-0">
+        <Card className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white rounded-3xl p-8 mb-8 shadow-2xl border-0">
           <CardContent className="p-0">
             <div className="flex items-start justify-between mb-8">
               <div>
@@ -111,55 +111,55 @@ export default function CustomerHome() {
         {/* Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card 
-            className="bg-warm-white border border-warm rounded-2xl p-6 shadow-warm hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-white border-2 border-green-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/topup")}
           >
             <CardContent className="p-0 text-center">
-              <div className="w-16 h-16 bg-sage/10 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <Plus size={24} className="text-sage" />
+              <div className="w-16 h-16 bg-green-100 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-green-300">
+                <Plus size={24} className="text-green-700 font-bold" />
               </div>
-              <h3 className="font-semibold text-foreground mb-2">Top Up</h3>
-              <p className="text-sm text-muted-foreground">Add money and get bonus credits</p>
+              <h3 className="font-bold text-xl text-gray-900 mb-2">Top Up</h3>
+              <p className="text-base text-gray-700 font-medium">Add money and get bonus credits</p>
             </CardContent>
           </Card>
 
           <Card 
-            className="bg-warm-white border border-warm rounded-2xl p-6 shadow-warm hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-white border-2 border-blue-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/qr")}
           >
             <CardContent className="p-0 text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <QrCode size={24} className="text-primary" />
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-blue-300">
+                <QrCode size={24} className="text-blue-700 font-bold" />
               </div>
-              <h3 className="font-semibold text-foreground mb-2">Pay with QR</h3>
-              <p className="text-sm text-muted-foreground">Generate payment code</p>
+              <h3 className="font-bold text-xl text-gray-900 mb-2">Pay with QR</h3>
+              <p className="text-base text-gray-700 font-medium">Generate payment code</p>
             </CardContent>
           </Card>
 
           <Card 
-            className="bg-warm-white border border-warm rounded-2xl p-6 shadow-warm hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-white border-2 border-purple-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/history")}
           >
             <CardContent className="p-0 text-center">
-              <div className="w-16 h-16 bg-dusty/10 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <History size={24} className="text-dusty" />
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-purple-300">
+                <History size={24} className="text-purple-700 font-bold" />
               </div>
-              <h3 className="font-semibold text-foreground mb-2">History</h3>
-              <p className="text-sm text-muted-foreground">View all transactions</p>
+              <h3 className="font-bold text-xl text-gray-900 mb-2">History</h3>
+              <p className="text-base text-gray-700 font-medium">View all transactions</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Recent Activity */}
-        <Card className="bg-warm-white border border-warm rounded-2xl shadow-warm">
+        <Card className="bg-white border-2 border-gray-300 rounded-2xl shadow-strong">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
+              <h3 className="text-2xl font-bold text-gray-900">Recent Activity</h3>
               <Button 
-                variant="ghost" 
+                variant="outline" 
                 size="sm"
                 onClick={() => setLocation("/history")}
-                className="text-primary hover:text-primary/80 hover:bg-primary/5 rounded-xl"
+                className="text-blue-600 border-blue-300 hover:bg-blue-50 font-semibold rounded-xl"
               >
                 View All
               </Button>

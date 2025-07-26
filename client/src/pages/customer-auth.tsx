@@ -55,44 +55,44 @@ export default function CustomerAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg via-surface to-card flex items-center justify-center p-4 text-high-contrast">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white flex items-center justify-center p-4 text-high-contrast">
       <div className="w-full max-w-md">
         {/* Back Button */}
         <Button
-          variant="ghost"
+          variant="outline"
           onClick={() => setLocation("/")}
-          className="mb-6 text-muted-foreground hover:text-foreground flex items-center gap-2"
+          className="mb-6 text-blue-600 border-blue-300 hover:bg-blue-50 font-semibold flex items-center gap-2"
         >
           <ArrowLeft size={18} />
           Back to Mode Selection
         </Button>
 
-        <Card className="bg-warm-white border border-warm rounded-3xl shadow-warm">
+        <Card className="bg-white border-2 border-blue-300 rounded-3xl shadow-strong">
           <CardContent className="p-8">
             {/* Header */}
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-primary to-primary/80 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+              <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
                 <Coffee className="text-white" size={28} />
               </div>
-              <h1 className="text-2xl font-bold text-foreground mb-2">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {activeTab === "signin" ? "Welcome Back" : "Join EasyLoyalty"}
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-lg text-gray-700 font-medium">
                 {activeTab === "signin" ? "Sign in to your loyalty account" : "Create your account and start earning"}
               </p>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-              <TabsList className="grid w-full grid-cols-2 bg-surface/50 rounded-2xl p-1">
+              <TabsList className="grid w-full grid-cols-2 bg-blue-100 rounded-2xl p-1 border-2 border-blue-200">
                 <TabsTrigger 
                   value="signin"
-                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-blue-700 font-semibold"
                 >
                   Sign In
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
-                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-blue-700 font-semibold"
                 >
                   Sign Up
                 </TabsTrigger>
@@ -101,18 +101,18 @@ export default function CustomerAuth() {
               <TabsContent value="signin" className="mt-6">
                 <form onSubmit={handleSignIn} className="space-y-6">
                   <div>
-                    <Label htmlFor="signin-email" className="text-sm font-medium text-foreground mb-2 block">
+                    <Label htmlFor="signin-email" className="text-base font-bold text-gray-900 mb-2 block">
                       Email Address
                     </Label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-600" size={18} />
                       <Input
                         id="signin-email"
                         type="email"
                         placeholder="customer@test.com"
                         value={signInData.email}
                         onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        className="pl-12 h-12 rounded-2xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 font-medium transition-colors"
                         required
                       />
                     </div>
@@ -139,7 +139,7 @@ export default function CustomerAuth() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary-hover hover:to-primary-hover/90 text-white font-semibold shadow-lg transition-all duration-200"
+                    className="w-full h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg shadow-lg transition-all duration-200"
                   >
                     {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
