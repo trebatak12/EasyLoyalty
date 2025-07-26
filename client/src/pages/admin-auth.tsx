@@ -33,35 +33,45 @@ export default function AdminAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white text-high-contrast">
       <div className="container mx-auto px-4 py-16 max-w-md">
-        <Card className="card-easyloyalty">
+        {/* Back Button */}
+        <Button
+          variant="outline"
+          onClick={() => setLocation("/")}
+          className="mb-6 text-blue-600 border-blue-300 hover:bg-blue-50 font-semibold flex items-center gap-2"
+        >
+          <ArrowLeft size={18} />
+          Back to Mode Selection
+        </Button>
+        
+        <Card className="bg-white border-2 border-blue-300 rounded-3xl shadow-strong">
           <CardContent className="pt-6">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-primary rounded-xl mx-auto mb-4 flex items-center justify-center">
-                <Store className="text-primary-foreground text-xl" size={24} />
+              <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                <Store className="text-white" size={28} />
               </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">Café Staff Login</h2>
-              <p className="text-muted-foreground">Access payment and customer management</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Café Staff Login</h1>
+              <p className="text-lg text-gray-700 font-medium">Access payment and customer management</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <Label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
-                  Email
+                <Label htmlFor="email" className="text-base font-bold text-gray-900 mb-2 block">
+                  Email Address
                 </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="demo.cafe@easyloyalty.dev"
+                  placeholder="admin@cafe.com"
                   value={loginData.email}
                   onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                  className="input-easyloyalty"
+                  className="h-12 rounded-2xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 font-medium transition-colors"
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+                <Label htmlFor="password" className="text-base font-bold text-gray-900 mb-2 block">
                   Password
                 </Label>
                 <Input
@@ -70,29 +80,18 @@ export default function AdminAuth() {
                   placeholder="••••••••"
                   value={loginData.password}
                   onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                  className="input-easyloyalty"
+                  className="h-12 rounded-2xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 font-medium transition-colors"
                   required
                 />
               </div>
               <Button 
                 type="submit" 
-                className="btn-primary w-full"
+                className="w-full h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg shadow-lg transition-all duration-200"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
-
-            <div className="mt-8 text-center">
-              <Button 
-                variant="ghost" 
-                onClick={() => setLocation("/")}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to mode selection
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>

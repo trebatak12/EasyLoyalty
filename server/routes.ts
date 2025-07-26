@@ -11,8 +11,7 @@ import {
   verifyQRToken,
   authenticateUser, 
   authenticateAdmin,
-  checkRateLimit,
-  generateSessionId
+  checkRateLimit
 } from "./auth";
 import { auditLog, createErrorResponse, validateEmail, validatePassword, formatCZK, parseCZK, addRequestId, getClientIP, getUserAgent } from "./utils";
 import { TOP_UP_PACKAGES, type PackageCode } from "@shared/schema";
@@ -133,7 +132,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tokenHash: refreshTokenHash,
         userAgent: getUserAgent(req),
         ip: ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        revokedAt: null
       });
 
       // Audit log
@@ -203,7 +203,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tokenHash: refreshTokenHash,
         userAgent: getUserAgent(req),
         ip: ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        revokedAt: null
       });
 
       // Audit log
@@ -261,7 +262,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tokenHash: newRefreshTokenHash,
         userAgent: getUserAgent(req),
         ip: getClientIP(req),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        revokedAt: null
       });
 
       // Audit log
@@ -475,20 +477,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create session
-      const sessionId = generateSessionId();
-      await storage.createAdminSession({
-        id: sessionId,
+      const newSession = await storage.createAdminSession({
         adminId: admin.id,
         expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours
         ip: ip,
-        userAgent: getUserAgent(req)
+        userAgent: getUserAgent(req),
+        revokedAt: null
       });
 
       // Update last login
       await storage.updateAdminLastLogin(admin.id);
 
       // Set cookie
-      res.cookie("admin_sid", sessionId, {
+      res.cookie("admin_sid", newSession.id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
