@@ -71,7 +71,7 @@ export default function CustomerAuth() {
           <CardContent className="p-8">
             {/* Header */}
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+              <div className="w-20 h-20 bg-green-500 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
                 <Coffee className="text-white" size={28} />
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -119,18 +119,18 @@ export default function CustomerAuth() {
                   </div>
                   
                   <div>
-                    <Label htmlFor="signin-password" className="text-sm font-medium text-foreground mb-2 block">
+                    <Label htmlFor="signin-password" className="text-base font-bold text-gray-900 mb-2 block">
                       Password
                     </Label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-600" size={18} />
                       <Input
                         id="signin-password"
                         type="password"
                         placeholder="customer123"
                         value={signInData.password}
                         onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        className="pl-12 h-12 rounded-2xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 font-medium transition-colors"
                         required
                       />
                     </div>
@@ -139,7 +139,7 @@ export default function CustomerAuth() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg shadow-lg transition-all duration-200"
+                    className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-lg shadow-lg transition-all duration-200"
                   >
                     {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
@@ -149,54 +149,54 @@ export default function CustomerAuth() {
               <TabsContent value="signup" className="mt-6">
                 <form onSubmit={handleSignUp} className="space-y-6">
                   <div>
-                    <Label htmlFor="signup-name" className="text-sm font-medium text-foreground mb-2 block">
+                    <Label htmlFor="signup-name" className="text-base font-bold text-gray-900 mb-2 block">
                       Full Name
                     </Label>
                     <div className="relative">
-                      <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600" size={18} />
                       <Input
                         id="signup-name"
                         type="text"
                         placeholder="Your full name"
                         value={signUpData.name}
                         onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        className="pl-12 h-12 rounded-2xl border-2 border-green-300 bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 text-gray-900 font-medium transition-colors"
                         required
                       />
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="signup-email" className="text-sm font-medium text-foreground mb-2 block">
+                    <Label htmlFor="signup-email" className="text-base font-bold text-gray-900 mb-2 block">
                       Email Address
                     </Label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600" size={18} />
                       <Input
                         id="signup-email"
                         type="email"
                         placeholder="your.email@example.com"
                         value={signUpData.email}
                         onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        className="pl-12 h-12 rounded-2xl border-2 border-green-300 bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 text-gray-900 font-medium transition-colors"
                         required
                       />
                     </div>
                   </div>
                   
                   <div>
-                    <Label htmlFor="signup-password" className="text-sm font-medium text-foreground mb-2 block">
+                    <Label htmlFor="signup-password" className="text-base font-bold text-gray-900 mb-2 block">
                       Password
                     </Label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600" size={18} />
                       <Input
                         id="signup-password"
                         type="password"
                         placeholder="Create a strong password"
                         value={signUpData.password}
                         onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-border/50 bg-surface/30 focus:bg-white transition-colors"
+                        className="pl-12 h-12 rounded-2xl border-2 border-green-300 bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 text-gray-900 font-medium transition-colors"
                         required
                       />
                     </div>
@@ -205,7 +205,7 @@ export default function CustomerAuth() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary-hover hover:to-primary-hover/90 text-white font-semibold shadow-lg transition-all duration-200"
+                    className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-lg shadow-lg transition-all duration-200"
                   >
                     {isLoading ? "Creating Account..." : "Create Account"}
                   </Button>
@@ -214,16 +214,16 @@ export default function CustomerAuth() {
             </Tabs>
 
             {/* Test Credentials */}
-            <div className="mt-8 p-4 bg-surface/30 rounded-2xl">
-              <p className="text-xs text-muted-foreground text-center mb-2">Test Credentials</p>
-              <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-2xl">
+              <p className="text-sm font-bold text-gray-900 text-center mb-2">Test Credentials</p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="font-medium text-foreground">Email:</p>
-                  <p className="text-muted-foreground">customer@test.com</p>
+                  <p className="font-bold text-gray-900">Email:</p>
+                  <p className="text-gray-700 font-medium">customer@test.com</p>
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Password:</p>
-                  <p className="text-muted-foreground">customer123</p>
+                  <p className="font-bold text-gray-900">Password:</p>
+                  <p className="text-gray-700 font-medium">customer123</p>
                 </div>
               </div>
             </div>

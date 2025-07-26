@@ -178,25 +178,25 @@ export default function AdminAcceptPayment() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white text-high-contrast">
       {/* Header */}
-      <div className="bg-primary text-primary-foreground">
+      <div className="bg-white border-b-2 border-blue-200 sticky top-0 z-10 shadow-lg">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center">
-              <div className="w-10 h-10 bg-primary-foreground/20 rounded-xl flex items-center justify-center mr-3">
-                <Store className="text-primary-foreground" size={20} />
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mr-3 shadow-lg">
+                <Store className="text-white" size={20} />
               </div>
               <div>
-                <p className="font-medium">{admin?.name}</p>
-                <p className="text-sm text-primary-foreground/80">{admin?.role}</p>
+                <p className="font-bold text-xl text-gray-900">{admin?.name}</p>
+                <p className="text-base text-gray-700 font-medium">{admin?.role}</p>
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="text-primary-foreground/80 hover:text-primary-foreground"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 font-semibold rounded-xl px-4 py-2"
             >
               <LogOut size={20} />
             </Button>
@@ -205,15 +205,15 @@ export default function AdminAcceptPayment() {
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <h1 className="text-2xl font-bold text-foreground mb-8">Accept Payment</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Accept Payment</h1>
 
-        <Card className="card-easyloyalty">
+        <Card className="bg-white border-2 border-blue-300 rounded-3xl shadow-strong">
           <CardContent className="pt-6">
             {/* Step 1: Amount Entry */}
             {step === "amount" && (
               <form onSubmit={handleAmountSubmit} className="space-y-6">
                 <div>
-                  <Label htmlFor="amount" className="block text-sm font-medium text-foreground mb-2">
+                  <Label htmlFor="amount" className="text-base font-bold text-gray-900 mb-2 block">
                     Amount (CZK)
                   </Label>
                   <Input
@@ -224,13 +224,13 @@ export default function AdminAcceptPayment() {
                     placeholder="85"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="input-easyloyalty text-lg"
+                    className="h-12 rounded-2xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 font-medium text-lg transition-colors"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label className="block text-sm font-medium text-foreground mb-2">
+                  <Label className="text-base font-bold text-gray-900 mb-2 block">
                     Quick Amounts
                   </Label>
                   <div className="grid grid-cols-4 gap-2">
@@ -248,7 +248,7 @@ export default function AdminAcceptPayment() {
                   </div>
                 </div>
 
-                <Button type="submit" className="btn-primary w-full">
+                <Button type="submit" className="w-full h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg shadow-lg transition-all duration-200">
                   Continue →
                 </Button>
               </form>
@@ -258,15 +258,15 @@ export default function AdminAcceptPayment() {
             {step === "scan" && (
               <div className="space-y-6">
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
                     Amount: {formatCurrency(parseFloat(amount) * 100)}
                   </h3>
-                  <p className="text-muted-foreground">Scan QR code or enter manual code</p>
+                  <p className="text-lg text-gray-700 font-medium">Scan QR code or enter manual code</p>
                 </div>
 
                 <form onSubmit={handleScanSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="tokenOrCode" className="block text-sm font-medium text-foreground mb-2">
+                    <Label htmlFor="tokenOrCode" className="text-base font-bold text-gray-900 mb-2 block">
                       QR Code or Manual Code
                     </Label>
                     <div className="flex space-x-3">
