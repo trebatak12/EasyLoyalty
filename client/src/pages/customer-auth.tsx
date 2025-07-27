@@ -130,25 +130,7 @@ export default function CustomerAuth() {
               <h1 className="text-3xl font-bold text-amber-900 mb-2">
                 Zákazník
               </h1>
-              <p className="text-amber-800 font-medium mb-6">
-                Přístup k věrnostnímu účtu, dobíjení peněženky a sledování odměn
-              </p>
               
-              {/* Features */}
-              <div className="space-y-3 mb-8 text-left">
-                <div className="flex items-center gap-3 text-amber-800">
-                  <Gift size={20} className="text-amber-600 flex-shrink-0" />
-                  <span className="font-medium">Bonusové kredity při dobití</span>
-                </div>
-                <div className="flex items-center gap-3 text-amber-800">
-                  <Smartphone size={20} className="text-amber-600 flex-shrink-0" />
-                  <span className="font-medium">Rychlé placení QR kódem</span>
-                </div>
-                <div className="flex items-center gap-3 text-amber-800">
-                  <BarChart3 size={20} className="text-amber-600 flex-shrink-0" />
-                  <span className="font-medium">Přehled všech nákupů</span>
-                </div>
-              </div>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
