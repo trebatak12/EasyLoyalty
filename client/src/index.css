@@ -124,6 +124,19 @@
     box-shadow: 0 8px 32px hsla(220, 100%, 10%, 0.15);
   }
 
+  /* Enhanced tab visibility */
+  [data-state=inactive] {
+    color: hsl(35, 45%, 45%) !important;
+    background-color: hsl(35, 40%, 88%) !important;
+    font-weight: 600 !important;
+    opacity: 0.85 !important;
+  }
+
+  [data-state=inactive]:hover {
+    background-color: hsl(35, 35%, 82%) !important;
+    opacity: 1 !important;
+  }
+
   .header-blur {
     background: rgba(255, 255, 255, 0.72);
     backdrop-filter: saturate(180%) blur(20px);

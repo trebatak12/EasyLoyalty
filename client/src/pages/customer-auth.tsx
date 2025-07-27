@@ -137,13 +137,13 @@ export default function CustomerAuth() {
               <TabsList className="grid w-full grid-cols-2 bg-amber-100 rounded-2xl p-1 border border-amber-200">
                 <TabsTrigger 
                   value="signin"
-                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-amber-800 font-semibold"
+                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-amber-800 data-[state=inactive]:text-amber-700 data-[state=inactive]:bg-amber-50 data-[state=inactive]:hover:bg-amber-100 font-semibold transition-all duration-200"
                 >
                   Přihlášení
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
-                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-amber-800 font-semibold"
+                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-amber-800 data-[state=inactive]:text-amber-700 data-[state=inactive]:bg-amber-50 data-[state=inactive]:hover:bg-amber-100 font-semibold transition-all duration-200"
                 >
                   Registrace
                 </TabsTrigger>
