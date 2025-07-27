@@ -3,29 +3,32 @@
 @tailwind utilities;
 
 :root {
-  /* High contrast, vibrant color palette */
-  --bg: hsl(210, 100%, 97%); /* #F0F8FF - Very light blue background */
-  --surface: hsl(210, 100%, 94%); /* #E6F3FF - Light blue surface */
+  /* EasyLoyalty color palette */
+  --bg: hsl(0, 0%, 98%); /* #FAFAFA - Very light gray background */
+  --surface: hsl(0, 0%, 100%); /* #FFFFFF - Pure white surface */
   --card: hsl(0, 0%, 100%); /* #FFFFFF - Pure white cards */
-  --border: hsl(220, 13%, 69%); /* #9CA3AF - Clear gray borders */
+  --border: hsl(220, 13%, 91%); /* #E5E7EB - Light gray borders */
   
-  --text: hsl(220, 100%, 10%); /* #000033 - Very dark blue text */
-  --muted: hsl(220, 20%, 40%); /* #525864 - Medium gray for secondary text */
+  --text: hsl(0, 0%, 13%); /* #212121 - Dark text */
+  --muted: hsl(0, 0%, 45%); /* #737373 - Medium gray for secondary text */
 
-  --primary: hsl(220, 100%, 50%); /* #0066FF - Bright blue */
-  --primary-hover: hsl(220, 100%, 45%);
+  --primary: hsl(35, 45%, 65%); /* #D4A373 - Golden brown primary */
+  --primary-hover: hsl(35, 45%, 60%);
   --on-primary: hsl(0, 0%, 100%); /* #FFFFFF */
 
-  --sage: hsl(120, 100%, 35%); /* #00B300 - Bright green */
-  --dusty: hsl(0, 100%, 50%); /* #FF0000 - Bright red */
-  --ring: hsl(220, 100%, 50%); /* #0066FF */
+  --secondary: hsl(25, 50%, 35%); /* #8B5A2B - Dark brown secondary */
+  --secondary-hover: hsl(25, 50%, 30%);
+  --on-secondary: hsl(0, 0%, 100%); /* #FFFFFF */
 
-  --success: hsl(90, 25%, 62%); /* #9DC183 */
-  --warning: hsl(35, 71%, 52%);
-  --danger: hsl(0, 60%, 50%);
-  --info: hsl(210, 15%, 65%);
+  --accent: hsl(35, 45%, 65%); /* #D4A373 - Golden accent */
+  --ring: hsl(35, 45%, 65%); /* #D4A373 */
 
-  --shadow-soft: 0 8px 24px hsla(25, 18%, 29%, 0.08);
+  --success: hsl(142, 76%, 36%); /* #16A34A */
+  --warning: hsl(38, 92%, 50%); /* #EAB308 */
+  --danger: hsl(0, 84%, 60%); /* #EF4444 */
+  --info: hsl(217, 91%, 60%); /* #3B82F6 */
+
+  --shadow-soft: 0 8px 24px hsla(35, 45%, 65%, 0.1);
   --radius-lg: 16px;
   --radius-md: 12px;
   --radius-sm: 10px;
@@ -33,7 +36,7 @@
   /* Default shadcn overrides */
   --background: var(--bg);
   --foreground: var(--text);
-  --muted: var(--card);
+  --muted: hsl(0, 0%, 96%); /* #F5F5F5 */
   --muted-foreground: var(--muted);
   --popover: var(--surface);
   --popover-foreground: var(--text);
@@ -44,10 +47,10 @@
   --primary: var(--primary);
   --primary-hover: var(--primary-hover);
   --primary-foreground: var(--on-primary);
-  --secondary: var(--card);
-  --secondary-foreground: var(--text);
-  --accent: var(--card);
-  --accent-foreground: var(--text);
+  --secondary: var(--secondary);
+  --secondary-foreground: var(--on-secondary);
+  --accent: var(--accent);
+  --accent-foreground: var(--on-primary);
   --destructive: var(--danger);
   --destructive-foreground: var(--on-primary);
   --ring: var(--ring);
