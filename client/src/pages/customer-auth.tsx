@@ -1,10 +1,11 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coffee, ArrowLeft, Mail, Lock, User } from "lucide-react";
+import { User, ArrowLeft, Mail, Lock, Gift, Smartphone, BarChart3 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -107,82 +108,98 @@ export default function CustomerAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white flex items-center justify-center p-4 text-high-contrast">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Back Button */}
         <Button
           variant="outline"
           onClick={() => setLocation("/")}
-          className="mb-6 text-blue-600 border-blue-300 hover:bg-blue-50 font-semibold flex items-center gap-2"
+          className="mb-6 text-amber-700 border-amber-300 hover:bg-amber-50 font-semibold flex items-center gap-2"
         >
           <ArrowLeft size={18} />
-          Back to Mode Selection
+          Zpět na výběr režimu
         </Button>
 
-        <Card className="bg-white border-2 border-blue-300 rounded-3xl shadow-strong">
+        <Card className="bg-white/90 backdrop-blur-sm border border-amber-200 rounded-3xl shadow-xl">
           <CardContent className="p-8">
             {/* Header */}
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-green-500 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
-                <Coffee className="text-white" size={28} />
+              <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                <User className="text-white" size={32} />
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {activeTab === "signin" ? "Welcome Back" : "Join EasyLoyalty"}
+              <h1 className="text-3xl font-bold text-amber-900 mb-2">
+                Zákazník
               </h1>
-              <p className="text-lg text-gray-700 font-medium">
-                {activeTab === "signin" ? "Sign in to your loyalty account" : "Create your account and start earning"}
+              <p className="text-amber-800 font-medium mb-6">
+                Přístup k věrnostnímu účtu, dobíjení peněženky a sledování odměn
               </p>
+              
+              {/* Features */}
+              <div className="space-y-3 mb-8 text-left">
+                <div className="flex items-center gap-3 text-amber-800">
+                  <Gift size={20} className="text-amber-600 flex-shrink-0" />
+                  <span className="font-medium">Bonusové kredity při dobití</span>
+                </div>
+                <div className="flex items-center gap-3 text-amber-800">
+                  <Smartphone size={20} className="text-amber-600 flex-shrink-0" />
+                  <span className="font-medium">Rychlé placení QR kódem</span>
+                </div>
+                <div className="flex items-center gap-3 text-amber-800">
+                  <BarChart3 size={20} className="text-amber-600 flex-shrink-0" />
+                  <span className="font-medium">Přehled všech nákupů</span>
+                </div>
+              </div>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-              <TabsList className="grid w-full grid-cols-2 bg-blue-100 rounded-2xl p-1 border-2 border-blue-200">
+              <TabsList className="grid w-full grid-cols-2 bg-amber-100 rounded-2xl p-1 border border-amber-200">
                 <TabsTrigger 
                   value="signin"
-                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-blue-700 font-semibold"
+                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-amber-800 font-semibold"
                 >
-                  Sign In
+                  Přihlášení
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
-                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-blue-700 font-semibold"
+                  className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-amber-800 font-semibold"
                 >
-                  Sign Up
+                  Registrace
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin" className="mt-6">
                 <form onSubmit={handleSignIn} className="space-y-6">
                   <div>
-                    <Label htmlFor="signin-email" className="text-base font-bold text-gray-900 mb-2 block">
-                      Email Address
+                    <Label htmlFor="signin-email" className="text-base font-semibold text-amber-900 mb-2 block">
+                      Email
                     </Label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-600" size={18} />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600" size={18} />
                       <Input
                         id="signin-email"
                         type="email"
                         placeholder="customer@test.com"
                         value={signInData.email}
                         onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 font-medium transition-colors"
+                        className="pl-12 h-12 rounded-2xl border border-amber-300 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
                         required
                       />
                     </div>
                   </div>
                   
                   <div>
-                    <Label htmlFor="signin-password" className="text-base font-bold text-gray-900 mb-2 block">
-                      Password
+                    <Label htmlFor="signin-password" className="text-base font-semibold text-amber-900 mb-2 block">
+                      Heslo
                     </Label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-600" size={18} />
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600" size={18} />
                       <Input
                         id="signin-password"
                         type="password"
                         placeholder="customer123"
                         value={signInData.password}
                         onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 font-medium transition-colors"
+                        className="pl-12 h-12 rounded-2xl border border-amber-300 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
                         required
                       />
                     </div>
@@ -191,9 +208,9 @@ export default function CustomerAuth() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-lg shadow-lg transition-all duration-200"
+                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200"
                   >
-                    {isLoading ? "Signing In..." : "Sign In"}
+                    {isLoading ? "Přihlašuji..." : "Pokračovat jako zákazník"}
                   </Button>
                 </form>
               </TabsContent>
@@ -201,54 +218,54 @@ export default function CustomerAuth() {
               <TabsContent value="signup" className="mt-6">
                 <form onSubmit={handleSignUp} className="space-y-6">
                   <div>
-                    <Label htmlFor="signup-name" className="text-base font-bold text-gray-900 mb-2 block">
-                      Full Name
+                    <Label htmlFor="signup-name" className="text-base font-semibold text-amber-900 mb-2 block">
+                      Jméno a příjmení
                     </Label>
                     <div className="relative">
-                      <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600" size={18} />
+                      <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600" size={18} />
                       <Input
                         id="signup-name"
                         type="text"
-                        placeholder="Your full name"
+                        placeholder="Vaše celé jméno"
                         value={signUpData.name}
                         onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-2 border-green-300 bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 text-gray-900 font-medium transition-colors"
+                        className="pl-12 h-12 rounded-2xl border border-amber-300 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
                         required
                       />
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="signup-email" className="text-base font-bold text-gray-900 mb-2 block">
-                      Email Address
+                    <Label htmlFor="signup-email" className="text-base font-semibold text-amber-900 mb-2 block">
+                      Email
                     </Label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600" size={18} />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600" size={18} />
                       <Input
                         id="signup-email"
                         type="email"
-                        placeholder="your.email@example.com"
+                        placeholder="vas.email@example.com"
                         value={signUpData.email}
                         onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-2 border-green-300 bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 text-gray-900 font-medium transition-colors"
+                        className="pl-12 h-12 rounded-2xl border border-amber-300 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
                         required
                       />
                     </div>
                   </div>
                   
                   <div>
-                    <Label htmlFor="signup-password" className="text-base font-bold text-gray-900 mb-2 block">
-                      Password
+                    <Label htmlFor="signup-password" className="text-base font-semibold text-amber-900 mb-2 block">
+                      Heslo
                     </Label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600" size={18} />
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600" size={18} />
                       <Input
                         id="signup-password"
                         type="password"
-                        placeholder="Create a strong password"
+                        placeholder="Vytvořte silné heslo"
                         value={signUpData.password}
                         onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                        className="pl-12 h-12 rounded-2xl border-2 border-green-300 bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 text-gray-900 font-medium transition-colors"
+                        className="pl-12 h-12 rounded-2xl border border-amber-300 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
                         required
                       />
                     </div>
@@ -257,9 +274,9 @@ export default function CustomerAuth() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-lg shadow-lg transition-all duration-200"
+                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200"
                   >
-                    {isLoading ? "Creating Account..." : "Create Account"}
+                    {isLoading ? "Vytvářím účet..." : "Pokračovat jako zákazník"}
                   </Button>
                 </form>
               </TabsContent>
@@ -269,10 +286,10 @@ export default function CustomerAuth() {
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-gray-300" />
+                  <span className="w-full border-t border-amber-200" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="bg-white px-2 text-gray-500 font-medium">Or continue with</span>
+                  <span className="bg-white px-3 text-amber-700 font-medium">Nebo pokračujte s</span>
                 </div>
               </div>
               <Button
@@ -280,7 +297,7 @@ export default function CustomerAuth() {
                 variant="outline"
                 onClick={triggerGoogleSignIn}
                 disabled={!googleLoaded || isLoading}
-                className="w-full mt-4 h-12 rounded-2xl border-2 border-gray-300 hover:bg-gray-50 font-bold text-lg"
+                className="w-full mt-4 h-12 rounded-2xl border border-amber-300 hover:bg-amber-50 font-semibold text-amber-800"
               >
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -288,21 +305,21 @@ export default function CustomerAuth() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Continue with Google
+                Pokračovat s Google
               </Button>
             </div>
 
             {/* Test Credentials */}
-            <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-2xl">
-              <p className="text-sm font-bold text-gray-900 text-center mb-2">Test Credentials</p>
+            <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+              <p className="text-sm font-semibold text-amber-900 text-center mb-2">Testovací přihlašovací údaje</p>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="font-bold text-gray-900">Email:</p>
-                  <p className="text-gray-700 font-medium">customer@test.com</p>
+                  <p className="font-semibold text-amber-900">Email:</p>
+                  <p className="text-amber-800 font-medium">customer@test.com</p>
                 </div>
                 <div>
-                  <p className="font-bold text-gray-900">Password:</p>
-                  <p className="text-gray-700 font-medium">customer123</p>
+                  <p className="font-semibold text-amber-900">Heslo:</p>
+                  <p className="text-amber-800 font-medium">customer123</p>
                 </div>
               </div>
             </div>
