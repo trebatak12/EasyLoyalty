@@ -97,6 +97,7 @@ export default function ModeSelection() {
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Personál kavárny</h2>
                 <p className="text-base text-gray-700 dark:text-gray-300 font-medium mb-6 leading-relaxed">
                   Příjem plateb, správa zákazníků a obchodní analytics
+                  <br />
                 </p>
 
                 <div className="space-y-4 mb-8 w-full flex-1 flex flex-col justify-center">
