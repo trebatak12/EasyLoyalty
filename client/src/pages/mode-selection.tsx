@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Coffee, Store, Users, ShoppingBag, CreditCard, BarChart3, Gift, Smartphone } from "lucide-react";
@@ -58,8 +57,8 @@ export default function ModeSelection() {
                 <p className="text-base text-gray-700 dark:text-gray-300 font-medium mb-6 leading-relaxed">
                   Přístup k věrnostnímu účtu, dobíjení peněženky a sledování odměn
                 </p>
-                
-                <div className="space-y-4 mb-8 w-full">
+
+                <div className="space-y-4 mb-8 w-full flex-1 flex flex-col justify-center">
                   <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <Gift size={16} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                     <span className="font-medium">Bonusové kredity při dobití</span>
@@ -73,7 +72,7 @@ export default function ModeSelection() {
                     <span className="font-medium">Přehled všech nákupů</span>
                   </div>
                 </div>
-                
+
                 <Button className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-green-500/20">
                   Pokračovat jako zákazník
                 </Button>
@@ -99,8 +98,8 @@ export default function ModeSelection() {
                 <p className="text-base text-gray-700 dark:text-gray-300 font-medium mb-6 leading-relaxed">
                   Příjem plateb, správa zákazníků a obchodní analytics
                 </p>
-                
-                <div className="space-y-4 mb-8 w-full">
+
+                <div className="space-y-4 mb-8 w-full flex-1 flex flex-col justify-center">
                   <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <CreditCard size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
                     <span className="font-medium">Příjem plateb</span>
@@ -114,7 +113,7 @@ export default function ModeSelection() {
                     <span className="font-medium">Obchodní analytics</span>
                   </div>
                 </div>
-                
+
                 <Button className="w-full h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-blue-500/20">
                   Přihlásit se jako personál
                 </Button>
