@@ -42,20 +42,20 @@ export default function ModeSelection() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           {/* Customer Card */}
           <Card 
-            className="group bg-white/90 border border-amber-200 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02] focus-within:ring-4 focus-within:ring-amber-400/20"
+            className="group bg-white/90 border border-amber-200 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02] focus-within:ring-4 focus-within:ring-amber-400/20 h-full"
             role="button"
             tabIndex={0}
             aria-pressed={selectedRole === 'customer'}
             onClick={() => handleRoleSelect("/auth/customer", "customer")}
             onKeyDown={(e) => handleKeyPress(e, "/auth/customer", "customer")}
           >
-            <CardContent className="p-8">
+            <CardContent className="p-8 h-full">
               <div className="flex flex-col items-center text-center h-full">
                 <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl mb-6 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-200">
                   <Users className="text-white" size={28} />
                 </div>
                 <h2 className="text-3xl font-bold text-amber-900 mb-4">Zákazník</h2>
-                <p className="text-lg text-amber-800 font-medium mb-8 leading-relaxed">
+                <p className="text-lg text-amber-800 font-medium mb-8 leading-relaxed min-h-[3.5rem] flex items-center">
                   Přístup k věrnostnímu účtu, dobíjení peněženky a sledování odměn
                 </p>
 
@@ -74,7 +74,7 @@ export default function ModeSelection() {
                   </div>
                 </div>
 
-                <Button className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200 focus-visible:ring-4 focus-visible:ring-amber-400/20">
+                <Button className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200 focus-visible:ring-4 focus-visible:ring-amber-400/20 mt-auto">
                   Pokračovat jako zákazník
                 </Button>
               </div>
@@ -83,20 +83,20 @@ export default function ModeSelection() {
 
           {/* Staff Card */}
           <Card 
-            className="group bg-white/90 border border-amber-700/30 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02] focus-within:ring-4 focus-within:ring-amber-700/20"
+            className="group bg-white/90 border border-amber-700/30 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02] focus-within:ring-4 focus-within:ring-amber-700/20 h-full"
             role="button"
             tabIndex={0}
             aria-pressed={selectedRole === 'staff'}
             onClick={() => handleRoleSelect("/admin/login", "staff")}
             onKeyDown={(e) => handleKeyPress(e, "/admin/login", "staff")}
           >
-            <CardContent className="p-8">
+            <CardContent className="p-8 h-full">
               <div className="flex flex-col items-center text-center h-full">
                 <div className="w-20 h-20 bg-gradient-to-br from-amber-700 to-amber-800 rounded-3xl mb-6 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-200">
                   <Store className="text-white" size={28} />
                 </div>
                 <h2 className="text-3xl font-bold text-amber-900 mb-4">Personál kavárny</h2>
-                <p className="text-lg text-amber-800 font-medium mb-8 leading-relaxed">
+                <p className="text-lg text-amber-800 font-medium mb-8 leading-relaxed min-h-[3.5rem] flex items-center">
                   Příjem plateb, správa zákazníků a obchodní analytics
                 </p>
 
@@ -115,7 +115,7 @@ export default function ModeSelection() {
                   </div>
                 </div>
 
-                <Button className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-800 hover:to-amber-900 text-white font-semibold text-lg shadow-lg transition-all duration-200 focus-visible:ring-4 focus-visible:ring-amber-700/20">
+                <Button className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-800 hover:to-amber-900 text-white font-semibold text-lg shadow-lg transition-all duration-200 focus-visible:ring-4 focus-visible:ring-amber-700/20 mt-auto">
                   Přihlásit se jako personál
                 </Button>
               </div>
