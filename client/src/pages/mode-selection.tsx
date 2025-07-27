@@ -73,11 +73,9 @@ export default function ModeSelection() {
                   </div>
                 </div>
 
-                <div className="flex justify-center w-full">
-                  <Button className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-green-500/20 mt-auto">
-                    Pokračovat jako zákazník
-                  </Button>
-                </div>
+                <Button className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-green-500/20 mt-auto mx-auto">
+                  Pokračovat jako zákazník
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -117,11 +115,9 @@ export default function ModeSelection() {
                   </div>
                 </div>
 
-                <div className="flex justify-center w-full">
-                  <Button className="w-full h-12 rounded-2xl bg-[#7B4B27] hover:bg-[#6B3F1F] active:bg-[#5A341A] dark:bg-[#7B4B27] dark:hover:bg-[#6B3F1F] text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-[#7B4B27]/20 mt-auto">
-                    Přihlásit se jako personál
-                  </Button>
-                </div>
+                <Button className="w-full h-12 rounded-2xl bg-[#7B4B27] hover:bg-[#6B3F1F] active:bg-[#5A341A] dark:bg-[#7B4B27] dark:hover:bg-[#6B3F1F] text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-[#7B4B27]/20 mt-auto mx-auto">
+                  Přihlásit se jako personál
+                </Button>
               </div>
             </CardContent>
           </Card>
