@@ -8,7 +8,7 @@
   --surface: hsl(0, 0%, 100%); /* #FFFFFF - Pure white surface */
   --card: hsl(0, 0%, 100%); /* #FFFFFF - Pure white cards */
   --border: hsl(220, 13%, 91%); /* #E5E7EB - Light gray borders */
-  
+
   --text: hsl(0, 0%, 13%); /* #212121 - Dark text */
   --muted: hsl(0, 0%, 45%); /* #737373 - Medium gray for secondary text */
 
@@ -77,11 +77,30 @@
   * {
     @apply border-border;
   }
-  
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: "Urbanist", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground;
+    font-family: "Urbanist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  }
+
+  /* Enhanced placeholder styles */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--placeholder) !important;
+    opacity: 1 !important;
+    font-weight: 500 !important;
+  }
+
+  /* Better visibility for empty/unselected form elements */
+  input:not(:focus):placeholder-shown {
+    border-color: hsl(35, 25%, 75%) !important;
+    background-color: hsl(35, 20%, 98%) !important;
+  }
+
+  /* Enhanced focus states */
+  input:focus::placeholder,
+  textarea:focus::placeholder {
+    color: hsl(35, 25%, 65%) !important;
+    opacity: 0.8 !important;
   }
 }
 
@@ -91,16 +110,16 @@
     color: hsl(220, 100%, 5%); /* Almost black for maximum contrast */
     font-weight: 600;
   }
-  
+
   .bg-bright-white {
     background-color: hsl(0, 0%, 100%); /* Pure white */
   }
-  
+
   .border-visible {
     border-color: hsl(220, 50%, 50%); /* Clearly visible blue border */
     border-width: 2px;
   }
-  
+
   .shadow-strong {
     box-shadow: 0 8px 32px hsla(220, 100%, 10%, 0.15);
   }
