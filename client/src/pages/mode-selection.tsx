@@ -59,7 +59,7 @@ export default function ModeSelection() {
                   Přístup k věrnostnímu účtu, dobíjení peněženky a sledování odměn
                 </p>
                 
-                <div className="space-y-4 mb-8 w-full">
+                <div className="space-y-4 mb-8 w-full h-20 flex flex-col justify-between">
                   <div className="flex items-center justify-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <Gift size={16} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                     <span className="font-medium">Bonusové kredity při dobití</span>
@@ -100,7 +100,7 @@ export default function ModeSelection() {
                   Příjem plateb, správa zákazníků a obchodní analytics
                 </p>
                 
-                <div className="space-y-4 mb-8 w-full">
+                <div className="space-y-4 mb-8 w-full h-20 flex flex-col justify-between">
                   <div className="flex items-center justify-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <CreditCard size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
                     <span className="font-medium">Příjem plateb</span>
