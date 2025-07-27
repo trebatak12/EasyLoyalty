@@ -65,18 +65,52 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async createUser(user: InsertUser & { passwordHash: string }): Promise<User> {
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.googleId, googleId));
+    return user || undefined;
+  }
+
+  async createUser(user: InsertUser & { passwordHash?: string | null }): Promise<User> {
     const [newUser] = await db
       .insert(users)
       .values(user)
       .returning();
+    
+    // Create wallet for new user
+    await this.createWallet(newUser.id);
+    
     return newUser;
+  }
+
+  async createUserWithGoogle(googleData: {
+    googleId: string;
+    email: string;
+    name: string;
+    profileImageUrl?: string;
+  }): Promise<User> {
+    return this.createUser({
+      email: googleData.email,
+      name: googleData.name,
+      googleId: googleData.googleId,
+      profileImageUrl: googleData.profileImageUrl,
+      passwordHash: null,
+      status: "active"
+    });
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
   }
 
   async updateUserLastLogin(id: string): Promise<void> {
     await db
       .update(users)
-      .set({ lastLoginAt: sql`now()` })
+      .set({ lastLoginAt: new Date() })
       .where(eq(users.id, id));
   }
 
@@ -94,9 +128,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateWalletBalance(userId: string, balanceCents: number, bonusCents?: number): Promise<Wallet> {
-    const updateData: Partial<Wallet> = {
+    const updateData: any = {
       balanceCents,
-      lastActivityAt: sql`now()`
+      lastActivityAt: new Date()
     };
     
     if (bonusCents !== undefined) {
@@ -132,7 +166,7 @@ export class DatabaseStorage implements IStorage {
   async updateAdminLastLogin(id: string): Promise<void> {
     await db
       .update(adminUsers)
-      .set({ lastLoginAt: sql`now()` })
+      .set({ lastLoginAt: new Date() })
       .where(eq(adminUsers.id, id));
   }
 
@@ -193,7 +227,7 @@ export class DatabaseStorage implements IStorage {
   async revokeAdminSession(sessionId: string): Promise<void> {
     await db
       .update(adminSessions)
-      .set({ revokedAt: sql`now()` })
+      .set({ revokedAt: new Date() })
       .where(eq(adminSessions.id, sessionId));
   }
 
@@ -206,21 +240,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserTransactions(userId: string, limit: number = 20, cursor?: string): Promise<Transaction[]> {
-    let query = db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .orderBy(desc(transactions.createdAt))
-      .limit(limit);
-
+    let whereConditions = [eq(transactions.userId, userId)];
+    
     if (cursor) {
-      query = query.where(and(
-        eq(transactions.userId, userId),
-        lt(transactions.createdAt, cursor)
-      ));
+      whereConditions.push(lt(transactions.createdAt, new Date(cursor)));
     }
 
-    return await query;
+    return await db
+      .select()
+      .from(transactions)
+      .where(and(...whereConditions))
+      .orderBy(desc(transactions.createdAt))
+      .limit(limit);
   }
 
   async getTransactionById(id: string): Promise<Transaction | undefined> {
@@ -250,19 +281,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomersList(search?: string, limit: number = 50, offset: number = 0): Promise<{ users: (User & { wallet: Wallet })[], total: number }> {
-    let baseQuery = db
+    let whereCondition = undefined;
+    
+    if (search) {
+      whereCondition = sql`${users.name} ILIKE ${`%${search}%`} OR ${users.email} ILIKE ${`%${search}%`}`;
+    }
+
+    const results = await db
       .select({
         user: users,
         wallet: wallets
       })
       .from(users)
-      .leftJoin(wallets, eq(users.id, wallets.userId));
-
-    if (search) {
-      baseQuery = baseQuery.where(sql`${users.name} ILIKE ${`%${search}%`} OR ${users.email} ILIKE ${`%${search}%`}`);
-    }
-
-    const results = await baseQuery
+      .leftJoin(wallets, eq(users.id, wallets.userId))
+      .where(whereCondition)
       .limit(limit)
       .offset(offset)
       .orderBy(desc(users.createdAt));
@@ -307,7 +339,7 @@ export class DatabaseStorage implements IStorage {
       .from(transactions)
       .where(and(
         eq(transactions.type, "charge"),
-        gte(transactions.createdAt, today.toISOString())
+        gte(transactions.createdAt, today)
       ));
 
     const [weekSpendResult] = await db
@@ -315,7 +347,7 @@ export class DatabaseStorage implements IStorage {
       .from(transactions)
       .where(and(
         eq(transactions.type, "charge"),
-        gte(transactions.createdAt, weekAgo.toISOString())
+        gte(transactions.createdAt, weekAgo)
       ));
 
     return {

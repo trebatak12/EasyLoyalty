@@ -15,7 +15,9 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  passwordHash: text("password_hash").notNull(),
+  passwordHash: text("password_hash"), // Optional for Google OAuth users
+  googleId: text("google_id").unique(), // For Google OAuth
+  profileImageUrl: text("profile_image_url"), // From Google profile
   status: userStatusEnum("status").default("active").notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   lastLoginAt: timestamp("last_login_at")
@@ -35,7 +37,9 @@ export const adminUsers = pgTable("admin_users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  passwordHash: text("password_hash").notNull(),
+  passwordHash: text("password_hash"), // Optional for Google OAuth users
+  googleId: text("google_id").unique(), // For Google OAuth
+  profileImageUrl: text("profile_image_url"), // From Google profile
   role: adminRoleEnum("role").default("manager").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
@@ -150,8 +154,18 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
-  lastLoginAt: true,
-  passwordHash: true
+  lastLoginAt: true
+});
+
+export const registerUserSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters")
+});
+
+export const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required")
 });
 
 export const insertWalletSchema = createInsertSchema(wallets).omit({
@@ -178,6 +192,8 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type RegisterUser = z.infer<typeof registerUserSchema>;
+export type LoginUser = z.infer<typeof loginSchema>;
 export type Wallet = typeof wallets.$inferSelect;
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
 export type AdminUser = typeof adminUsers.$inferSelect;

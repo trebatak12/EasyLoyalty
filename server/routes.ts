@@ -11,7 +11,8 @@ import {
   verifyQRToken,
   authenticateUser, 
   authenticateAdmin,
-  checkRateLimit
+  checkRateLimit,
+  verifyGoogleToken
 } from "./auth";
 import { auditLog, createErrorResponse, validateEmail, validatePassword, formatCZK, parseCZK, addRequestId, getClientIP, getUserAgent } from "./utils";
 import { TOP_UP_PACKAGES, type PackageCode } from "@shared/schema";
@@ -54,6 +55,10 @@ const adjustmentSchema = z.object({
   amountCZK: z.number(),
   reason: z.string().min(1),
   idempotencyKey: z.string().min(1)
+});
+
+const googleAuthSchema = z.object({
+  idToken: z.string().min(1)
 });
 
 // In-memory stores for demo (should be Redis in production)
@@ -136,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Audit log
-      await auditLog("user", user.id, "signup", { email: body.email });
+      await auditLog("user", user.id, "signup", { email: body.email }, getUserAgent(req), ip);
 
       res.json({
         user: {
@@ -166,27 +171,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emailLimit = checkRateLimit(`login:email:${body.email}`, 10, 15 * 60 * 1000, 15 * 60 * 1000);
       
       if (!ipLimit.allowed || !emailLimit.allowed) {
-        await auditLog("system", null, "login_rate_limited", { email: body.email, ip });
+        await auditLog("system", null, "login_rate_limited", { email: body.email, ip }, getUserAgent(req), ip);
         return res.status(429).json(createErrorResponse("TooManyRequests", "Too many login attempts", "E_RATE_LIMIT"));
       }
 
       // Find user
       const user = await storage.getUserByEmail(body.email);
       if (!user) {
-        await auditLog("system", null, "login_failed", { email: body.email, reason: "user_not_found" });
+        await auditLog("system", null, "login_failed", { email: body.email, reason: "user_not_found" }, getUserAgent(req), ip);
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid credentials", "E_AUTH"));
       }
 
       // Check if blocked
       if (user.status === "blocked") {
-        await auditLog("user", user.id, "login_blocked", { email: body.email });
+        await auditLog("user", user.id, "login_blocked", { email: body.email }, getUserAgent(req), ip);
         return res.status(403).json(createErrorResponse("Forbidden", "Account is blocked", "E_FORBIDDEN"));
       }
 
       // Verify password
       const isValid = await verifyPassword(body.password, user.passwordHash);
       if (!isValid) {
-        await auditLog("user", user.id, "login_failed", { email: body.email, reason: "invalid_password" });
+        await auditLog("user", user.id, "login_failed", { email: body.email, reason: "invalid_password" }, getUserAgent(req), ip);
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid credentials", "E_AUTH"));
       }
 
@@ -207,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Audit log
-      await auditLog("user", user.id, "login_success", { email: body.email });
+      await auditLog("user", user.id, "login_success", { email: body.email }, getUserAgent(req), ip);
 
       res.json({
         user: {
@@ -266,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Audit log
-      await auditLog("user", user.id, "token_refresh", {});
+      await auditLog("user", user.id, "token_refresh", {}, getUserAgent(req), getClientIP(req));
 
       res.json({
         accessToken,
@@ -290,6 +295,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Logout error:", error);
       res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
+  // Google OAuth login/signup
+  app.post("/api/auth/google", async (req, res) => {
+    try {
+      const { idToken } = googleAuthSchema.parse(req.body);
+      const ip = getClientIP(req);
+      
+      // Rate limiting
+      const rateLimit = checkRateLimit(`google-auth:${ip}`, 10, 15 * 60 * 1000);
+      if (!rateLimit.allowed) {
+        return res.status(429).json(createErrorResponse("TooManyRequests", "Too many authentication attempts", "E_RATE_LIMIT"));
+      }
+
+      // Verify Google ID token
+      const googleData = await verifyGoogleToken(idToken);
+      if (!googleData) {
+        return res.status(401).json(createErrorResponse("Unauthorized", "Invalid Google ID token", "E_AUTH"));
+      }
+
+      // Check if user exists by Google ID
+      let user = await storage.getUserByGoogleId(googleData.googleId);
+      
+      if (!user) {
+        // Check if user exists by email
+        user = await storage.getUserByEmail(googleData.email);
+        
+        if (user && user.passwordHash) {
+          // User has password auth - create new account to avoid conflicts
+          user = await storage.createUserWithGoogle({
+            googleId: googleData.googleId,
+            email: `google.${googleData.email}`, // Add prefix to avoid email conflicts
+            name: googleData.name,
+            profileImageUrl: googleData.picture
+          });
+        } else if (!user) {
+          // Create new user
+          user = await storage.createUserWithGoogle({
+            googleId: googleData.googleId,
+            email: googleData.email,
+            name: googleData.name,
+            profileImageUrl: googleData.picture
+          });
+        }
+      }
+
+      if (user.status === "blocked") {
+        return res.status(403).json(createErrorResponse("Forbidden", "User account is blocked", "E_AUTH"));
+      }
+
+      // Update last login
+      await storage.updateUserLastLogin(user.id);
+
+      // Generate tokens
+      const accessToken = generateAccessToken(user.id);
+      const { token: refreshToken, hash: refreshTokenHash } = generateRefreshToken();
+
+      // Store refresh token
+      await storage.createRefreshToken({
+        userId: user.id,
+        tokenHash: refreshTokenHash,
+        userAgent: getUserAgent(req),
+        ip: ip,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        revokedAt: null
+      });
+
+      // Audit log
+      await auditLog("user", user.id, "google_login", { email: user.email }, getUserAgent(req), ip);
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImageUrl: user.profileImageUrl
+        },
+        accessToken,
+        refreshToken
+      });
+    } catch (error) {
+      console.error("Google auth error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid input", "E_INPUT", error.errors));
+      }
+      res.status(500).json(createErrorResponse("InternalServerError", "Authentication failed", "E_AUTH"));
     }
   });
 

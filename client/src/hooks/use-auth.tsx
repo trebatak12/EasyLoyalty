@@ -5,6 +5,7 @@ interface User {
   id: string;
   email: string;
   name: string;
+  profileImageUrl?: string;
 }
 
 interface AuthContextType {
@@ -13,6 +14,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, name: string, password: string) => Promise<void>;
+  googleAuth: (idToken: string) => Promise<void>;
   logout: () => void;
   refreshAuth: () => Promise<void>;
 }
@@ -124,6 +126,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const googleAuth = async (idToken: string) => {
+    setIsLoading(true);
+    try {
+      const response = await api.post("/api/auth/google", { idToken });
+      const { user: userData, accessToken, refreshToken } = response;
+      
+      setTokens(accessToken, refreshToken);
+      setUser(userData);
+    } catch (error) {
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     const { refreshToken } = getTokens();
     
@@ -144,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     login,
     signup,
+    googleAuth,
     logout,
     refreshAuth
   };

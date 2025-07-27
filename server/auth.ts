@@ -1,15 +1,20 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { randomBytes, createHash } from "crypto";
+import { OAuth2Client } from "google-auth-library";
 import type { Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
 
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "change_me_access";
 const AUTH_PEPPER = process.env.AUTH_PEPPER || "";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 hours
 const SESSION_IDLE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// Initialize Google OAuth client
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 export async function hashPassword(password: string): Promise<string> {
   const saltedPassword = password + AUTH_PEPPER;
@@ -168,6 +173,38 @@ export function checkRateLimit(key: string, maxAttempts: number, windowMs: numbe
 
   entry.count++;
   return { allowed: true, remaining: maxAttempts - entry.count, resetTime: entry.resetTime };
+}
+
+// Google OAuth verification
+export async function verifyGoogleToken(idToken: string): Promise<{ 
+  googleId: string; 
+  email: string; 
+  name: string; 
+  picture?: string 
+} | null> {
+  if (!googleClient) {
+    throw new Error("Google OAuth not configured");
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) return null;
+
+    return {
+      googleId: payload.sub,
+      email: payload.email || "",
+      name: payload.name || "",
+      picture: payload.picture
+    };
+  } catch (error) {
+    console.error("Google token verification failed:", error);
+    return null;
+  }
 }
 
 // Extend Express Request type

@@ -19,13 +19,19 @@ export async function auditLog(
   actorType: "user" | "admin" | "system",
   actorId: string | null,
   action: string,
-  meta: Record<string, any> = {}
+  meta: Record<string, any> = {},
+  userAgent?: string,
+  ip?: string
 ) {
   await storage.createAuditLog({
     actorType,
     actorId,
     action,
-    meta
+    meta: {
+      ...meta,
+      ...(userAgent && { userAgent }),
+      ...(ip && { ip })
+    }
   });
 }
 
