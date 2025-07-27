@@ -120,11 +120,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWallet(userId: string): Promise<Wallet> {
-    const [wallet] = await db
-      .insert(wallets)
-      .values({ userId, balanceCents: 0, bonusGrantedTotalCents: 0 })
-      .returning();
-    return wallet;
+    try {
+      const [wallet] = await db
+        .insert(wallets)
+        .values({ userId, balanceCents: 0, bonusGrantedTotalCents: 0 })
+        .returning();
+      return wallet;
+    } catch (error: any) {
+      // If wallet already exists, return the existing one
+      if (error.code === '23505' && error.constraint === 'wallets_user_id_unique') {
+        const existingWallet = await this.getWalletByUserId(userId);
+        if (existingWallet) {
+          return existingWallet;
+        }
+      }
+      throw error;
+    }
   }
 
   async updateWalletBalance(userId: string, balanceCents: number, bonusCents?: number): Promise<Wallet> {

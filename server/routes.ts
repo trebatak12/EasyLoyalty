@@ -113,16 +113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json(createErrorResponse("BadRequest", passwordValidation.message!, "E_INPUT"));
       }
 
-      // Create user
+      // Create user (wallet is created automatically in createUser method)
       const passwordHash = await hashPassword(body.password);
       const user = await storage.createUser({
         email: body.email,
         name: body.name,
         passwordHash
       });
-
-      // Create wallet
-      await storage.createWallet(user.id);
 
       // Update last login
       await storage.updateUserLastLogin(user.id);
