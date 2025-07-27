@@ -60,15 +60,15 @@ export default function ModeSelection() {
                 </p>
                 
                 <div className="space-y-4 mb-8 w-full">
-                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
+                  <div className="flex items-center justify-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <Gift size={16} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                     <span className="font-medium">Bonusové kredity při dobití</span>
                   </div>
-                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
+                  <div className="flex items-center justify-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <Smartphone size={16} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                     <span className="font-medium">Rychlé placení QR kódem</span>
                   </div>
-                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
+                  <div className="flex items-center justify-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <BarChart3 size={16} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                     <span className="font-medium">Přehled všech nákupů</span>
                   </div>
@@ -101,15 +101,15 @@ export default function ModeSelection() {
                 </p>
                 
                 <div className="space-y-4 mb-8 w-full">
-                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
+                  <div className="flex items-center justify-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <CreditCard size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
                     <span className="font-medium">Příjem plateb</span>
                   </div>
-                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
+                  <div className="flex items-center justify-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <Users size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
                     <span className="font-medium">Správa zákazníků</span>
                   </div>
-                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
+                  <div className="flex items-center justify-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
                     <BarChart3 size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
                     <span className="font-medium">Obchodní analytics</span>
                   </div>
