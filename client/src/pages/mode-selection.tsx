@@ -49,7 +49,7 @@ export default function ModeSelection() {
             onKeyDown={(e) => handleKeyPress(e, "/auth/customer", "customer")}
           >
             <CardContent className="p-8">
-              <div className="flex flex-col items-center text-center">
+              <div className="flex flex-col items-center text-center h-full">
                 <div className="w-20 h-20 bg-green-500 dark:bg-green-600 rounded-3xl mb-6 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-150">
                   <Users className="text-white" size={28} />
                 </div>
@@ -73,7 +73,7 @@ export default function ModeSelection() {
                   </div>
                 </div>
 
-                <Button className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-green-500/20">
+                <Button className="w-full h-12 rounded-2xl bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-green-500/20 mt-auto">
                   Pokračovat jako zákazník
                 </Button>
               </div>
@@ -82,7 +82,7 @@ export default function ModeSelection() {
 
           {/* Staff Card */}
           <Card 
-            className="group bg-white dark:bg-gray-800 border-2 border-blue-300 dark:border-blue-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-pointer hover:scale-[1.02] focus-within:ring-4 focus-within:ring-blue-500/20"
+            className="group bg-white dark:bg-gray-800 border-2 border-[#7B4B27] dark:border-[#7B4B27] rounded-3xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-pointer hover:scale-[1.02] focus-within:ring-4 focus-within:ring-[#7B4B27]/20"
             role="button"
             tabIndex={0}
             aria-pressed={selectedRole === 'staff'}
@@ -90,8 +90,8 @@ export default function ModeSelection() {
             onKeyDown={(e) => handleKeyPress(e, "/admin/login", "staff")}
           >
             <CardContent className="p-8">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-blue-600 dark:bg-blue-500 rounded-3xl mb-6 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-150">
+              <div className="flex flex-col items-center text-center h-full">
+                <div className="w-20 h-20 bg-[#7B4B27] dark:bg-[#7B4B27] rounded-3xl mb-6 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-150">
                   <Store className="text-white" size={28} />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Personál kavárny</h2>
@@ -101,20 +101,20 @@ export default function ModeSelection() {
 
                 <div className="space-y-4 mb-8 w-full flex-1 flex flex-col justify-center">
                   <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
-                    <CreditCard size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <CreditCard size={16} className="text-[#7B4B27] dark:text-[#7B4B27] flex-shrink-0" />
                     <span className="font-medium">Příjem plateb</span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
-                    <Users size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <Users size={16} className="text-[#7B4B27] dark:text-[#7B4B27] flex-shrink-0" />
                     <span className="font-medium">Správa zákazníků</span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 text-sm">
-                    <BarChart3 size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <BarChart3 size={16} className="text-[#7B4B27] dark:text-[#7B4B27] flex-shrink-0" />
                     <span className="font-medium">Obchodní analytics</span>
                   </div>
                 </div>
 
-                <Button className="w-full h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-blue-500/20">
+                <Button className="w-full h-12 rounded-2xl bg-[#7B4B27] hover:bg-[#6B3F1F] active:bg-[#5A341A] dark:bg-[#7B4B27] dark:hover:bg-[#6B3F1F] text-white font-semibold text-base shadow-lg transition-all duration-150 focus-visible:ring-4 focus-visible:ring-[#7B4B27]/20 mt-auto">
                   Přihlásit se jako personál
                 </Button>
               </div>
