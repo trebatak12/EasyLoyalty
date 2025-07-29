@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,15 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAuth() {
   const [, setLocation] = useLocation();
-  const { login, isLoading } = useAdminAuth();
+  const { login, isLoading, isAuthenticated } = useAdminAuth();
   const { toast } = useToast();
+
+  // Pokud je admin už přihlášený, přesměruj ho
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLocation("/admin/accept");
+    }
+  }, [isAuthenticated, setLocation]);
 
   const [loginData, setLoginData] = useState({
     email: "",

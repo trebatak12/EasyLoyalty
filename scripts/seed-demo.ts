@@ -23,14 +23,14 @@ async function seedDemo() {
     // Demo Customer
     const customerEmail = "demo.customer@easyloyalty.dev";
     const customerPassword = "Demo1234!";
-    
+
     // Check if customer already exists
     const existingCustomer = await db.query.users.findFirst({
       where: (users, { eq }) => eq(users.email, customerEmail)
     });
 
     let customerId: string;
-    
+
     if (existingCustomer) {
       console.log(`✓ Demo customer already exists: ${customerEmail}`);
       customerId = existingCustomer.id;
@@ -42,7 +42,7 @@ async function seedDemo() {
         passwordHash: customerPasswordHash,
         status: "active"
       }).returning();
-      
+
       customerId = newCustomer.id;
       console.log(`✓ Created demo customer: ${customerEmail}`);
     }
@@ -64,7 +64,7 @@ async function seedDemo() {
     // Demo Café Admin
     const adminEmail = "demo.cafe@easyloyalty.dev";
     const adminPassword = "DemoAdmin1234!";
-    
+
     // Check if admin already exists
     const existingAdmin = await db.query.adminUsers.findFirst({
       where: (adminUsers, { eq }) => eq(adminUsers.email, adminEmail)
@@ -84,8 +84,7 @@ async function seedDemo() {
       console.log(`✓ Created demo café admin: ${adminEmail}`);
     }
 
-    console.log("\n🎉 Demo seed completed successfully!");
-    console.log("\n📋 Demo Credentials:");
+    console.log("📋 Demo Credentials:");
     console.log("┌─────────────────────────────────────────────────────────┐");
     console.log("│                     CUSTOMER                            │");
     console.log("├─────────────────────────────────────────────────────────┤");

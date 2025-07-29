@@ -69,8 +69,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AdminAuthContextType = {
     admin,
-    isAuthenticated: !!admin && isInitialized,
-    isLoading,
+    isAuthenticated: !!admin,
+    isLoading: isLoading || !isInitialized,
     login,
     logout
   };
