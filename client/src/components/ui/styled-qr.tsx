@@ -1,4 +1,3 @@
-
 import { QRCodeSVG } from "qrcode.react";
 
 interface StyledQRProps {
@@ -23,7 +22,7 @@ export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
           style={{
             borderRadius: "20px",
             background: "white",
-            padding: "20px",
+            padding: "16px",
             position: "relative",
             width: size,
             height: size,
@@ -33,57 +32,26 @@ export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
             boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.06)"
           }}
         >
-          <div style={{ filter: "drop-shadow(0 2px 8px rgba(124, 45, 18, 0.15))" }}>
+          <div 
+            style={{ 
+              filter: "drop-shadow(0 2px 8px rgba(124, 45, 18, 0.15))",
+              borderRadius: "12px",
+              overflow: "hidden"
+            }}
+          >
             <QRCodeSVG
               value={value}
-              size={size - 40}
-              bgColor="transparent"
+              size={size - 32}
+              bgColor="white"
               fgColor="#7C2D12"
               level="M"
               includeMargin={false}
-              imageSettings={{
-                src: "",
-                x: undefined,
-                y: undefined,
-                height: 0,
-                width: 0,
-                excavate: false,
-              }}
               style={{
-                borderRadius: "8px"
+                borderRadius: "12px",
+                display: "block"
               }}
             />
           </div>
-
-          {/* Modern corner indicators */}
-          <div 
-            className="absolute top-4 left-4 w-3 h-3 rounded-full"
-            style={{ 
-              background: "linear-gradient(135deg, #F59E0B, #D97706)",
-              boxShadow: "0 2px 4px rgba(217, 119, 6, 0.3)"
-            }}
-          />
-          <div 
-            className="absolute top-4 right-4 w-3 h-3 rounded-full"
-            style={{ 
-              background: "linear-gradient(135deg, #F59E0B, #D97706)",
-              boxShadow: "0 2px 4px rgba(217, 119, 6, 0.3)"
-            }}
-          />
-          <div 
-            className="absolute bottom-4 left-4 w-3 h-3 rounded-full"
-            style={{ 
-              background: "linear-gradient(135deg, #F59E0B, #D97706)",
-              boxShadow: "0 2px 4px rgba(217, 119, 6, 0.3)"
-            }}
-          />
-          <div 
-            className="absolute bottom-4 right-4 w-3 h-3 rounded-full"
-            style={{ 
-              background: "linear-gradient(135deg, #F59E0B, #D97706)",
-              boxShadow: "0 2px 4px rgba(217, 119, 6, 0.3)"
-            }}
-          />
 
           {/* Subtle inner glow */}
           <div 
