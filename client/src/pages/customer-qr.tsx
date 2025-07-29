@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RotateCcw, Copy, QrCode } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { ArrowLeft, RotateCcw, Copy, QrCode, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
@@ -14,6 +15,7 @@ export default function CustomerQR() {
   const { toast } = useToast();
   const [timeLeft, setTimeLeft] = useState(60);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data: qrData, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["/api/me/qr", refreshKey],
@@ -95,6 +97,7 @@ export default function CustomerQR() {
                       value={qrData.qrPayload}
                       size={window.innerWidth < 768 ? 160 : 200}
                       className="drop-shadow-md"
+                      onClick={() => setIsDialogOpen(true)}
                     />
                   </div>
                 </div>
@@ -188,6 +191,51 @@ export default function CustomerQR() {
                 </ol>
               </CardContent>
             </Card>
+
+            {/* Celoobrazovkový QR Dialog */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogContent className="max-w-lg w-full p-8 bg-white border-2 border-orange-200 rounded-3xl">
+                <div className="text-center">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-bold text-amber-900">QR Kód pro skenování</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsDialogOpen(false)}
+                      className="text-amber-800 hover:text-amber-900 hover:bg-amber-100 rounded-xl"
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
+                  
+                  <div className="mb-6">
+                    <div className="bg-white p-6 rounded-2xl border-2 border-orange-200 inline-block">
+                      <StyledQR
+                        value={qrData.qrPayload}
+                        size={280}
+                        className="drop-shadow-md"
+                      />
+                    </div>
+                  </div>
+                  
+                  <p className="text-lg font-medium text-amber-800 mb-4">
+                    Klikněte kamkoliv mimo QR kód pro zavření
+                  </p>
+                  
+                  <div className="text-center">
+                    <p className="text-base text-amber-800 font-medium">
+                      Kód vyprší za {timeLeft} sekund
+                    </p>
+                    <div className="w-full bg-orange-200 rounded-full h-3 mt-3">
+                      <div 
+                        className="h-3 rounded-full transition-all duration-1000 bg-gradient-to-r from-orange-400 to-orange-500"
+                        style={{ width: `${(timeLeft / 60) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         ) : (
           <Card className="bg-white border-2 border-red-300 rounded-3xl shadow-lg">

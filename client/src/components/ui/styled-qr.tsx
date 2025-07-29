@@ -5,9 +5,10 @@ interface StyledQRProps {
   value: string;
   size?: number;
   className?: string;
+  onClick?: () => void;
 }
 
-export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
+export function StyledQR({ value, size = 200, className = "", onClick }: StyledQRProps) {
   // Responzivní velikost - menší na mobilních zařízeních
   const getResponsiveSize = () => {
     if (typeof window !== 'undefined') {
@@ -23,6 +24,7 @@ export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
     <div className={`inline-block ${className}`}>
       <div 
         className="w-full max-w-full overflow-hidden"
+        onClick={onClick}
         style={{
           backgroundColor: "white",
           padding: "12px",
@@ -30,7 +32,8 @@ export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
           border: "1px solid #e5e7eb",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center"
+          justifyContent: "center",
+          cursor: onClick ? "pointer" : "default"
         }}
       >
         <QRCodeSVG
