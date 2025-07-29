@@ -169,51 +169,22 @@
     letter-spacing: 0.02em;
   }
 
-  /* Custom QR Code styling similar to the provided image */
+  /* Custom QR Code styling - minimal and functional */
   .qr-custom-style {
-    filter: drop-shadow(0 4px 8px rgba(124, 45, 18, 0.15));
+    filter: drop-shadow(0 2px 4px rgba(124, 45, 18, 0.1));
   }
 
-  /* Transform QR rectangles to circles for data dots */
+  /* Keep rectangles as squares for QR code readability */
   .qr-custom-style rect {
-    rx: 50%;
-    ry: 50%;
-    transition: all 0.2s ease-in-out;
-  }
-
-  /* Positioning markers - outer ring (finder patterns) */
-  .qr-custom-style rect[width="7"][height="7"] {
-    rx: 3.5px;
-    ry: 3.5px;
     fill: #7C2D12;
-  }
-
-  /* Make finder pattern corners more circular like in the image */
-  .qr-custom-style g:nth-child(1) rect,
-  .qr-custom-style g:nth-child(2) rect,
-  .qr-custom-style g:nth-child(3) rect {
-    rx: 50%;
-    ry: 50%;
-  }
-
-  /* Individual data dots as perfect circles */
-  .qr-custom-style rect[width="1"][height="1"] {
+    /* Add very subtle rounding only to soften edges */
     rx: 0.5px;
     ry: 0.5px;
-    fill: #7C2D12;
-    transform-origin: center;
   }
 
-  /* Hover effect for interactivity */
-  .qr-custom-style:hover rect {
-    transform: scale(1.02);
-  }
-
-  /* Special styling for corner detection patterns to match the concentric circles in the image */
+  /* Preserve all QR elements with consistent brown color */
   .qr-custom-style path {
     fill: #7C2D12;
-    stroke: #7C2D12;
-    stroke-width: 0.5;
   }
 }
 
