@@ -1,0 +1,84 @@
+Jak přidat stylovaný („dotted“) QR kód do aplikace EasyLoyalty
+Vyberte knihovnu, která podporuje vlastní styl
+Nejjednodušší cesta je použít qr-code-styling (web, React i React Native fork).
+* NPM: @liquid-js/qr-code-styling nebo původní qr-code-styling 
+npm
+npm
+
+* API umí nastavit dotsOptions.type ('rounded' | 'dots' | 'extra-rounded' …) a barvy rohů, pozadí, gradienty apod. 
+GitHub
+
+Instalace (web/React)
+
+bash
+Zkopírovat
+Upravit
+npm i @liquid-js/qr-code-styling
+Vytvořte komponentu
+
+tsx
+Zkopírovat
+Upravit
+// components/PaymentQR.tsx
+import { useEffect, useRef } from "react";
+import QRCodeStyling from "@liquid-js/qr-code-styling";
+
+const qr = new QRCodeStyling({
+  width: 220,
+  height: 220,
+  data: "https://easyloyalty.app/pay?id=XYZ‑123",
+  dotsOptions: {
+    type: "dots",             // nebo "rounded", "extra-rounded"
+    color: "#b57500"          // primární hnědo‑zlatá
+  },
+  backgroundOptions: {
+    color: "#fff6e9"          // jemné krémové pozadí
+  },
+  cornersSquareOptions: { type: "dot", color: "#b57500" },
+  cornersDotOptions:   { type: "dot", color: "#b57500" },
+  image: "/logo.svg",         // volitelně logo kavárny
+  qrOptions: { errorCorrectionLevel: "M" }
+});
+
+export default function PaymentQR() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) qr.append(ref.current);
+    return () => qr._canvas?.remove();   // úklid
+  }, []);
+
+  return <div className="mx-auto" ref={ref} />;
+}
+Oživení (odpočet, refresh)
+
+tsx
+Zkopírovat
+Upravit
+const [ttl, setTtl] = useState(45); // sekundy
+useEffect(() => {
+  const t = setInterval(() => setTtl(s => (s ? s-1 : 0)), 1_000);
+  return () => clearInterval(t);
+}, []);
+// po vypršení zavolat qr.update({ data: newUrl })
+React Native
+Použijte fork react-native-qr-code-styling – API je téměř shodné. 
+GitHub
+
+Bezpečnost a spolehlivost
+
+U „fancy“ stylu zůstávejte u error‑correction M nebo Q a testujte skenování na iOS/Android + nízké jasy.
+
+Minimální velikost modulu (čtverečku) > 4 px.
+
+Pro kritické platby ponechte fallback textový kód (už ho v UI máte).
+
+Na serveru logujte a po expiraci QR znemožněte opakované použití.
+
+Server‑side generování (např. pro PDF účtenky)
+
+Node balík qr-image (bitmapa) nebo @liquid-js/qr-code-styling v SVG režimu.
+
+Výsledek serializujte do bufferu a připojte k PDF.
+
+Tip UI: držte stejnou paletu (#f5e0c2 → pozadí, #e2b86a → progress bar, #b57500 → text/QR). Rámeček QR kódu může mít rounded-2xl shadow-md Tailwind třídy pro shodu s přihlašovacím formulářem.
