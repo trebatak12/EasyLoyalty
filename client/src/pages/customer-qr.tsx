@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import { QRCodeSVG } from "qrcode.react";
+import StyledQR from "@/components/ui/styled-qr";
 
 export default function CustomerQR() {
   const [, setLocation] = useLocation();
@@ -91,20 +91,10 @@ export default function CustomerQR() {
               <CardContent className="p-8 text-center">
                 <div className="mb-6">
                   <div className="bg-gradient-to-br from-orange-100 to-yellow-100 p-8 rounded-3xl border border-orange-200 inline-block">
-                    <QRCodeSVG
-                      value={qrData.qrPayload}
+                    <StyledQR
+                      data={qrData.qrPayload}
                       size={200}
-                      level="M"
-                      includeMargin={false}
-                      bgColor="transparent"
-                      fgColor="#7C2D12"
-                      className="qr-custom-style"
-                      imageSettings={{
-                        src: '',
-                        height: 0,
-                        width: 0,
-                        excavate: false,
-                      }}
+                      className="drop-shadow-md"
                     />
                   </div>
                 </div>
