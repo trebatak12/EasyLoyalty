@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import StyledQR from "@/components/ui/styled-qr";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function CustomerQR() {
   const [, setLocation] = useLocation();
