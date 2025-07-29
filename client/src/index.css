@@ -169,22 +169,46 @@
     letter-spacing: 0.02em;
   }
 
-  /* Custom QR Code styling - minimal and functional */
-  .qr-custom-style {
-    filter: drop-shadow(0 2px 4px rgba(124, 45, 18, 0.1));
+  /* Modern QR Code styling with rounded elements */
+  .qr-modern-style {
+    filter: drop-shadow(0 4px 8px rgba(124, 45, 18, 0.15));
   }
 
-  /* Keep rectangles as squares for QR code readability */
-  .qr-custom-style rect {
+  /* Style QR code rectangles with rounded corners */
+  .qr-modern-style rect {
     fill: #7C2D12;
-    /* Add very subtle rounding only to soften edges */
-    rx: 0.5px;
-    ry: 0.5px;
+    rx: 2px;
+    ry: 2px;
   }
 
-  /* Preserve all QR elements with consistent brown color */
-  .qr-custom-style path {
+  /* Style paths with consistent color */
+  .qr-modern-style path {
     fill: #7C2D12;
+  }
+
+  /* Create modern dot-like appearance for small elements */
+  .qr-modern-style rect[width="1"] {
+    rx: 0.8px;
+    ry: 0.8px;
+  }
+
+  /* More rounded corners for larger elements */
+  .qr-modern-style rect[width="2"] {
+    rx: 1.5px;
+    ry: 1.5px;
+  }
+
+  .qr-modern-style rect[width="3"],
+  .qr-modern-style rect[width="4"],
+  .qr-modern-style rect[width="5"] {
+    rx: 2.5px;
+    ry: 2.5px;
+  }
+
+  /* Corner squares - make them more rounded */
+  .qr-modern-style rect[width="7"] {
+    rx: 3px;
+    ry: 3px;
   }
 }
 
