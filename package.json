@@ -49,6 +49,7 @@
     "@types/memoizee": "^0.4.12",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/qrcode": "^1.5.5",
+    "@types/qrcode.react": "^1.0.5",
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
