@@ -31,11 +31,6 @@ export default function CustomerAuth() {
     e.preventDefault();
     e.stopPropagation();
 
-    // Zabránit duplicitnímu odeslání během načítání
-    if (isLoading) {
-      return;
-    }
-
     console.log("Customer sign in with data:", signInData);
 
     try {
@@ -53,11 +48,6 @@ export default function CustomerAuth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Zabránit duplicitnímu odeslání během načítání
-    if (isLoading) {
-      return;
-    }
 
     console.log("Customer sign up with data:", signUpData);
 
@@ -206,8 +196,8 @@ export default function CustomerAuth() {
 
                   <Button
                     type="submit"
-                    disabled={isLoading || !signInData.email || !signInData.password}
-                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading}
+                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200"
                   >
                     {isLoading ? "Přihlašuji..." : "Pokračovat jako zákazník"}
                   </Button>
@@ -272,8 +262,8 @@ export default function CustomerAuth() {
 
                   <Button
                     type="submit"
-                    disabled={isLoading || !signUpData.email || !signUpData.name || !signUpData.password}
-                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading}
+                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200"
                   >
                     {isLoading ? "Vytvářím účet..." : "Pokračovat jako zákazník"}
                   </Button>
