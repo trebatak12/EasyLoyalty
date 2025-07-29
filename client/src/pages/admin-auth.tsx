@@ -27,6 +27,10 @@ export default function AdminAuth() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log("Form submitted with data:", loginData);
+    
     try {
       await login(loginData.email, loginData.password);
       // Po úspěšném přihlášení přesměruj na admin dashboard

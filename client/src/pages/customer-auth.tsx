@@ -30,13 +30,17 @@ export default function CustomerAuth() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log("Customer sign in with data:", signInData);
+    
     try {
       await login(signInData.email, signInData.password);
       setLocation("/home");
     } catch (error: any) {
       toast({
-        title: "Sign In Failed",
-        description: error.message || "Invalid credentials",
+        title: "Přihlášení se nezdařilo",
+        description: error.message || "Nesprávné přihlašovací údaje",
         variant: "destructive"
       });
     }
@@ -44,13 +48,17 @@ export default function CustomerAuth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log("Customer sign up with data:", signUpData);
+    
     try {
       await signup(signUpData.email, signUpData.name, signUpData.password);
       setLocation("/home");
     } catch (error: any) {
       toast({
-        title: "Sign Up Failed",
-        description: error.message || "Failed to create account",
+        title: "Registrace se nezdařila",
+        description: error.message || "Nepodařilo se vytvořit účet",
         variant: "destructive"
       });
     }
