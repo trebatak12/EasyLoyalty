@@ -40,10 +40,10 @@ export default function CustomerAuth() {
 
     try {
       await login(signInData.email, signInData.password);
-      
+
       // Navigate immediately after successful login
       setLocation("/home");
-      
+
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -311,21 +311,6 @@ export default function CustomerAuth() {
                 </svg>
                 Pokračovat s Google
               </Button>
-            </div>
-
-            {/* Test Credentials */}
-            <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-              <p className="text-sm font-semibold text-amber-900 text-center mb-2">Testovací přihlašovací údaje</p>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="font-semibold text-amber-900">Email:</p>
-                  <p className="text-amber-800 font-medium">customer@test.com</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-amber-900">Heslo:</p>
-                  <p className="text-amber-800 font-medium">customer123</p>
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
