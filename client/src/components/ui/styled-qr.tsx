@@ -53,7 +53,10 @@ export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
   const [qrData, setQrData] = useState<{ matrix: boolean[][], size: number }>({ matrix: [], size: 25 });
   
   useEffect(() => {
-    generateQRMatrix(value).then(setQrData);
+    generateQRMatrix(value).then((data) => {
+      console.log('QR data generated:', data.size, 'modules');
+      setQrData(data);
+    });
   }, [value]);
   
   const moduleSize = (size - 40) / qrData.size; // Account for padding
@@ -85,7 +88,16 @@ export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
             viewBox={`0 0 ${size - 40} ${size - 40}`}
             style={{ display: "block" }}
           >
-            {qrData.matrix.map((row, rowIndex) =>
+            {/* Gradient definition must be first */}
+            <defs>
+              <linearGradient id="qrGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#1e293b" />
+                <stop offset="50%" stopColor="#334155" />
+                <stop offset="100%" stopColor="#475569" />
+              </linearGradient>
+            </defs>
+            
+            {qrData.matrix.length > 0 && qrData.matrix.map((row, rowIndex) =>
               row.map((cell, colIndex) => {
                 if (!cell) return null;
                 
@@ -109,7 +121,7 @@ export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
                       height={moduleSize * 0.8}
                       rx={moduleSize * 0.3}
                       ry={moduleSize * 0.3}
-                      fill="url(#qrGradient)"
+                      fill="#1e293b"
                     />
                   );
                 } else {
@@ -120,21 +132,12 @@ export function StyledQR({ value, size = 200, className = "" }: StyledQRProps) {
                       cx={x + moduleSize * 0.5}
                       cy={y + moduleSize * 0.5}
                       r={moduleSize * 0.4}
-                      fill="url(#qrGradient)"
+                      fill="#1e293b"
                     />
                   );
                 }
               })
             )}
-            
-            {/* Gradient definition */}
-            <defs>
-              <linearGradient id="qrGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#1e293b" />
-                <stop offset="50%" stopColor="#334155" />
-                <stop offset="100%" stopColor="#475569" />
-              </linearGradient>
-            </defs>
           </svg>
           
           {/* Decorative corner elements */}
