@@ -60,8 +60,8 @@ export default function CustomerQR() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-      <div className="container mx-auto px-6 py-8 max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-6">
+      <div className="container mx-auto max-w-md">
         <div className="flex items-center mb-8">
           <Button
             variant="ghost"
@@ -75,30 +75,30 @@ export default function CustomerQR() {
         <h1 className="text-3xl font-bold text-amber-900 text-center mb-8">Platební QR kód</h1>
 
         {isLoading ? (
-          <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-orange-200 rounded-3xl shadow-lg">
+          <Card className="bg-white border-2 border-orange-200 rounded-3xl shadow-lg">
             <CardContent className="p-8 text-center">
               <div className="animate-pulse">
-                <div className="w-64 h-64 bg-orange-200 rounded-3xl mx-auto mb-6"></div>
-                <div className="h-4 w-32 bg-orange-200 rounded mx-auto mb-4"></div>
-                <div className="h-6 w-24 bg-orange-200 rounded mx-auto"></div>
+                <div className="w-64 h-64 bg-orange-100 rounded-3xl mx-auto mb-6"></div>
+                <div className="h-4 w-32 bg-orange-100 rounded mx-auto mb-4"></div>
+                <div className="h-6 w-24 bg-orange-100 rounded mx-auto"></div>
               </div>
             </CardContent>
           </Card>
         ) : qrData ? (
           <div className="space-y-6">
             {/* Main QR Code Card */}
-            <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-orange-200 rounded-3xl shadow-lg">
+            <Card className="bg-white border-2 border-orange-200 rounded-3xl shadow-lg">
               <CardContent className="p-8 text-center">
                 <div className="mb-6">
-                  <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-3xl border-2 border-orange-300 inline-block">
+                  <div className="bg-gradient-to-br from-orange-100 to-yellow-100 p-8 rounded-3xl border border-orange-200 inline-block">
                     <QRCodeSVG
                       value={qrData.qrPayload}
                       size={200}
                       level="M"
                       includeMargin={false}
-                      bgColor="#FEF3C7"
-                      fgColor="#92400E"
-                      className="rounded-2xl"
+                      bgColor="transparent"
+                      fgColor="#7C2D12"
+                      className="rounded-xl"
                     />
                   </div>
                 </div>
@@ -124,13 +124,15 @@ export default function CustomerQR() {
             </Card>
 
             {/* Backup Code Card */}
-            <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-orange-200 rounded-3xl shadow-lg">
+            <Card className="bg-white border-2 border-orange-200 rounded-3xl shadow-lg">
               <CardContent className="p-6">
                 <h4 className="font-bold text-lg text-amber-900 mb-4 flex items-center">
-                  <QrCode className="w-5 h-5 mr-2 text-orange-600" />
+                  <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center mr-3">
+                    <QrCode className="w-4 h-4 text-white" />
+                  </div>
                   Záložní platební kód
                 </h4>
-                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-4 border-2 border-orange-300 mb-4">
+                <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl p-4 border border-orange-200 mb-4">
                   <div className="flex items-center justify-between">
                     <code className="text-xl font-mono font-bold text-amber-900">
                       {qrData.shortCode}
@@ -157,21 +159,21 @@ export default function CustomerQR() {
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={isRefetching}
-                className="flex-1 h-12 text-amber-800 border-2 border-orange-300 bg-gradient-to-br from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 font-semibold rounded-2xl"
+                className="flex-1 h-14 text-amber-800 border-2 border-orange-300 bg-white hover:bg-orange-50 font-semibold rounded-2xl"
               >
                 <RotateCcw className={`w-5 h-5 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
                 {isRefetching ? "Obnovuji..." : "Nový kód"}
               </Button>
               <Button
                 onClick={() => setLocation("/home")}
-                className="flex-1 h-12 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-semibold rounded-2xl shadow-lg"
+                className="flex-1 h-14 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-semibold rounded-2xl shadow-lg"
               >
                 Hotovo
               </Button>
             </div>
 
             {/* Instructions */}
-            <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-orange-200 rounded-3xl shadow-lg">
+            <Card className="bg-white border-2 border-orange-200 rounded-3xl shadow-lg">
               <CardContent className="p-6">
                 <h4 className="font-bold text-lg text-amber-900 mb-4">Jak zaplatit</h4>
                 <ol className="text-base text-amber-800 space-y-3 font-medium">
@@ -192,7 +194,7 @@ export default function CustomerQR() {
             </Card>
           </div>
         ) : (
-          <Card className="bg-gradient-to-br from-red-100 to-orange-100 border-2 border-red-300 rounded-3xl shadow-lg">
+          <Card className="bg-white border-2 border-red-300 rounded-3xl shadow-lg">
             <CardContent className="p-8 text-center">
               <p className="text-red-800 font-medium mb-6">Nepodařilo se vygenerovat QR kód</p>
               <Button 
