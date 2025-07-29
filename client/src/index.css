@@ -168,6 +168,52 @@
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
   }
+
+  /* Modern QR Code with circular dots */
+  .qr-modern rect {
+    rx: 50%;
+    ry: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .qr-modern rect:hover {
+    transform: scale(1.05);
+  }
+
+  /* Enhance the positioning markers with concentric circles */
+  .qr-modern rect[width="21"][height="21"] {
+    rx: 10.5px;
+    ry: 10.5px;
+    stroke: #7C2D12;
+    stroke-width: 2;
+    fill: transparent;
+  }
+
+  .qr-modern rect[width="15"][height="15"] {
+    rx: 7.5px;
+    ry: 7.5px;
+    stroke: #7C2D12;
+    stroke-width: 1.5;
+    fill: transparent;
+  }
+
+  .qr-modern rect[width="7"][height="7"] {
+    rx: 3.5px;
+    ry: 3.5px;
+    fill: #7C2D12;
+  }
+
+  /* Standard data dots as circles */
+  .qr-modern rect[width="1"][height="1"] {
+    rx: 0.5px;
+    ry: 0.5px;
+    fill: #7C2D12;
+  }
+
+  /* Add subtle shadow effect to QR container */
+  .qr-modern {
+    filter: drop-shadow(0 4px 8px rgba(124, 45, 18, 0.1));
+  }
 }
 
 @layer utilities {

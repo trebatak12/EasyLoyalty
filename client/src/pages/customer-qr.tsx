@@ -98,7 +98,7 @@ export default function CustomerQR() {
                       includeMargin={false}
                       bgColor="transparent"
                       fgColor="#7C2D12"
-                      className="rounded-xl"
+                      className="rounded-xl qr-modern"
                     />
                   </div>
                 </div>
