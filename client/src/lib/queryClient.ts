@@ -7,14 +7,31 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Get auth headers with JWT token
+function getAuthHeaders(): Record<string, string> {
+  const accessToken = localStorage.getItem("accessToken");
+  const headers: Record<string, string> = {};
+  
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  
+  return headers;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers = {
+    ...getAuthHeaders(),
+    ...(data ? { "Content-Type": "application/json" } : {}),
+  };
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -30,6 +47,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const res = await fetch(queryKey.join("/") as string, {
+      headers: getAuthHeaders(),
       credentials: "include",
     });
 
