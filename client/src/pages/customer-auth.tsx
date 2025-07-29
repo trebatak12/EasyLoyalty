@@ -157,7 +157,7 @@ export default function CustomerAuth() {
               </TabsList>
 
               <TabsContent value="signin" className="mt-6">
-                <div className="space-y-6">
+                <form onSubmit={handleSignIn} className="space-y-6">
                   <div>
                     <Label htmlFor="signin-email" className="text-base font-semibold text-amber-900 mb-2 block">
                       Email
@@ -195,18 +195,17 @@ export default function CustomerAuth() {
                   </div>
 
                   <Button
-                    type="button"
+                    type="submit"
                     disabled={isLoading}
                     className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200"
-                    onClick={handleSignIn}
                   >
                     {isLoading ? "Přihlašuji..." : "Pokračovat jako zákazník"}
                   </Button>
-                </div>
+                </form>
               </TabsContent>
 
               <TabsContent value="signup" className="mt-6">
-                <div className="space-y-6">
+                <form onSubmit={handleSignUp} className="space-y-6">
                   <div>
                     <Label htmlFor="signup-name" className="text-base font-semibold text-amber-900 mb-2 block">
                       Jméno a příjmení
@@ -262,14 +261,13 @@ export default function CustomerAuth() {
                   </div>
 
                   <Button
-                    type="button"
+                    type="submit"
                     disabled={isLoading}
                     className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200"
-                    onClick={handleSignUp}
                   >
                     {isLoading ? "Vytvářím účet..." : "Pokračovat jako zákazník"}
                   </Button>
-                </div>
+                </form>
               </TabsContent>
             </Tabs>
 
