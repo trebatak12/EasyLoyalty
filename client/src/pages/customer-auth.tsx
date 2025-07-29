@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -137,7 +138,6 @@ export default function CustomerAuth() {
               <h1 className="text-3xl font-bold text-amber-900 mb-2">
                 Zákazník
               </h1>
-
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
