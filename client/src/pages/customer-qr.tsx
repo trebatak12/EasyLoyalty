@@ -90,10 +90,10 @@ export default function CustomerQR() {
             <Card className="bg-white border-2 border-orange-200 rounded-3xl shadow-lg">
               <CardContent className="p-8 text-center">
                 <div className="mb-6">
-                  <div className="bg-gradient-to-br from-orange-100 to-yellow-100 p-8 rounded-3xl border border-orange-200 inline-block">
+                  <div className="bg-gradient-to-br from-orange-100 to-yellow-100 p-4 sm:p-8 rounded-3xl border border-orange-200 inline-block max-w-full">
                     <StyledQR
                       value={qrData.qrPayload}
-                      size={200}
+                      size={window.innerWidth < 768 ? 160 : 200}
                       className="drop-shadow-md"
                     />
                   </div>

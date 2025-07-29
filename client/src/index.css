@@ -172,6 +172,16 @@
   /* Modern QR Code styling */
   .qr-code-container {
     filter: drop-shadow(0 8px 16px rgba(124, 45, 18, 0.12));
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* Responzivní QR kód */
+  @media (max-width: 768px) {
+    .qr-code-container svg {
+      max-width: 100% !important;
+      height: auto !important;
+    }
   }
 
   /* Style QR code elements with rounded corners */
