@@ -169,50 +169,51 @@
     letter-spacing: 0.02em;
   }
 
-  /* Modern QR Code with circular dots */
-  .qr-modern rect {
+  /* Custom QR Code styling similar to the provided image */
+  .qr-custom-style {
+    filter: drop-shadow(0 4px 8px rgba(124, 45, 18, 0.15));
+  }
+
+  /* Transform QR rectangles to circles for data dots */
+  .qr-custom-style rect {
     rx: 50%;
     ry: 50%;
-    transition: all 0.2s ease;
+    transition: all 0.2s ease-in-out;
   }
 
-  .qr-modern rect:hover {
-    transform: scale(1.05);
-  }
-
-  /* Enhance the positioning markers with concentric circles */
-  .qr-modern rect[width="21"][height="21"] {
-    rx: 10.5px;
-    ry: 10.5px;
-    stroke: #7C2D12;
-    stroke-width: 2;
-    fill: transparent;
-  }
-
-  .qr-modern rect[width="15"][height="15"] {
-    rx: 7.5px;
-    ry: 7.5px;
-    stroke: #7C2D12;
-    stroke-width: 1.5;
-    fill: transparent;
-  }
-
-  .qr-modern rect[width="7"][height="7"] {
+  /* Positioning markers - outer ring (finder patterns) */
+  .qr-custom-style rect[width="7"][height="7"] {
     rx: 3.5px;
     ry: 3.5px;
     fill: #7C2D12;
   }
 
-  /* Standard data dots as circles */
-  .qr-modern rect[width="1"][height="1"] {
+  /* Make finder pattern corners more circular like in the image */
+  .qr-custom-style g:nth-child(1) rect,
+  .qr-custom-style g:nth-child(2) rect,
+  .qr-custom-style g:nth-child(3) rect {
+    rx: 50%;
+    ry: 50%;
+  }
+
+  /* Individual data dots as perfect circles */
+  .qr-custom-style rect[width="1"][height="1"] {
     rx: 0.5px;
     ry: 0.5px;
     fill: #7C2D12;
+    transform-origin: center;
   }
 
-  /* Add subtle shadow effect to QR container */
-  .qr-modern {
-    filter: drop-shadow(0 4px 8px rgba(124, 45, 18, 0.1));
+  /* Hover effect for interactivity */
+  .qr-custom-style:hover rect {
+    transform: scale(1.02);
+  }
+
+  /* Special styling for corner detection patterns to match the concentric circles in the image */
+  .qr-custom-style path {
+    fill: #7C2D12;
+    stroke: #7C2D12;
+    stroke-width: 0.5;
   }
 }
 

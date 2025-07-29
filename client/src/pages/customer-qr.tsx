@@ -98,7 +98,13 @@ export default function CustomerQR() {
                       includeMargin={false}
                       bgColor="transparent"
                       fgColor="#7C2D12"
-                      className="rounded-xl qr-modern"
+                      className="qr-custom-style"
+                      imageSettings={{
+                        src: '',
+                        height: 0,
+                        width: 0,
+                        excavate: false,
+                      }}
                     />
                   </div>
                 </div>
