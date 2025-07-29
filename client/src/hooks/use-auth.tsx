@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [loginInProgress, setLoginInProgress] = useState(false);
 
   // Get tokens from localStorage
   const getTokens = () => {
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize auth state on app start
   useEffect(() => {
     const initAuth = async () => {
+      setIsLoading(true);
       const { accessToken, refreshToken } = getTokens();
       
       if (accessToken && refreshToken) {
@@ -70,29 +72,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setIsInitialized(true);
+      setIsLoading(false);
     };
 
     initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
-    if (isLoading) {
+    if (loginInProgress) {
       return; // Prevent double submissions
     }
     
+    setLoginInProgress(true);
     setIsLoading(true);
+    
     try {
       const response = await api.post("/api/auth/login", { email, password });
       const { user: userData, accessToken, refreshToken } = response;
       
       setTokens(accessToken, refreshToken);
       setUser(userData);
+      
+      // Wait a bit for state to settle
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
     } catch (error) {
-      setIsLoading(false);
       throw error;
     } finally {
-      // Only set loading to false after a short delay to prevent immediate resubmission
-      setTimeout(() => setIsLoading(false), 100);
+      setIsLoading(false);
+      setLoginInProgress(false);
     }
   };
 
@@ -164,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
-    isLoading: isLoading || !isInitialized,
+    isLoading: isLoading || !isInitialized || loginInProgress,
     login,
     signup,
     googleAuth,

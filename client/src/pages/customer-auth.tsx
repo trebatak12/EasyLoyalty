@@ -40,8 +40,10 @@ export default function CustomerAuth() {
 
     try {
       await login(signInData.email, signInData.password);
-      // Only navigate after successful login
+      
+      // Navigate immediately after successful login
       setLocation("/home");
+      
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
