@@ -76,6 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    if (isLoading) {
+      return; // Prevent double submissions
+    }
+    
     setIsLoading(true);
     try {
       const response = await api.post("/api/auth/login", { email, password });
@@ -84,9 +88,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokens(accessToken, refreshToken);
       setUser(userData);
     } catch (error) {
+      setIsLoading(false);
       throw error;
     } finally {
-      setIsLoading(false);
+      // Only set loading to false after a short delay to prevent immediate resubmission
+      setTimeout(() => setIsLoading(false), 100);
     }
   };
 
@@ -157,8 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextType = {
     user,
-    isAuthenticated: !!user && isInitialized,
-    isLoading,
+    isAuthenticated: !!user,
+    isLoading: isLoading || !isInitialized,
     login,
     signup,
     googleAuth,

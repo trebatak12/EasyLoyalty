@@ -40,13 +40,16 @@ export default function CustomerAuth() {
 
     try {
       await login(signInData.email, signInData.password);
+      // Only navigate after successful login
       setLocation("/home");
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Přihlášení se nezdařilo",
         description: error.message || "Nesprávné přihlašovací údaje",
         variant: "destructive"
       });
+      // Don't clear form data on error, keep it for retry
     }
   };
 
