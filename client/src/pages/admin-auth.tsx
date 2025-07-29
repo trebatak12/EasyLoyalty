@@ -22,11 +22,13 @@ export default function AdminAuth() {
     e.preventDefault();
     try {
       await login(loginData.email, loginData.password);
+      // Po úspěšném přihlášení přesměruj na admin dashboard
       setLocation("/admin/accept");
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
-        title: "Login Failed",
-        description: error.message || "Invalid credentials",
+        title: "Přihlášení se nezdařilo",
+        description: error.message || "Nesprávné přihlašovací údaje",
         variant: "destructive"
       });
     }

@@ -24,19 +24,19 @@ function Router() {
       <Route path="/" component={ModeSelection} />
       <Route path="/auth/customer" component={CustomerAuth} />
       <Route path="/admin/login" component={AdminAuth} />
-      
+
       {/* Customer routes (JWT protected) */}
       <Route path="/home" component={CustomerHome} />
       <Route path="/topup" component={CustomerTopup} />
       <Route path="/qr" component={CustomerQR} />
       <Route path="/history" component={CustomerHistory} />
-      
+
       {/* Admin routes (session protected) */}
       <Route path="/admin" component={() => { window.location.href = "/admin/accept"; return null; }} />
       <Route path="/admin/accept" component={AdminAcceptPayment} />
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/summaries" component={AdminSummaries} />
-      
+
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

@@ -27,7 +27,7 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
         try {
@@ -48,7 +48,7 @@ class ApiService {
       if (contentType?.includes("application/json")) {
         return await response.json();
       }
-      
+
       return await response.text();
     } catch (error) {
       if (error instanceof Error) {

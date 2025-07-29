@@ -34,7 +34,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         // No valid session
         setAdmin(null);
       }
-      
+
       setIsInitialized(true);
     };
 
@@ -46,7 +46,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Admin login sets session cookie automatically
       await api.post("/api/admin/login", { email, password });
-      
+
       // Get admin data after successful login
       const adminData = await api.get("/api/admin/me");
       setAdmin(adminData);
@@ -63,7 +63,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       // Ignore logout errors
     }
-    
+
     setAdmin(null);
   };
 
