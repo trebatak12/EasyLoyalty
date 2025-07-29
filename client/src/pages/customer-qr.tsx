@@ -95,7 +95,7 @@ export default function CustomerQR() {
                   <div className="bg-gradient-to-br from-orange-100 to-yellow-100 p-4 sm:p-8 rounded-3xl border border-orange-200 inline-block max-w-full">
                     <StyledQR
                       value={qrData.qrPayload}
-                      size={window.innerWidth < 768 ? 160 : 200}
+                      size={window.innerWidth < 768 ? 200 : 250}
                       className="drop-shadow-md"
                       onClick={() => setIsDialogOpen(true)}
                     />
@@ -212,7 +212,7 @@ export default function CustomerQR() {
                     <div className="bg-white p-6 rounded-2xl border-2 border-orange-200 inline-block">
                       <StyledQR
                         value={qrData.qrPayload}
-                        size={280}
+                        size={320}
                         className="drop-shadow-md"
                       />
                     </div>
