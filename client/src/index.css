@@ -169,18 +169,26 @@
     letter-spacing: 0.02em;
   }
 
-  /* QR Code styling with subtle effects */
+  /* Modern QR Code styling */
   .qr-code-container {
-    filter: drop-shadow(0 4px 8px rgba(124, 45, 18, 0.15));
+    filter: drop-shadow(0 8px 16px rgba(124, 45, 18, 0.12));
   }
 
-  /* Style QR code elements for better visibility */
+  /* Style QR code elements with rounded corners */
   .qr-code-container svg rect {
     fill: #7C2D12 !important;
+    rx: 1.5px !important;
+    ry: 1.5px !important;
   }
 
   .qr-code-container svg path {
     fill: #7C2D12 !important;
+  }
+
+  /* Modern QR code styling for individual modules */
+  .qr-code-container svg > g > rect {
+    rx: 1.5px !important;
+    ry: 1.5px !important;
   }
 }
 
