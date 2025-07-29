@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,63 +60,62 @@ export default function CustomerQR() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white text-high-contrast">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
       <div className="container mx-auto px-6 py-8 max-w-md">
         <div className="flex items-center mb-8">
           <Button
             variant="ghost"
             onClick={() => setLocation("/home")}
-            className="mr-4 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl"
+            className="mr-4 text-amber-800 hover:text-amber-900 hover:bg-amber-100 rounded-xl"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">Platební QR kód</h1>
         </div>
 
+        <h1 className="text-3xl font-bold text-amber-900 text-center mb-8">Platební QR kód</h1>
+
         {isLoading ? (
-          <Card className="bg-white border-2 border-gray-300 rounded-2xl shadow-strong">
+          <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-orange-200 rounded-3xl shadow-lg">
             <CardContent className="p-8 text-center">
               <div className="animate-pulse">
-                <div className="w-64 h-64 bg-gray-200 rounded-2xl mx-auto mb-6"></div>
-                <div className="h-4 w-32 bg-gray-200 rounded mx-auto mb-4"></div>
-                <div className="h-6 w-24 bg-gray-200 rounded mx-auto"></div>
+                <div className="w-64 h-64 bg-orange-200 rounded-3xl mx-auto mb-6"></div>
+                <div className="h-4 w-32 bg-orange-200 rounded mx-auto mb-4"></div>
+                <div className="h-6 w-24 bg-orange-200 rounded mx-auto"></div>
               </div>
             </CardContent>
           </Card>
         ) : qrData ? (
           <div className="space-y-6">
-            {/* QR Code Card */}
-            <Card className="bg-white border-2 border-blue-300 rounded-2xl shadow-strong">
+            {/* Main QR Code Card */}
+            <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-orange-200 rounded-3xl shadow-lg">
               <CardContent className="p-8 text-center">
                 <div className="mb-6">
-                  <div className="bg-white p-4 rounded-2xl border-4 border-blue-200 inline-block">
+                  <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-3xl border-2 border-orange-300 inline-block">
                     <QRCodeSVG
                       value={qrData.qrPayload}
                       size={200}
                       level="M"
                       includeMargin={false}
-                      className="rounded-lg"
+                      bgColor="#FEF3C7"
+                      fgColor="#92400E"
+                      className="rounded-2xl"
                     />
                   </div>
                 </div>
                 
                 <div className="mb-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  <h3 className="text-xl font-bold text-amber-900 mb-3">
                     Ukažte tento QR kód pokladníkovi
                   </h3>
-                  <p className="text-base text-gray-700 font-medium">
-                    Kód vyprší za <span className="font-bold text-blue-600">{timeLeft}</span> sekund
+                  <p className="text-base text-amber-800 font-medium">
+                    Kód vyprší za {timeLeft} sekund
                   </p>
                 </div>
 
                 <div className="flex justify-center mb-4">
-                  <div className={`w-full bg-gray-200 rounded-full h-3 ${
-                    timeLeft <= 10 ? "bg-red-100" : "bg-gray-200"
-                  }`}>
+                  <div className="w-full bg-orange-200 rounded-full h-4">
                     <div 
-                      className={`h-3 rounded-full transition-all duration-1000 ${
-                        timeLeft <= 10 ? "bg-red-500" : "bg-blue-600"
-                      }`}
+                      className="h-4 rounded-full transition-all duration-1000 bg-gradient-to-r from-orange-400 to-orange-500"
                       style={{ width: `${(timeLeft / 60) * 100}%` }}
                     />
                   </div>
@@ -124,65 +124,67 @@ export default function CustomerQR() {
             </Card>
 
             {/* Backup Code Card */}
-            <Card className="bg-white border-2 border-green-300 rounded-2xl shadow-strong">
+            <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-orange-200 rounded-3xl shadow-lg">
               <CardContent className="p-6">
-                <h4 className="font-bold text-lg text-gray-900 mb-4 flex items-center">
-                  <QrCode className="w-5 h-5 mr-2 text-green-600" />
+                <h4 className="font-bold text-lg text-amber-900 mb-4 flex items-center">
+                  <QrCode className="w-5 h-5 mr-2 text-orange-600" />
                   Záložní platební kód
                 </h4>
-                <div className="flex items-center justify-between bg-gray-100 rounded-xl p-4 border-2 border-gray-300">
-                  <code className="text-xl font-mono font-bold text-gray-900">
-                    {qrData.shortCode}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCopyCode}
-                    className="h-10 px-4 text-green-600 hover:bg-green-100 font-semibold rounded-xl"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
+                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-4 border-2 border-orange-300 mb-4">
+                  <div className="flex items-center justify-between">
+                    <code className="text-xl font-mono font-bold text-amber-900">
+                      {qrData.shortCode}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCopyCode}
+                      className="h-10 px-4 text-orange-600 hover:bg-orange-100 font-semibold rounded-xl"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-600 font-medium mt-3">
+                <p className="text-sm text-amber-800 font-medium">
                   Sdělte pokladníkovi tento kód, pokud nefunguje skenování QR
                 </p>
               </CardContent>
             </Card>
 
-            {/* Actions */}
+            {/* Action Buttons */}
             <div className="flex gap-4">
               <Button
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={isRefetching}
-                className="flex-1 h-12 text-blue-600 border-blue-300 hover:bg-blue-50 font-semibold rounded-xl"
+                className="flex-1 h-12 text-amber-800 border-2 border-orange-300 bg-gradient-to-br from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 font-semibold rounded-2xl"
               >
                 <RotateCcw className={`w-5 h-5 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
                 {isRefetching ? "Obnovuji..." : "Nový kód"}
               </Button>
               <Button
                 onClick={() => setLocation("/home")}
-                className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl"
+                className="flex-1 h-12 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-semibold rounded-2xl shadow-lg"
               >
                 Hotovo
               </Button>
             </div>
 
             {/* Instructions */}
-            <Card className="bg-white border-2 border-purple-300 rounded-2xl shadow-strong">
+            <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-orange-200 rounded-3xl shadow-lg">
               <CardContent className="p-6">
-                <h4 className="font-bold text-lg text-gray-900 mb-4">Jak zaplatit</h4>
-                <ol className="text-base text-gray-700 space-y-3 font-medium">
+                <h4 className="font-bold text-lg text-amber-900 mb-4">Jak zaplatit</h4>
+                <ol className="text-base text-amber-800 space-y-3 font-medium">
                   <li className="flex items-start">
-                    <span className="font-bold text-purple-600 mr-3 text-lg">1.</span>
+                    <span className="font-bold text-orange-600 mr-3 text-lg">1.</span>
                     Ukažte QR kód nebo sdělte pokladníkovi záložní kód
                   </li>
                   <li className="flex items-start">
-                    <span className="font-bold text-purple-600 mr-3 text-lg">2.</span>
+                    <span className="font-bold text-orange-600 mr-3 text-lg">2.</span>
                     Pokladník zadá částku a naskenuje/napíše váš kód
                   </li>
                   <li className="flex items-start">
-                    <span className="font-bold text-purple-600 mr-3 text-lg">3.</span>
+                    <span className="font-bold text-orange-600 mr-3 text-lg">3.</span>
                     Potvrďte částku platby a dokončete nákup
                   </li>
                 </ol>
@@ -190,12 +192,12 @@ export default function CustomerQR() {
             </Card>
           </div>
         ) : (
-          <Card className="bg-white border-2 border-red-300 rounded-2xl shadow-strong">
+          <Card className="bg-gradient-to-br from-red-100 to-orange-100 border-2 border-red-300 rounded-3xl shadow-lg">
             <CardContent className="p-8 text-center">
-              <p className="text-gray-700 font-medium mb-6">Nepodařilo se vygenerovat QR kód</p>
+              <p className="text-red-800 font-medium mb-6">Nepodařilo se vygenerovat QR kód</p>
               <Button 
                 onClick={handleRefresh}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl h-12 px-6"
+                className="bg-gradient-to-r from-red-400 to-red-500 hover:from-red-500 hover:to-red-600 text-white font-semibold rounded-2xl h-12 px-6"
               >
                 Zkusit znovu
               </Button>
