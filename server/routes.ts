@@ -399,6 +399,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Wallet routes
+  app.get("/api/me/wallet", authenticateUser, async (req, res) => {
+    try {
+      const wallet = await storage.getWalletByUserId(req.user!.id);
+      if (!wallet) {
+        return res.status(404).json(createErrorResponse("NotFound", "Wallet not found", "E_WALLET"));
+      }
+      
+      res.json({
+        balanceCZK: `${Math.floor(wallet.balanceCents / 100)} CZK`,
+        balanceCents: wallet.balanceCents,
+        bonusGrantedTotalCZK: `${Math.floor(wallet.bonusGrantedTotalCents / 100)} CZK`,
+        bonusGrantedTotalCents: wallet.bonusGrantedTotalCents,
+        lastActivity: wallet.lastActivityAt
+      });
+    } catch (error) {
+      console.error("Error fetching wallet:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
+  // Top-up route
+  app.post("/api/me/topup", authenticateUser, async (req, res) => {
+    try {
+      const { packageCode } = req.body;
+      const userId = req.user!.id;
+      const ip = getClientIP(req);
+      
+      // Define packages
+      const packages = {
+        MINI: { pay: 39000, bonus: 3000, name: "MINI" },
+        STANDARD: { pay: 89000, bonus: 9000, name: "STANDARD" },
+        MAXI: { pay: 159000, bonus: 23000, name: "MAXI" },
+        ULTRA: { pay: 209000, bonus: 40000, name: "ULTRA" }
+      };
+      
+      const pkg = packages[packageCode as keyof typeof packages];
+      if (!pkg) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid package code", "E_INPUT"));
+      }
+      
+      // In a real app, here you would process the external payment
+      // For this demo, we'll simulate successful payment
+      
+      const totalCents = pkg.pay + pkg.bonus;
+      
+      // Update wallet balance
+      const wallet = await storage.updateWalletBalance(userId, totalCents, pkg.bonus);
+      
+      // Create transaction record
+      await storage.createTransaction({
+        userId,
+        type: "topup",
+        amountCents: totalCents,
+        createdBy: "user",
+        meta: { packageCode, paidAmount: pkg.pay, bonusAmount: pkg.bonus }
+      });
+      
+      // Audit log
+      await auditLog("user", userId, "topup", { 
+        packageCode, 
+        amount: totalCents, 
+        bonus: pkg.bonus 
+      }, getUserAgent(req), ip);
+      
+      res.json({
+        success: true,
+        wallet: {
+          balanceCZK: `${Math.floor(wallet.balanceCents / 100)} CZK`,
+          balanceCents: wallet.balanceCents,
+          bonusGrantedTotalCZK: `${Math.floor(wallet.bonusGrantedTotalCents / 100)} CZK`,
+          bonusGrantedTotalCents: wallet.bonusGrantedTotalCents
+        }
+      });
+    } catch (error) {
+      console.error("Top-up error:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
+  // Transaction history route
+  app.get("/api/me/history", authenticateUser, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const cursor = req.query.cursor as string;
+      
+      const transactions = await storage.getUserTransactions(userId, limit, cursor);
+      
+      res.json({
+        transactions,
+        nextCursor: transactions.length === limit ? transactions[transactions.length - 1].id : null
+      });
+    } catch (error) {
+      console.error("Error fetching history:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
+  // QR payment generation route
+  app.post("/api/me/qr", authenticateUser, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const nonce = Math.random().toString(36).substring(2, 15);
+      
+      // Generate JWT token for QR code (expires in 60 seconds)
+      const qrToken = generateQRToken(userId, nonce);
+      
+      // Generate short code as backup
+      const shortCode = generateShortCode();
+      
+      res.json({
+        qrPayload: qrToken,
+        shortCode,
+        expiresIn: 60, // seconds
+        userId
+      });
+    } catch (error) {
+      console.error("QR generation error:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
   app.get("/api/me/wallet", authenticateUser, async (req, res) => {
     try {
       const wallet = await storage.getWalletByUserId(req.user.id);

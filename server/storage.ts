@@ -138,9 +138,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateWalletBalance(userId: string, balanceCents: number, bonusCents?: number): Promise<Wallet> {
+  async updateWalletBalance(userId: string, amountCents: number, bonusCents?: number): Promise<Wallet> {
     const updateData: any = {
-      balanceCents,
+      balanceCents: sql`${wallets.balanceCents} + ${amountCents}`,
       lastActivityAt: new Date()
     };
     
@@ -154,6 +154,29 @@ export class DatabaseStorage implements IStorage {
       .where(eq(wallets.userId, userId))
       .returning();
     return wallet;
+  }
+
+  async createTransaction(transaction: Omit<Transaction, "id" | "createdAt">): Promise<Transaction> {
+    const [newTransaction] = await db
+      .insert(transactions)
+      .values(transaction)
+      .returning();
+    return newTransaction;
+  }
+
+  async getUserTransactions(userId: string, limit: number = 20, cursor?: string): Promise<Transaction[]> {
+    let query = db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt))
+      .limit(limit);
+
+    if (cursor) {
+      query = query.where(lt(transactions.createdAt, new Date(cursor)));
+    }
+
+    return await query;
   }
 
   async getAdminUser(id: string): Promise<AdminUser | undefined> {
