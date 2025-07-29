@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,9 +30,9 @@ export default function CustomerAuth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     console.log("Customer sign in with data:", signInData);
-    
+
     try {
       await login(signInData.email, signInData.password);
       setLocation("/home");
@@ -49,9 +48,9 @@ export default function CustomerAuth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     console.log("Customer sign up with data:", signUpData);
-    
+
     try {
       await signup(signUpData.email, signUpData.name, signUpData.password);
       setLocation("/home");
@@ -138,7 +137,7 @@ export default function CustomerAuth() {
               <h1 className="text-3xl font-bold text-amber-900 mb-2">
                 Zákazník
               </h1>
-              
+
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
@@ -158,7 +157,7 @@ export default function CustomerAuth() {
               </TabsList>
 
               <TabsContent value="signin" className="mt-6">
-                <form onSubmit={handleSignIn} className="space-y-6">
+                <div className="space-y-6">
                   <div>
                     <Label htmlFor="signin-email" className="text-base font-semibold text-amber-900 mb-2 block">
                       Email
@@ -176,7 +175,7 @@ export default function CustomerAuth() {
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="signin-password" className="text-base font-semibold text-amber-900 mb-2 block">
                       Heslo
@@ -196,17 +195,18 @@ export default function CustomerAuth() {
                   </div>
 
                   <Button
-                    type="submit"
+                    type="button"
                     disabled={isLoading}
                     className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200"
+                    onClick={handleSignIn}
                   >
                     {isLoading ? "Přihlašuji..." : "Pokračovat jako zákazník"}
                   </Button>
-                </form>
+                </div>
               </TabsContent>
 
               <TabsContent value="signup" className="mt-6">
-                <form onSubmit={handleSignUp} className="space-y-6">
+                <div className="space-y-6">
                   <div>
                     <Label htmlFor="signup-name" className="text-base font-semibold text-amber-900 mb-2 block">
                       Jméno a příjmení
@@ -242,7 +242,7 @@ export default function CustomerAuth() {
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="signup-password" className="text-base font-semibold text-amber-900 mb-2 block">
                       Heslo
@@ -262,13 +262,14 @@ export default function CustomerAuth() {
                   </div>
 
                   <Button
-                    type="submit"
+                    type="button"
                     disabled={isLoading}
                     className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200"
+                    onClick={handleSignUp}
                   >
                     {isLoading ? "Vytvářím účet..." : "Pokračovat jako zákazník"}
                   </Button>
-                </form>
+                </div>
               </TabsContent>
             </Tabs>
 
