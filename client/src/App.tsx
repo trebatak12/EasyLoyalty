@@ -14,6 +14,7 @@ import CustomerQR from "@/pages/customer-qr";
 import CustomerHistory from "@/pages/customer-history";
 import AdminAuth from "@/pages/admin-auth";
 import AdminDashboard from "./pages/admin-dashboard";
+import AdminAcceptPayment from "./pages/admin-accept-payment";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminSummaries from "@/pages/admin-summaries";
 import POSCharge from "@/pages/pos-charge";
@@ -26,7 +27,7 @@ function Router() {
       <Route path="/auth/customer" component={CustomerAuth} />
       <Route path="/admin/login" component={AdminAuth} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
-      
+      <Route path="/admin/accept" component={AdminAcceptPayment} />
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/summaries" component={AdminSummaries} />
 
