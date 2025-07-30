@@ -2,21 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { 
-  Users, 
-  CreditCard, 
-  TrendingUp,
-  Coffee,
-  LogOut,
-  Plus,
-  Minus,
-  ArrowUpRight,
-  RotateCcw
-} from "lucide-react";
+import { CreditCard, Users, TrendingUp, Clock, ArrowUpRight, Plus, Minus, RotateCcw } from "lucide-react";
 import { useLocation } from "wouter";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
