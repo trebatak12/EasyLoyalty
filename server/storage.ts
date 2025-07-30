@@ -138,9 +138,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateWalletBalance(userId: string, amountCents: number, bonusCents?: number): Promise<Wallet> {
+  async updateWalletBalance(userId: string, newBalanceCents: number, bonusCents?: number): Promise<Wallet> {
     const updateData: any = {
-      balanceCents: sql`${wallets.balanceCents} + ${amountCents}`,
+      balanceCents: newBalanceCents,
       lastActivityAt: new Date()
     };
     
@@ -156,7 +156,7 @@ export class DatabaseStorage implements IStorage {
     return wallet;
   }
 
-  async createTransaction(transaction: Omit<Transaction, "id" | "createdAt">): Promise<Transaction> {
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const [newTransaction] = await db
       .insert(transactions)
       .values(transaction)
@@ -165,18 +165,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserTransactions(userId: string, limit: number = 20, cursor?: string): Promise<Transaction[]> {
-    let query = db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .orderBy(desc(transactions.createdAt))
-      .limit(limit);
-
+    let whereConditions = [eq(transactions.userId, userId)];
+    
     if (cursor) {
-      query = query.where(lt(transactions.createdAt, new Date(cursor)));
+      whereConditions.push(lt(transactions.createdAt, new Date(cursor)));
     }
 
-    return await query;
+    return await db
+      .select()
+      .from(transactions)
+      .where(and(...whereConditions))
+      .orderBy(desc(transactions.createdAt))
+      .limit(limit);
   }
 
   async getAdminUser(id: string): Promise<AdminUser | undefined> {
@@ -265,28 +265,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(adminSessions.id, sessionId));
   }
 
-  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
-    const [newTransaction] = await db
-      .insert(transactions)
-      .values(transaction)
-      .returning();
-    return newTransaction;
-  }
 
-  async getUserTransactions(userId: string, limit: number = 20, cursor?: string): Promise<Transaction[]> {
-    let whereConditions = [eq(transactions.userId, userId)];
-    
-    if (cursor) {
-      whereConditions.push(lt(transactions.createdAt, new Date(cursor)));
-    }
-
-    return await db
-      .select()
-      .from(transactions)
-      .where(and(...whereConditions))
-      .orderBy(desc(transactions.createdAt))
-      .limit(limit);
-  }
 
   async getTransactionById(id: string): Promise<Transaction | undefined> {
     const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));

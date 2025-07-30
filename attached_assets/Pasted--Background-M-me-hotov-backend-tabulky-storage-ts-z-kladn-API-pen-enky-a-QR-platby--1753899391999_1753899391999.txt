@@ -1,0 +1,45 @@
+### Background  
+Máme hotový backend (tabulky, `storage.ts`, základní API), peněženky a QR platby.  
+Chybí nám **“kavárenské rozhraní”** = UI pro obsluhu na pokladně + jednoduchý admin dashboard.
+
+### Objective  
+1. **Pokladna (Point‑of‑Sale)**  
+   - Stránka **`/pos/login`** – přihlášení admina (session cookie).  
+   - Stránka **`/pos/charge`**  
+     1. Zadám částku v Kč.  
+     2. Načtu QR / krátký kód zákazníka.  
+     3. Vidím jméno + zůstatek → **Confirm** odečte peníze (volá `/api/pay`).  
+     4. 120 s od potvrzení je vidět tlačítko **Void** (volá `/api/void`).  
+   - Zvukové „píp“ při úspěchu / chybě (použij HTML Audio).
+
+2. **Admin dashboard (`/admin`)**  
+   - Tab „Members“ – tabulka se jménem, e‑mailem, kreditem; vyhledávání podle jména/e‑mailu.  
+   - Tab „Summary“ – dlaždice: **Počet členů**, **Celkový kredit (Kč)**, **Bonus celkem (Kč)**, **Útrata dnes / 7 dní** (volá `GET /api/admin/summary`).  
+
+3. **Testy**  
+   - Unit test: úspěšná platba sníží zůstatek a zapíše transakci `type=charge`.  
+   - E2E test (Playwright): přihlášení admina → dobití (seed) → platba → void.
+
+### Acceptance criteria  
+- UI reaguje do 200 ms; chybové stavy zobrazují toast.  
+- QR platba/void mění zůstatek i v realtime (websocket nebo SWR re‑fetch).  
+- Min. 80 % test‑coverage projektu.  
+- Styl drží Tailwind + shadcn/ui; žádné inline CSS.  
+- Kód složek **neměň** mimo `client/pos/**`, `client/admin/**`, `server/routes/**`, `tests/**`.
+
+### Constraints  
+- Použij existující Drizzle `storage` metody; nepřidávej další ORM.  
+- Žádné nové runtime závislosti mimo `qrcode.react`, `lucide-react`, `zod`, `playwright`.  
+- Texty cz/utf‑8, měna = Kč (oddělovač mezera, např. `1 490 Kč`).  
+- Responzivní alespoň pro 1280×800 (tablet landscape).
+
+### Apply to  
+@client/src/pos  
+@client/src/admin  
+@server/src/routes/pos.ts  
+@tests
+
+### Deliverable  
+*Než něco přepíšeš*, ukaž **Plan:** se seznamem souborů a kroků.  
+Po úpravách uveď **Changes:** s krátkým shrnutím.
+

@@ -16,6 +16,9 @@ import AdminAuth from "@/pages/admin-auth";
 import AdminAcceptPayment from "@/pages/admin-accept-payment";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminSummaries from "@/pages/admin-summaries";
+import AdminDashboard from "@/pages/admin-dashboard";
+import POSLogin from "@/pages/pos-login";
+import POSCharge from "@/pages/pos-charge";
 
 function Router() {
   return (
@@ -32,10 +35,14 @@ function Router() {
       <Route path="/history" component={CustomerHistory} />
 
       {/* Admin routes (session protected) */}
-      <Route path="/admin" component={() => { window.location.href = "/admin/accept"; return null; }} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/accept" component={AdminAcceptPayment} />
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/summaries" component={AdminSummaries} />
+
+      {/* POS routes (session protected) */}
+      <Route path="/pos/login" component={POSLogin} />
+      <Route path="/pos/charge" component={POSCharge} />
 
       {/* Fallback to 404 */}
       <Route component={NotFound} />

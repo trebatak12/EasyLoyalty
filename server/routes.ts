@@ -1077,6 +1077,316 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== POS (Point of Sale) ROUTES =====
+  
+  // POS authentication middleware - separate from admin auth for different session handling
+  const authenticatePOS = async (req: any, res: any, next: any) => {
+    const sessionId = req.cookies.pos_session;
+    if (!sessionId) {
+      return res.status(401).json(createErrorResponse("Unauthorized", "Nepřihlášen", "E_AUTH"));
+    }
+
+    const session = await storage.getAdminSession(sessionId);
+    if (!session || session.revokedAt || session.expiresAt < new Date()) {
+      return res.status(401).json(createErrorResponse("Unauthorized", "Platnost sezení vypršela", "E_AUTH"));
+    }
+
+    const admin = await storage.getAdminUser(session.adminId);
+    if (!admin || admin.status !== "active") {
+      return res.status(401).json(createErrorResponse("Unauthorized", "Účet není aktivní", "E_AUTH"));
+    }
+
+    req.admin = admin;
+    req.sessionId = sessionId;
+    next();
+  };
+
+  app.post("/api/pos/login", async (req, res) => {
+    try {
+      const { email, password } = loginSchema.parse(req.body);
+      const ip = getClientIP(req);
+      
+      if (!checkRateLimit(`pos_login:${ip}`, 5, 300)) {
+        return res.status(429).json(createErrorResponse("TooManyRequests", "Příliš mnoho pokusů o přihlášení", "E_RATE_LIMIT"));
+      }
+
+      const admin = await storage.getAdminUserByEmail(email);
+      if (!admin || !admin.passwordHash) {
+        return res.status(401).json(createErrorResponse("Unauthorized", "Neplatné přihlašovací údaje", "E_AUTH"));
+      }
+
+      const isValidPassword = await verifyPassword(password, admin.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json(createErrorResponse("Unauthorized", "Neplatné přihlašovací údaje", "E_AUTH"));
+      }
+
+      if (admin.status !== "active") {
+        return res.status(401).json(createErrorResponse("Unauthorized", "Účet je zablokován", "E_AUTH"));
+      }
+
+      // Create session
+      const newSession = await storage.createAdminSession({
+        adminId: admin.id,
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours
+        ip: ip,
+        userAgent: getUserAgent(req),
+        revokedAt: null
+      });
+
+      await storage.updateAdminLastLogin(admin.id);
+
+      // Set session cookie
+      res.cookie("pos_session", newSession.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 8 * 60 * 60 * 1000
+      });
+
+      await auditLog("admin", admin.id, "pos_login", { email });
+
+      res.json({ 
+        success: true,
+        admin: {
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          role: admin.role
+        }
+      });
+
+    } catch (error) {
+      console.error("POS login error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid input", "E_INPUT", error.errors));
+      }
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
+  app.post("/api/pos/logout", async (req, res) => {
+    try {
+      const sessionId = req.cookies.pos_session;
+      if (sessionId) {
+        await storage.revokeAdminSession(sessionId);
+      }
+      
+      res.clearCookie("pos_session");
+      res.json({ success: true });
+    } catch (error) {
+      console.error("POS logout error:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "Chyba při odhlašování", "E_SERVER"));
+    }
+  });
+
+  app.get("/api/pos/me", authenticatePOS, async (req, res) => {
+    try {
+      const admin = req.admin;
+      res.json({
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role
+      });
+    } catch (error) {
+      console.error("POS me error:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
+  // POS charge flow
+  app.post("/api/pos/charge/init", authenticatePOS, async (req, res) => {
+    try {
+      const { tokenOrCode } = chargeInitSchema.parse(req.body);
+      
+      let userId: string;
+      
+      // Try QR token first
+      if (tokenOrCode.length > 10) {
+        try {
+          const payload = verifyQRToken(tokenOrCode);
+          userId = payload.sub;
+        } catch {
+          return res.status(400).json(createErrorResponse("BadRequest", "Neplatný QR kód", "E_INPUT"));
+        }
+      } else {
+        // Try short code
+        const qrData = qrCodes.get(tokenOrCode);
+        if (!qrData || qrData.used || qrData.expiresAt < Date.now()) {
+          return res.status(400).json(createErrorResponse("BadRequest", "Neplatný nebo použitý kód", "E_INPUT"));
+        }
+        userId = qrData.userId;
+        // Mark as used
+        qrCodes.set(tokenOrCode, { ...qrData, used: true });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || user.status !== "active") {
+        return res.status(400).json(createErrorResponse("BadRequest", "Uživatel není aktivní", "E_INPUT"));
+      }
+
+      const wallet = await storage.getWalletByUserId(userId);
+      if (!wallet) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Peněženka nenalezena", "E_INPUT"));
+      }
+
+      res.json({
+        userId: user.id,
+        customerName: user.name,
+        customerEmail: user.email,
+        balanceCZK: formatCZK(wallet.balanceCents),
+        balanceCents: wallet.balanceCents
+      });
+
+    } catch (error) {
+      console.error("POS charge init error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid input", "E_INPUT", error.errors));
+      }
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
+  app.post("/api/pos/charge/confirm", authenticatePOS, async (req, res) => {
+    try {
+      const { userId, amountCZK, idempotencyKey } = z.object({
+        userId: z.string().uuid(),
+        amountCZK: z.number().positive(),
+        idempotencyKey: z.string().min(1)
+      }).parse(req.body);
+
+      const amountCents = Math.round(amountCZK * 100);
+
+      // Check idempotency
+      const isIdempotent = await storage.checkIdempotency(idempotencyKey, JSON.stringify(req.body));
+      if (isIdempotent) {
+        return res.status(409).json(createErrorResponse("IdempotencyConflict", "Request already processed", "E_IDEMPOTENCY_CONFLICT"));
+      }
+      await storage.setIdempotency(idempotencyKey, JSON.stringify(req.body));
+
+      const wallet = await storage.getWalletByUserId(userId);
+      if (!wallet || wallet.balanceCents < amountCents) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Nedostatečný zůstatek", "E_INSUFFICIENT_FUNDS"));
+      }
+
+      // Create charge transaction
+      const transaction = await storage.createTransaction({
+        userId,
+        type: "charge",
+        amountCents: -amountCents, // Negative for charge
+        relatedId: null,
+        idempotencyKey,
+        createdBy: "admin",
+        meta: {
+          adminId: req.admin.id,
+          posCharge: true
+        }
+      });
+
+      // Update wallet balance
+      const newBalance = wallet.balanceCents - amountCents;
+      await storage.updateWalletBalance(userId, newBalance);
+
+      // Store for void tracking (120 seconds)
+      const chargeId = randomUUID();
+      pendingCharges.set(chargeId, {
+        userId,
+        amountCents,
+        createdAt: Date.now(),
+        adminId: req.admin.id
+      });
+
+      // Clean up after 120 seconds
+      setTimeout(() => {
+        pendingCharges.delete(chargeId);
+      }, 120000);
+
+      await auditLog("admin", req.admin.id, "pos_charge", { 
+        userId, 
+        amountCents, 
+        transactionId: transaction.id 
+      });
+
+      res.json({ 
+        success: true, 
+        transactionId: transaction.id,
+        chargeId,
+        voidExpiresAt: Date.now() + 120000,
+        newBalanceCZK: formatCZK(newBalance),
+        newBalanceCents: newBalance
+      });
+
+    } catch (error) {
+      console.error("POS charge confirm error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid input", "E_INPUT", error.errors));
+      }
+      res.status(500).json(createErrorResponse("InternalServerError", "Chyba při zpracování platby", "E_SERVER"));
+    }
+  });
+
+  app.post("/api/pos/void", authenticatePOS, async (req, res) => {
+    try {
+      const { chargeId } = z.object({
+        chargeId: z.string().uuid()
+      }).parse(req.body);
+
+      const charge = pendingCharges.get(chargeId);
+      if (!charge) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Platba nenalezena nebo již nelze stornovat", "E_INPUT"));
+      }
+
+      // Check if within 120 seconds
+      if (Date.now() - charge.createdAt > 120000) {
+        pendingCharges.delete(chargeId);
+        return res.status(400).json(createErrorResponse("BadRequest", "Platba již nelze stornovat", "E_INPUT"));
+      }
+
+      // Process void
+      const voidIdempotencyKey = `void-${chargeId}-${Date.now()}`;
+      
+      // Create void transaction
+      const transaction = await storage.createTransaction({
+        userId: charge.userId,
+        type: "void",
+        amountCents: charge.amountCents, // Positive to restore balance
+        relatedId: null,
+        idempotencyKey: voidIdempotencyKey,
+        createdBy: "admin",
+        meta: {
+          adminId: req.admin.id,
+          originalChargeId: chargeId,
+          posVoid: true
+        }
+      });
+
+      // Update wallet balance
+      const wallet = await storage.getWalletByUserId(charge.userId);
+      if (wallet) {
+        const newBalance = wallet.balanceCents + charge.amountCents;
+        await storage.updateWalletBalance(charge.userId, newBalance);
+      }
+
+      pendingCharges.delete(chargeId);
+
+      await auditLog("admin", req.admin.id, "pos_void", { 
+        chargeId, 
+        userId: charge.userId, 
+        amountCents: charge.amountCents,
+        transactionId: transaction.id
+      });
+
+      res.json({ success: true });
+
+    } catch (error) {
+      console.error("POS void error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid input", "E_INPUT", error.errors));
+      }
+      res.status(500).json(createErrorResponse("InternalServerError", "Chyba při stornování platby", "E_SERVER"));
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
