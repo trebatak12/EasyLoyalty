@@ -11,11 +11,11 @@ async function throwIfResNotOk(res: Response) {
 function getAuthHeaders(): Record<string, string> {
   const accessToken = localStorage.getItem("accessToken");
   const headers: Record<string, string> = {};
-  
+
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
-  
+
   return headers;
 }
 
@@ -70,6 +70,16 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: false,
+      mutationFn: async () => {
+          const response = await fetch("/api/admin/logout", { 
+            method: "POST",
+            credentials: "include"
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response;
+        },
     },
   },
 });

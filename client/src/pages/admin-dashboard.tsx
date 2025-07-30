@@ -243,14 +243,18 @@ export default function AdminDashboard() {
     refetchInterval: 30000 // Refresh every 30 seconds
   });
 
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("/api/admin/logout", { method: "POST" });
-    },
-    onSuccess: () => {
+  const { logout } = useAdminAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setLocation("/admin/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Even if logout fails, redirect to login
       setLocation("/admin/login");
     }
-  });
+  };
 
   if (!admin) {
     return (
@@ -286,7 +290,7 @@ export default function AdminDashboard() {
             </Button>
             <Button 
               variant="outline" 
-              onClick={() => logoutMutation.mutate()}
+              onClick={handleLogout}
               className="border-amber-200 text-amber-700 hover:bg-amber-50"
             >
               <LogOut className="w-4 h-4 mr-2" />
