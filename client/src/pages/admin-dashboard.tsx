@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { 
   Users, 
   CreditCard, 
@@ -95,7 +95,7 @@ function StatsRow({ data }: { data: DashboardData }) {
 
 function AcceptButton() {
   const [, setLocation] = useLocation();
-  
+
   return (
     <Button 
       onClick={() => setLocation("/pos/charge")}
