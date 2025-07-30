@@ -80,19 +80,9 @@ export default function POSCharge() {
     return () => clearInterval(interval);
   }, [chargeResult, voidCountdown]);
 
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSuccess: () => {
-      setLocation("/admin/login");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Chyba",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
+  const handleBackToDashboard = () => {
+    setLocation("/admin/dashboard");
+  };
 
   const initChargeMutation = useMutation({
     mutationFn: async ({ tokenOrCode, amount }: { tokenOrCode: string; amount: string }) => {
@@ -272,11 +262,11 @@ export default function POSCharge() {
           </div>
           <Button
             variant="outline"
-            onClick={() => logoutMutation.mutate()}
+            onClick={handleBackToDashboard}
             className="border-amber-200 text-amber-700 hover:bg-amber-50"
           >
             <LogOut className="w-4 h-4 mr-2" />
-            Odhlásit
+            Zpět na dashboard
           </Button>
         </div>
       </div>
