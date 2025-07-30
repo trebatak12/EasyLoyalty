@@ -17,7 +17,6 @@ import AdminDashboard from "./pages/admin-dashboard";
 import AdminAcceptPayment from "./pages/admin-accept-payment";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminSummaries from "@/pages/admin-summaries";
-import POSLogin from "@/pages/pos-login";
 import POSCharge from "@/pages/pos-charge";
 
 function Router() {
@@ -40,8 +39,7 @@ function Router() {
 
       {/* Admin routes (session protected) */}
       <Route path="/admin" component={AdminDashboard} />
-      {/* POS routes (session protected) */}
-      <Route path="/pos/login" component={POSLogin} />
+      {/* POS routes (admin protected) */}
       <Route path="/pos/charge" component={POSCharge} />
 
       {/* Fallback to 404 */}

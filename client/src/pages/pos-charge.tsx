@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Coffee, LogOut, Scan, CreditCard, RotateCcw, CheckCircle, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 
 interface CustomerInfo {
   userId: string;
@@ -37,26 +38,8 @@ export default function POSCharge() {
   const [voidCountdown, setVoidCountdown] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Check POS authentication
-  const { data: admin, error } = useQuery({
-    queryKey: ["/api/pos/me"],
-    queryFn: async () => {
-      const response = await fetch("/api/pos/me", {
-        credentials: "include"
-      });
-      if (!response.ok) {
-        throw new Error("Nepřihlášen");
-      }
-      return response.json();
-    },
-    retry: false
-  });
-
-  useEffect(() => {
-    if (error && error.message.includes("401")) {
-      setLocation("/pos/login");
-    }
-  }, [error, setLocation]);
+  // Admin authentication hook
+  const { isAuthenticated, isLoading, logout } = useAdminAuth();
 
   // Sound effects
   useEffect(() => {
@@ -98,24 +81,34 @@ export default function POSCharge() {
   }, [chargeResult, voidCountdown]);
 
   const logoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/pos/logout", {
-        method: "POST",
-        credentials: "include"
-      });
-      return response.json();
-    },
+    mutationFn: logout,
     onSuccess: () => {
-      setLocation("/pos/login");
+      setLocation("/admin/login");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Chyba",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   });
 
-  const scanMutation = useMutation({
-    mutationFn: async (tokenOrCode: string) => {
-      return await apiRequest("/api/pos/charge/init", {
+  const initChargeMutation = useMutation({
+    mutationFn: async ({ tokenOrCode, amount }: { tokenOrCode: string; amount: string }) => {
+      const response = await fetch("/api/admin/charge/init", {
         method: "POST",
-        body: { tokenOrCode }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenOrCode }),
+        credentials: "include"
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Chyba při načítání zákazníka");
+      }
+
+      return response.json();
     },
     onSuccess: (data: CustomerInfo) => {
       setCustomerInfo(data);
@@ -132,13 +125,21 @@ export default function POSCharge() {
     }
   });
 
-  const chargeMutation = useMutation({
-    mutationFn: async ({ userId, amountCZK }: { userId: string; amountCZK: number }) => {
-      const idempotencyKey = `pos-charge-${Date.now()}-${Math.random()}`;
-      return await apiRequest("/api/pos/charge/confirm", {
+  const confirmChargeMutation = useMutation({
+    mutationFn: async ({ userId, amountCZK, idempotencyKey }: { userId: string; amountCZK: number; idempotencyKey: string }) => {
+      const response = await fetch("/api/admin/charge/confirm", {
         method: "POST",
-        body: { userId, amountCZK, idempotencyKey }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, amountCZK, idempotencyKey }),
+        credentials: "include"
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Chyba při potvrzení platby");
+      }
+
+      return response.json();
     },
     onSuccess: (data: ChargeResult) => {
       setChargeResult(data);
@@ -160,12 +161,21 @@ export default function POSCharge() {
     }
   });
 
-  const voidMutation = useMutation({
+  const voidChargeMutation = useMutation({
     mutationFn: async (chargeId: string) => {
-      return await apiRequest("/api/pos/void", {
+      const response = await fetch("/api/admin/void", {
         method: "POST",
-        body: { chargeId }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chargeId }),
+        credentials: "include"
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Chyba při stornování platby");
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -194,7 +204,7 @@ export default function POSCharge() {
       });
       return;
     }
-    scanMutation.mutate(tokenOrCode.trim());
+    initChargeMutation.mutate({ tokenOrCode: tokenOrCode.trim(), amount });
   };
 
   const handleCharge = () => {
@@ -219,12 +229,12 @@ export default function POSCharge() {
       return;
     }
 
-    chargeMutation.mutate({ userId: customerInfo.userId, amountCZK });
+    confirmChargeMutation.mutate({ userId: customerInfo.userId, amountCZK, idempotencyKey: `pos-charge-${Date.now()}-${Math.random()}` });
   };
 
   const handleVoid = () => {
     if (chargeResult?.chargeId) {
-      voidMutation.mutate(chargeResult.chargeId);
+      voidChargeMutation.mutate(chargeResult.chargeId);
     }
   };
 
@@ -237,12 +247,12 @@ export default function POSCharge() {
     setVoidCountdown(0);
   };
 
-  if (!admin) {
+  if (isLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
-          <p className="mt-2 text-amber-700">Načítání...</p>
+          <Coffee className="w-16 h-16 text-amber-600 mx-auto mb-4" />
+          <p className="text-amber-700">Načítání...</p>
         </div>
       </div>
     );
@@ -257,11 +267,11 @@ export default function POSCharge() {
             <Coffee className="w-8 h-8 text-amber-600" />
             <div>
               <h1 className="text-xl font-bold text-amber-900">EasyLoyalty POS</h1>
-              <p className="text-sm text-amber-700">Pokladna • {admin.name}</p>
+              <p className="text-sm text-amber-700">Pokladna</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => logoutMutation.mutate()}
             className="border-amber-200 text-amber-700 hover:bg-amber-50"
           >
@@ -292,15 +302,15 @@ export default function POSCharge() {
                   placeholder="Naskenujte QR kód nebo zadejte krátký kód"
                   className="border-amber-200 focus:border-amber-500 focus:ring-amber-500"
                   onKeyDown={(e) => e.key === "Enter" && handleScan()}
-                  disabled={scanMutation.isPending}
+                  disabled={initChargeMutation.isPending}
                 />
               </div>
-              <Button 
+              <Button
                 onClick={handleScan}
-                disabled={scanMutation.isPending || !tokenOrCode.trim()}
+                disabled={initChargeMutation.isPending || !tokenOrCode.trim()}
                 className="bg-amber-600 hover:bg-amber-700 text-white"
               >
-                {scanMutation.isPending ? "Načítání..." : "Načíst zákazníka"}
+                {initChargeMutation.isPending ? "Načítání..." : "Načíst zákazníka"}
               </Button>
             </CardContent>
           </Card>
@@ -354,18 +364,18 @@ export default function POSCharge() {
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
                     className="border-amber-200 focus:border-amber-500 focus:ring-amber-500 text-lg"
-                    disabled={chargeMutation.isPending}
+                    disabled={confirmChargeMutation.isPending}
                   />
                 </div>
                 <div className="flex space-x-3">
-                  <Button 
+                  <Button
                     onClick={handleCharge}
-                    disabled={chargeMutation.isPending || !amount}
+                    disabled={confirmChargeMutation.isPending || !amount}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3"
                   >
-                    {chargeMutation.isPending ? "Zpracovávání..." : "Potvrdit platbu"}
+                    {confirmChargeMutation.isPending ? "Zpracovávání..." : "Potvrdit platbu"}
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={resetFlow}
                     className="border-amber-200 text-amber-700 hover:bg-amber-50"
@@ -420,14 +430,14 @@ export default function POSCharge() {
                         Platbu lze stornovat ještě <span className="font-bold">{voidCountdown}s</span>
                       </p>
                     </div>
-                    <Button 
+                    <Button
                       onClick={handleVoid}
-                      disabled={voidMutation.isPending}
+                      disabled={voidChargeMutation.isPending}
                       variant="destructive"
                       className="bg-red-600 hover:bg-red-700"
                     >
                       <RotateCcw className="w-4 h-4 mr-2" />
-                      {voidMutation.isPending ? "Stornování..." : "Stornovat"}
+                      {voidChargeMutation.isPending ? "Stornování..." : "Stornovat"}
                     </Button>
                   </div>
                 </CardContent>
@@ -435,7 +445,7 @@ export default function POSCharge() {
             )}
 
             <div className="flex justify-center">
-              <Button 
+              <Button
                 onClick={resetFlow}
                 className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3"
               >
