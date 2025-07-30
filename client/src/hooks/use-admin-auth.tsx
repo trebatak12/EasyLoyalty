@@ -59,12 +59,14 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await api.post("/api/admin/logout", {});
+      setIsLoading(true);
+      await api.post("/api/admin/logout");
+      setAdmin(null);
     } catch (error) {
-      // Ignore logout errors
+      console.error("Logout error:", error);
+    } finally {
+      setIsLoading(false);
     }
-
-    setAdmin(null);
   };
 
   const value: AdminAuthContextType = {
