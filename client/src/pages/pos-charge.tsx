@@ -40,6 +40,15 @@ export default function POSCharge() {
   // Check POS authentication
   const { data: admin, error } = useQuery({
     queryKey: ["/api/pos/me"],
+    queryFn: async () => {
+      const response = await fetch("/api/pos/me", {
+        credentials: "include"
+      });
+      if (!response.ok) {
+        throw new Error("Nepřihlášen");
+      }
+      return response.json();
+    },
     retry: false
   });
 
@@ -90,7 +99,11 @@ export default function POSCharge() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/pos/logout", { method: "POST" });
+      const response = await fetch("/api/pos/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+      return response.json();
     },
     onSuccess: () => {
       setLocation("/pos/login");

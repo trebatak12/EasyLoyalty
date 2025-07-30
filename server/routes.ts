@@ -1138,7 +1138,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { email, password } = loginSchema.parse(req.body);
       const ip = getClientIP(req);
 
-      if (!checkRateLimit(`pos_login:${ip}`, 5, 300)) {
+      const rateLimit = checkRateLimit(`pos_login:${ip}`, 5, 5 * 60 * 1000);
+      if (!rateLimit.allowed) {
         return res.status(429).json(createErrorResponse("TooManyRequests", "Příliš mnoho pokusů o přihlášení", "E_RATE_LIMIT"));
       }
 

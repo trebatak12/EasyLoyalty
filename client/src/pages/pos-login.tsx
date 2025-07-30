@@ -19,10 +19,21 @@ export default function POSLogin() {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      return await apiRequest("/api/pos/login", {
+      const response = await fetch("/api/pos/login", {
         method: "POST",
-        body: credentials
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(credentials),
+        credentials: "include", // Important for cookies
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Chyba přihlášení");
+      }
+
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
