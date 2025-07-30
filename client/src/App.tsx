@@ -13,10 +13,10 @@ import CustomerTopup from "@/pages/customer-topup";
 import CustomerQR from "@/pages/customer-qr";
 import CustomerHistory from "@/pages/customer-history";
 import AdminAuth from "@/pages/admin-auth";
-import AdminAcceptPayment from "@/pages/admin-accept-payment";
+import AdminDashboard from "./pages/admin-dashboard";
+import AdminAcceptPayment from "./pages/admin-accept-payment";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminSummaries from "@/pages/admin-summaries";
-import AdminDashboard from "@/pages/admin-dashboard";
 import POSLogin from "@/pages/pos-login";
 import POSCharge from "@/pages/pos-charge";
 
@@ -27,6 +27,10 @@ function Router() {
       <Route path="/" component={ModeSelection} />
       <Route path="/auth/customer" component={CustomerAuth} />
       <Route path="/admin/login" component={AdminAuth} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/accept" component={AdminAcceptPayment} />
+      <Route path="/admin/customers" component={AdminCustomers} />
+      <Route path="/admin/summaries" component={AdminSummaries} />
 
       {/* Customer routes (JWT protected) */}
       <Route path="/home" component={CustomerHome} />
@@ -36,10 +40,6 @@ function Router() {
 
       {/* Admin routes (session protected) */}
       <Route path="/admin" component={AdminDashboard} />
-      <Route path="/admin/accept" component={AdminAcceptPayment} />
-      <Route path="/admin/customers" component={AdminCustomers} />
-      <Route path="/admin/summaries" component={AdminSummaries} />
-
       {/* POS routes (session protected) */}
       <Route path="/pos/login" component={POSLogin} />
       <Route path="/pos/charge" component={POSCharge} />

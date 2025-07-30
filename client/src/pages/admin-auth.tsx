@@ -16,7 +16,7 @@ export default function AdminAuth() {
   // Pokud je admin už přihlášený, přesměruj ho
   useEffect(() => {
     if (isAuthenticated) {
-      setLocation("/admin/accept");
+      setLocation("/admin/dashboard");
     }
   }, [isAuthenticated, setLocation]);
 
@@ -39,7 +39,7 @@ export default function AdminAuth() {
     try {
       await login(loginData.email, loginData.password);
       // Po úspěšném přihlášení přesměruj na admin dashboard
-      setLocation("/admin/accept");
+      setLocation("/admin/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
