@@ -448,3 +448,186 @@ export default function POSCharge() {
     </div>
   );
 }
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, CreditCard, User, DollarSign } from "lucide-react";
+import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/utils/currency";
+
+interface ChargeData {
+  amount: number;
+  customerEmail?: string;
+  note?: string;
+}
+
+export default function POSCharge() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [amount, setAmount] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [note, setNote] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const chargeMutation = useMutation({
+    mutationFn: async (data: ChargeData) => {
+      const response = await api.post("/pos/charge", {
+        amountCents: Math.round(data.amount * 100),
+        customerEmail: data.customerEmail,
+        note: data.note
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Platba úspěšná",
+        description: `Částka ${formatCurrency(data.amountCents / 100)} byla úspěšně účtována.`,
+        variant: "default"
+      });
+      // Reset form
+      setAmount("");
+      setCustomerEmail("");
+      setNote("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Chyba při zpracování platby",
+        description: error.response?.data?.message || "Neočekávaná chyba",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      setIsProcessing(false);
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const amountNum = parseFloat(amount);
+    if (!amountNum || amountNum <= 0) {
+      toast({
+        title: "Neplatná částka",
+        description: "Zadejte platnou částku větší než 0",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    chargeMutation.mutate({
+      amount: amountNum,
+      customerEmail: customerEmail || undefined,
+      note: note || undefined
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-4">
+      <div className="max-w-md mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLocation("/pos/login")}
+            className="rounded-full"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <h1 className="text-2xl font-bold text-amber-900">Přijmout platbu</h1>
+        </div>
+
+        {/* Charge Form */}
+        <Card className="bg-white/80 backdrop-blur border-amber-200 shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-900">
+              <CreditCard size={20} />
+              Nová platba
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="amount" className="text-amber-800">
+                  Částka (Kč) *
+                </Label>
+                <div className="relative">
+                  <DollarSign size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-600" />
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="pl-10 border-amber-200 focus:border-amber-400"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="customerEmail" className="text-amber-800">
+                  Email zákazníka (volitelné)
+                </Label>
+                <div className="relative">
+                  <User size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-600" />
+                  <Input
+                    id="customerEmail"
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="zakaznik@email.cz"
+                    className="pl-10 border-amber-200 focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="note" className="text-amber-800">
+                  Poznámka (volitelné)
+                </Label>
+                <Input
+                  id="note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Poznámka k platbě"
+                  className="border-amber-200 focus:border-amber-400"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+                disabled={isProcessing}
+              >
+                {isProcessing ? "Zpracovávám..." : "Přijmout platbu"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Quick Amount Buttons */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {[50, 100, 200, 500].map((quickAmount) => (
+            <Button
+              key={quickAmount}
+              variant="outline"
+              onClick={() => setAmount(quickAmount.toString())}
+              className="border-amber-200 text-amber-800 hover:bg-amber-50"
+            >
+              {quickAmount} Kč
+            </Button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
