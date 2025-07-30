@@ -85,8 +85,8 @@ export default function POSCharge() {
   };
 
   const initChargeMutation = useMutation({
-    mutationFn: async ({ tokenOrCode }: { tokenOrCode: string }) => {
-      const response = await fetch("/api/pos/charge/init", {
+    mutationFn: async ({ tokenOrCode, amount }: { tokenOrCode: string; amount: string }) => {
+      const response = await fetch("/api/admin/charge/init", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tokenOrCode }),
@@ -104,16 +104,11 @@ export default function POSCharge() {
       setCustomerInfo(data);
       setStep("confirm");
       playSound("success");
-      toast({
-        title: "Zákazník načten",
-        description: `${data.customerName} - ${data.balanceCZK}`,
-        variant: "default"
-      });
     },
     onError: (error: any) => {
       toast({
         title: "Chyba načítání",
-        description: error.message || "Neplatný QR kód nebo kód zákazníka",
+        description: error.message || "Neplatný QR kód nebo kód",
         variant: "destructive"
       });
       playSound("error");
@@ -194,23 +189,12 @@ export default function POSCharge() {
     if (!tokenOrCode.trim()) {
       toast({
         title: "Chyba",
-        description: "Zadejte QR kód nebo manuální kód zákazníka",
+        description: "Zadejte QR kód nebo krátký kód",
         variant: "destructive"
       });
       return;
     }
-
-    if (!amount || parseFloat(amount) <= 0) {
-      toast({
-        title: "Chyba",
-        description: "Zadejte platnou částku",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Načíst zákazníka podle QR kódu/manuálního kódu
-    initChargeMutation.mutate({ tokenOrCode: tokenOrCode.trim() });
+    initChargeMutation.mutate({ tokenOrCode: tokenOrCode.trim(), amount });
   };
 
   const handleCharge = () => {

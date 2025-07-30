@@ -1233,56 +1233,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { tokenOrCode } = chargeInitSchema.parse(req.body);
 
       let userId: string;
-      let qrData = null;
 
-      // First try to find in QR codes map (for short codes)
-      qrData = qrCodes.get(tokenOrCode);
-      if (qrData) {
-        if (qrData.expiresAt < Date.now()) {
-          return res.status(400).json(createErrorResponse("BadRequest", "QR kód vypršel", "E_INPUT"));
+      // Try QR token first
+      if (tokenOrCode.length > 10) {
+        try {
+          const payload = verifyQRToken(tokenOrCode);
+          userId = payload.sub;
+        } catch {
+          return res.status(400).json(createErrorResponse("BadRequest", "Neplatný QR kód", "E_INPUT"));
         }
-        if (qrData.used) {
-          return res.status(400).json(createErrorResponse("BadRequest", "QR kód již byl použit", "E_INPUT"));
+      } else {
+        // Try short code
+        const qrData = qrCodes.get(tokenOrCode);
+        if (!qrData || qrData.used || qrData.expiresAt < Date.now()) {
+          return res.status(400).json(createErrorResponse("BadRequest", "Neplatný nebo použitý kód", "E_INPUT"));
         }
         userId = qrData.userId;
         // Mark as used
         qrCodes.set(tokenOrCode, { ...qrData, used: true });
-      } else {
-        // Try as JWT token (longer QR codes)
-        try {
-          const payload = verifyQRToken(tokenOrCode);
-          if (!payload || !payload.sub) {
-            return res.status(400).json(createErrorResponse("BadRequest", "Neplatný QR token", "E_INPUT"));
-          }
-          userId = payload.sub;
-        } catch (tokenError) {
-          console.error("QR token verification failed:", tokenError);
-          return res.status(400).json(createErrorResponse("BadRequest", "Neplatný nebo vypršelý QR kód", "E_INPUT"));
-        }
       }
 
-      // Load user profile
       const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json(createErrorResponse("NotFound", "Zákazník nenalezen", "E_NOT_FOUND"));
+      if (!user || user.status !== "active") {
+        return res.status(400).json(createErrorResponse("BadRequest", "Uživatel není aktivní", "E_INPUT"));
       }
 
-      if (user.status !== "active") {
-        return res.status(400).json(createErrorResponse("BadRequest", "Účet zákazníka není aktivní", "E_INPUT"));
-      }
-
-      // Load wallet
       const wallet = await storage.getWalletByUserId(userId);
       if (!wallet) {
-        return res.status(404).json(createErrorResponse("NotFound", "Peněženka zákazníka nenalezena", "E_NOT_FOUND"));
+        return res.status(400).json(createErrorResponse("BadRequest", "Peněženka nenalezena", "E_INPUT"));
       }
-
-      // Log successful customer load
-      await auditLog("admin", req.admin.id, "pos_customer_loaded", {
-        userId,
-        customerName: user.name,
-        balanceCents: wallet.balanceCents
-      });
 
       res.json({
         userId: user.id,
@@ -1295,9 +1274,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("POS charge init error:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json(createErrorResponse("BadRequest", "Neplatný vstup", "E_INPUT", error.errors));
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid input", "E_INPUT", error.errors));
       }
-      res.status(500).json(createErrorResponse("InternalServerError", "Chyba serveru", "E_SERVER"));
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
     }
   });
 
