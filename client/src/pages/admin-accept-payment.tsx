@@ -20,7 +20,7 @@ import {
 import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/utils/currency";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import { useLocation } from "wouter";
 import { AdminRoute } from "@/components/admin-route";
 import { Store, Camera, Check, RotateCcw } from "lucide-react";
