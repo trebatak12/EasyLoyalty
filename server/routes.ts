@@ -814,9 +814,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/charge/confirm", authenticateAdmin,async (req, res) => {
-The code adds POS charge endpoint with authentication, charge confirmation, and void functionality.
-```try {
+  app.post("/api/admin/charge/confirm", authenticateAdmin, async (req, res) => {
+    try {
       const body = chargeConfirmSchema.parse(req.body);
       const { chargeId, amountCZK, idempotencyKey } = body;
       const amountCents = amountCZK * 100;
