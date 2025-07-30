@@ -52,6 +52,12 @@ export interface IStorage {
     spendTodayCents: number;
     spendWeekCents: number;
   }>;
+  getDashboardStats(): Promise<{
+    todayTotalCents: number;
+    todayCount: number;
+    membersCount: number;
+  }>;
+  getRecentTransactions(limit?: number): Promise<(Transaction & { user: { name: string } })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -322,6 +328,12 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getDashboardStats(): Promise<{
+    todayTotalCents: number;
+    todayCount: number;
+    membersCount: number;
+  }>;
+
   async getSummaryStats(): Promise<{
     membersCount: number;
     liabilityCents: number;
@@ -370,6 +382,50 @@ export class DatabaseStorage implements IStorage {
       spendTodayCents: Number(todaySpendResult.total || 0),
       spendWeekCents: Number(weekSpendResult.total || 0)
     };
+  }
+
+  async getDashboardStats(): Promise<{
+    todayTotalCents: number;
+    todayCount: number;
+    membersCount: number;
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [membersResult] = await db
+      .select({ count: count() })
+      .from(users)
+      .where(eq(users.status, "active"));
+
+    const [todayStatsResult] = await db
+      .select({ 
+        total: sql<number>`COALESCE(SUM(ABS(${transactions.amountCents})), 0)`,
+        count: count()
+      })
+      .from(transactions)
+      .where(and(
+        eq(transactions.type, "charge"),
+        gte(transactions.createdAt, today)
+      ));
+
+    return {
+      todayTotalCents: Number(todayStatsResult.total || 0),
+      todayCount: Number(todayStatsResult.count || 0),
+      membersCount: membersResult.count
+    };
+  }
+
+  async getRecentTransactions(limit: number = 10): Promise<(Transaction & { user: { name: string } })[]> {
+    return await db
+      .select({
+        transaction: transactions,
+        user: { name: users.name }
+      })
+      .from(transactions)
+      .leftJoin(users, eq(transactions.userId, users.id))
+      .orderBy(desc(transactions.createdAt))
+      .limit(limit)
+      .then(results => results.map(r => ({ ...r.transaction, user: r.user! })));
   }
 }
 

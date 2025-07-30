@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = signupSchema.parse(req.body);
       const ip = getClientIP(req);
-      
+
       // Rate limiting
       const rateLimit = checkRateLimit(`signup:${ip}`, 5, 5 * 60 * 1000);
       if (!rateLimit.allowed) {
@@ -127,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate tokens
       const accessToken = generateAccessToken(user.id);
       const { token: refreshToken, hash: refreshTokenHash } = generateRefreshToken();
-      
+
       await storage.createRefreshToken({
         userId: user.id,
         tokenHash: refreshTokenHash,
@@ -162,11 +162,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = loginSchema.parse(req.body);
       const ip = getClientIP(req);
-      
+
       // Rate limiting
       const ipLimit = checkRateLimit(`login:ip:${ip}`, 5, 5 * 60 * 1000);
       const emailLimit = checkRateLimit(`login:email:${body.email}`, 10, 15 * 60 * 1000, 15 * 60 * 1000);
-      
+
       if (!ipLimit.allowed || !emailLimit.allowed) {
         await auditLog("system", null, "login_rate_limited", { email: body.email, ip }, getUserAgent(req), ip);
         return res.status(429).json(createErrorResponse("TooManyRequests", "Too many login attempts", "E_RATE_LIMIT"));
@@ -198,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate tokens
       const accessToken = generateAccessToken(user.id);
       const { token: refreshToken, hash: refreshTokenHash } = generateRefreshToken();
-      
+
       await storage.createRefreshToken({
         userId: user.id,
         tokenHash: refreshTokenHash,
@@ -239,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash the token to look it up
       const crypto = await import("crypto");
       const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-      
+
       const storedToken = await storage.getRefreshToken(tokenHash);
       if (!storedToken) {
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH"));
@@ -257,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate new tokens
       const accessToken = generateAccessToken(user.id);
       const { token: newRefreshToken, hash: newRefreshTokenHash } = generateRefreshToken();
-      
+
       await storage.createRefreshToken({
         userId: user.id,
         tokenHash: newRefreshTokenHash,
@@ -300,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { idToken } = googleAuthSchema.parse(req.body);
       const ip = getClientIP(req);
-      
+
       // Rate limiting
       const rateLimit = checkRateLimit(`google-auth:${ip}`, 10, 15 * 60 * 1000);
       if (!rateLimit.allowed) {
@@ -315,11 +315,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user exists by Google ID
       let user = await storage.getUserByGoogleId(googleData.googleId);
-      
+
       if (!user) {
         // Check if user exists by email
         user = await storage.getUserByEmail(googleData.email);
-        
+
         if (user && user.passwordHash) {
           // User has password auth - create new account to avoid conflicts
           user = await storage.createUserWithGoogle({
@@ -406,7 +406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!wallet) {
         return res.status(404).json(createErrorResponse("NotFound", "Wallet not found", "E_WALLET"));
       }
-      
+
       res.json({
         balanceCZK: `${Math.floor(wallet.balanceCents / 100)} CZK`,
         balanceCents: wallet.balanceCents,
@@ -426,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { packageCode } = req.body;
       const userId = req.user!.id;
       const ip = getClientIP(req);
-      
+
       // Define packages
       const packages = {
         MINI: { pay: 39000, bonus: 3000, name: "MINI" },
@@ -434,20 +434,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         MAXI: { pay: 159000, bonus: 23000, name: "MAXI" },
         ULTRA: { pay: 209000, bonus: 40000, name: "ULTRA" }
       };
-      
+
       const pkg = packages[packageCode as keyof typeof packages];
       if (!pkg) {
         return res.status(400).json(createErrorResponse("BadRequest", "Invalid package code", "E_INPUT"));
       }
-      
+
       // In a real app, here you would process the external payment
       // For this demo, we'll simulate successful payment
-      
+
       const totalCents = pkg.pay + pkg.bonus;
-      
+
       // Update wallet balance
       const wallet = await storage.updateWalletBalance(userId, totalCents, pkg.bonus);
-      
+
       // Create transaction record
       await storage.createTransaction({
         userId,
@@ -456,14 +456,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: "user",
         meta: { packageCode, paidAmount: pkg.pay, bonusAmount: pkg.bonus }
       });
-      
+
       // Audit log
       await auditLog("user", userId, "topup", { 
         packageCode, 
         amount: totalCents, 
         bonus: pkg.bonus 
       }, getUserAgent(req), ip);
-      
+
       res.json({
         success: true,
         wallet: {
@@ -485,9 +485,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const limit = parseInt(req.query.limit as string) || 20;
       const cursor = req.query.cursor as string;
-      
+
       const transactions = await storage.getUserTransactions(userId, limit, cursor);
-      
+
       res.json({
         transactions,
         nextCursor: transactions.length === limit ? transactions[transactions.length - 1].id : null
@@ -503,13 +503,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       const nonce = Math.random().toString(36).substring(2, 15);
-      
+
       // Generate JWT token for QR code (expires in 60 seconds)
       const qrToken = generateQRToken(userId, nonce);
-      
+
       // Generate short code as backup
       const shortCode = generateShortCode();
-      
+
       res.json({
         qrPayload: qrToken,
         shortCode,
@@ -546,7 +546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = topupSchema.parse(req.body);
       const userId = req.user.id;
-      
+
       const packageData = TOP_UP_PACKAGES[body.packageCode];
       if (!packageData) {
         return res.status(400).json(createErrorResponse("BadRequest", "Invalid package code", "E_INPUT"));
@@ -554,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create idempotency key
       const idempotencyKey = randomUUID();
-      
+
       // Create topup transaction
       await storage.createTransaction({
         userId,
@@ -608,9 +608,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nonce = randomUUID();
       const shortCode = generateShortCode();
       const expiresAt = Date.now() + 60000; // 60 seconds
-      
+
       const qrPayload = generateQRToken(userId, nonce);
-      
+
       // Store QR code data
       qrCodes.set(shortCode, { userId, expiresAt, used: false });
       qrCodes.set(qrPayload, { userId, expiresAt, used: false });
@@ -630,7 +630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { type = "all", cursor } = req.query;
       const transactions = await storage.getUserTransactions(req.user.id, 20, cursor as string);
-      
+
       const filteredTransactions = type === "all" ? transactions : 
         transactions.filter(t => {
           if (type === "topups") return t.type === "topup";
@@ -660,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = loginSchema.parse(req.body);
       const ip = getClientIP(req);
-      
+
       // Rate limiting
       const rateLimit = checkRateLimit(`admin_login:${ip}`, 3, 5 * 60 * 1000);
       if (!rateLimit.allowed) {
@@ -755,10 +755,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = chargeInitSchema.parse(req.body);
       const { tokenOrCode } = body;
-      
+
       let userId: string;
       let qrData = qrCodes.get(tokenOrCode);
-      
+
       if (qrData) {
         // QR code or short code
         if (Date.now() > qrData.expiresAt) {
@@ -775,7 +775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json(createErrorResponse("NotFound", "Invalid or expired token", "E_NOT_FOUND"));
         }
         userId = payload.sub;
-        
+
         // Check if token was already used
         qrData = qrCodes.get(tokenOrCode);
         if (qrData?.used) {
@@ -814,7 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/charge/confirm", authenticateAdmin, async (req, res) => {
+  app.post("/api/admin/charge/confirm", authenticateAdmin,async (req, res) => {
     try {
       const body = chargeConfirmSchema.parse(req.body);
       const { chargeId, amountCZK, idempotencyKey } = body;
@@ -843,7 +843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find user from amount (demo hack - in production we'd have proper charge tracking)
       const adminWallet = await storage.getWalletByUserId(chargeId);
       let userId = chargeId;
-      
+
       // Try to find any user with sufficient balance for this demo
       const customers = await storage.getCustomersList();
       const eligibleCustomer = customers.users.find(u => u.wallet.balanceCents >= amountCents);
@@ -912,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = chargeVoidSchema.parse(req.body);
       const { chargeId } = body;
-      
+
       const pendingCharge = pendingCharges.get(chargeId);
       if (!pendingCharge) {
         return res.status(404).json(createErrorResponse("NotFound", "Charge not found", "E_NOT_FOUND"));
@@ -970,9 +970,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { query, cursor } = req.query;
       const limit = 50;
       const offset = cursor ? parseInt(cursor as string) : 0;
-      
+
       const result = await storage.getCustomersList(query as string, limit, offset);
-      
+
       res.json({
         customers: result.users.map(user => ({
           id: user.id,
@@ -993,10 +993,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin dashboard stats
+  const adminAuth = authenticateAdmin;
+  app.get("/api/admin/dashboard", adminAuth, async (req, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      const recentTransactions = await storage.getRecentTransactions(10);
+
+      // Convert cents to CZK display format
+      const formatCurrency = (cents: number) => {
+        const czk = cents / 100;
+        return czk.toLocaleString('cs-CZ', { 
+          style: 'currency', 
+          currency: 'CZK',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).replace('CZK', 'Kč');
+      };
+
+      res.json({
+        ...stats,
+        todayTotalCZK: formatCurrency(stats.todayTotalCents),
+        recentTransactions: recentTransactions.map(tx => ({
+          ...tx,
+          amountCZK: formatCurrency(Math.abs(tx.amountCents))
+        }))
+      });
+    } catch (error) {
+      console.error("Admin dashboard error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.get("/api/admin/summary", authenticateAdmin, async (req, res) => {
     try {
       const stats = await storage.getSummaryStats();
-      
+
       res.json({
         membersCount: stats.membersCount,
         liabilityCZK: formatCZK(stats.liabilityCents),
@@ -1078,7 +1110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== POS (Point of Sale) ROUTES =====
-  
+
   // POS authentication middleware - separate from admin auth for different session handling
   const authenticatePOS = async (req: any, res: any, next: any) => {
     const sessionId = req.cookies.pos_session;
@@ -1105,7 +1137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password } = loginSchema.parse(req.body);
       const ip = getClientIP(req);
-      
+
       if (!checkRateLimit(`pos_login:${ip}`, 5, 300)) {
         return res.status(429).json(createErrorResponse("TooManyRequests", "Příliš mnoho pokusů o přihlášení", "E_RATE_LIMIT"));
       }
@@ -1170,7 +1202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (sessionId) {
         await storage.revokeAdminSession(sessionId);
       }
-      
+
       res.clearCookie("pos_session");
       res.json({ success: true });
     } catch (error) {
@@ -1198,9 +1230,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/pos/charge/init", authenticatePOS, async (req, res) => {
     try {
       const { tokenOrCode } = chargeInitSchema.parse(req.body);
-      
+
       let userId: string;
-      
+
       // Try QR token first
       if (tokenOrCode.length > 10) {
         try {
@@ -1344,7 +1376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Process void
       const voidIdempotencyKey = `void-${chargeId}-${Date.now()}`;
-      
+
       // Create void transaction
       const transaction = await storage.createTransaction({
         userId: charge.userId,
