@@ -1,0 +1,108 @@
+🔩 Technický návrh
+mermaid
+Zkopírovat
+Upravit
+sequenceDiagram
+  participant C as Client (SPA | AdminUI | POS)
+  participant API as REST/GraphQL Gateway
+  participant Auth as Auth Service
+  C->>API: POST /auth/login {email, pwd}
+  API->>Auth: validateUser()
+  Auth-->>API: {accessToken}+Set-Cookie(refresh_token)
+  API-->>C: JSON{accessToken}
+  Note over C: accessToken uložen jen v RAM
+
+  C-->>API: GET /orders (Authorization: Bearer \<access\>)
+  API->>Auth: verifyJWT()
+  Auth-->>API: userId/roles
+  API-->>C: 200 OK
+1. Backend (Node/Express)
+ts
+Zkopírovat
+Upravit
+// middleware/authenticate.ts
+export const authenticate = async (req, res, next) => {
+  const header = req.headers.authorization ?? "";
+  const token  = header.split(" ")[1];
+  if (!token) return res.sendStatus(401);
+
+  try {
+    req.user = jwt.verify(token, process.env.JWT_PUBLIC_KEY);
+    next();
+  } catch (err) {
+    return res.sendStatus(401);
+  }
+};
+ts
+Zkopírovat
+Upravit
+// routes/auth.ts
+router.post("/login", async (req, res) => {
+  const { id, roles } = await validateUser(req.body);
+  const accessToken  = signAccess({ id, roles });
+  const refreshToken = await issueRefreshToken(id);
+
+  res.cookie("refresh_token", refreshToken, {
+    httpOnly: true,
+    secure:   isProd,
+    sameSite: "strict",
+    path:     "/auth/refresh",
+    maxAge:   30 * 24 * 60 * 60 * 1000,
+  });
+  res.json({ accessToken });
+});
+
+router.post("/refresh", async (req, res) => {
+  const { refresh_token } = req.cookies;
+  const payload = await verifyAndRotate(refresh_token); // throw if reused
+  const accessToken  = signAccess({ id: payload.sub, roles: payload.roles });
+  const newRefresh   = await issueRefreshToken(payload.sub);
+
+  res.cookie("refresh_token", newRefresh, cookieOpts);
+  res.json({ accessToken });
+});
+2. Front-end (React / POS UI)
+ts
+Zkopírovat
+Upravit
+// hooks/useAuth.ts
+const login = async (cred) => {
+  const { accessToken } = await api.post("/auth/login", cred);
+  setAccess(accessToken);          // in-memory
+};
+
+const refresh = async () => {
+  const { accessToken } = await api.post("/auth/refresh"); // cookie sent automatically
+  setAccess(accessToken);
+};
+
+// axios interceptor – auto-refresh on 401
+axios.interceptors.response.use(undefined, async (err) => {
+  if (err.response?.status === 401) {
+    await refresh();
+    err.config.headers.Authorization = `Bearer ${accessToken}`;
+    return axios.request(err.config); // replay
+  }
+  throw err;
+});
+3. POS – stejné flow
+Electron/embedded Chrome → cookie je automaticky uložen; in-memory access token v Redux store.
+
+⚙️ Migrace krok-za-krokem
+Backend umí oba systémy paralelně
+Accept: legacy header → postupné vypínání starých cest, nulové downtime.
+
+Move refreshToken customers → cookie
+• build nový /refresh endpoint
+• SPA release, která přestane sahat do localStorage.
+
+Deprecate session IDs (admins/POS)
+Po 4 týdnech od převedení všech klientů zahodíš starý admin_sid/pos_session cookie.
+
+🔒 Bezpečnostní detaily
+Ochrana	Implementace
+XSS	CSP (script-src 'self'), Trusted Types, React SSR escape.
+CSRF	SameSite=Strict ⟹ 99 % případů vyřešeno. Pokud potřebuješ 3rd-party iframe, přepneš na Lax + X-CSRF-Token.
+Token leak detection	refresh-token rotation + DB flag used; pokus o reuse ⇒ celý account force_logout.
+Logout everywhere	Redis set blacklisted:access:<jti> s TTL = 15 min.
+PCI / auditor log	Tabulka auth_log (event, ip, user-agent, userId).
