@@ -71,14 +71,14 @@ function App() {
 
             {/* Admin Routes - wrapped in AdminAuthProvider */}
             <Route path="/admin/*">
-              <AdminAuthProvider>
+              
                 <Switch>
                   <Route path="/admin/login" component={AdminAuth} />
                   <Route path="/admin/dashboard" component={AdminDashboard} />
                   <Route path="/admin/customers" component={AdminCustomers} />
                   <Route path="/admin/summaries" component={AdminSummaries} />
                 </Switch>
-              </AdminAuthProvider>
+              
             </Route>
 
             {/* POS Routes (admin protected) */}
@@ -94,3 +94,4 @@ function App() {
 }
 
 export default App;
+```
