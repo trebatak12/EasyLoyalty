@@ -59,10 +59,35 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <Toaster />
-          <Router />
-          <AdminAuthProvider>
-            <AdminRouter />
-          </AdminAuthProvider>
+          <Switch>
+            {/* Public routes */}
+            <Route path="/" component={ModeSelection} />
+            <Route path="/auth/customer" component={CustomerAuth} />
+
+            {/* Customer routes (JWT protected) */}
+            <Route path="/home" component={CustomerHome} />
+            <Route path="/topup" component={CustomerTopup} />
+            <Route path="/qr" component={CustomerQR} />
+            <Route path="/history" component={CustomerHistory} />
+            
+            {/* Admin Routes - wrapped in AdminAuthProvider */}
+            <Route path="/admin/*">
+              <AdminAuthProvider>
+                <Switch>
+                  <Route path="/admin/login" component={AdminAuth} />
+                  <Route path="/admin/dashboard" component={AdminDashboard} />
+                  <Route path="/admin/customers" component={AdminCustomers} />
+                  <Route path="/admin/summaries" component={AdminSummaries} />
+                </Switch>
+              </AdminAuthProvider>
+            </Route>
+
+            {/* POS Routes (admin protected) */}
+            <Route path="/pos/charge" component={POSCharge} />
+
+            {/* Fallback to 404 */}
+            <Route component={NotFound} />
+          </Switch>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
