@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, Users, TrendingUp, Clock, ArrowUpRight, Plus, Minus, RotateCcw, Coffee, LogOut } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { api as apiRequest } from "@/services/api";
 
 interface DashboardData {
   todayTotalCents: number;
@@ -264,6 +263,10 @@ export default function AdminDashboard() {
     setLocation("/admin/login");
     return null;
   }
+
+  const handleLogout = async () => {
+    logoutMutation.mutate();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
