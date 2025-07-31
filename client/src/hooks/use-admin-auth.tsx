@@ -69,10 +69,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setAccessToken(refreshResponse.accessToken);
           setupTokenRefresh(refreshResponse.accessToken);
 
-          // Get admin data
-          const adminData = await api.get("/api/admin/me", {
-            headers: { Authorization: `Bearer ${refreshResponse.accessToken}` }
-          });
+          // Get admin data (token is now set globally via setAuthToken)
+          const adminData = await api.get("/api/admin/me");
           if (adminData) {
             setAdmin(adminData);
           }
@@ -97,12 +95,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Update API instance when token changes
+  // Update API instance when token changes - use setAuthToken method
   useEffect(() => {
     if (accessToken) {
-      api.defaults.headers.authorization = `Bearer ${accessToken}`;
+      console.log("Setting admin auth token:", accessToken.substring(0, 20) + "...");
+      api.setAuthToken(accessToken);
     } else {
-      delete api.defaults.headers.authorization;
+      api.setAuthToken(null);
     }
   }, [accessToken]);
 

@@ -41,13 +41,10 @@ class ApiService {
       "Content-Type": "application/json"
     };
 
-    // Add authorization header for customer routes and logout endpoints
-    if (this.authToken && url.startsWith("/api/") && !url.startsWith("/api/admin/")) {
-      // Include auth header for all customer routes and logout/logout-everywhere endpoints
-      if (!url.startsWith("/api/auth/") || url.includes("/logout")) {
-        headers.Authorization = `Bearer ${this.authToken}`;
-        console.log("Adding auth header to:", url, "with token:", this.authToken?.substring(0, 20) + "...");
-      }
+    // Add authorization header for protected routes (customer and admin)
+    if (this.authToken && url.startsWith("/api/") && !url.startsWith("/api/auth/")) {
+      headers.Authorization = `Bearer ${this.authToken}`;
+      console.log("Adding auth header to:", url, "with token:", this.authToken?.substring(0, 20) + "...");
     }
 
     const config: RequestInit = {
