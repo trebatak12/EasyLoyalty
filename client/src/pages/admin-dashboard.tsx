@@ -34,15 +34,14 @@ async function apiRequest(url: string, options: RequestInit = {}) {
 
 interface DashboardData {
   stats: {
-    totalCustomers: number;
-    totalTransactions: number;
-    totalRevenue: number;
-    averageTransaction: number;
+    membersCount: number;
+    todayCount: number;
+    todayTotalCents: number;
   };
   recentTransactions: Array<{
     id: string;
-    customerName: string;
-    amount: number;
+    user: { name: string };
+    amountCents: number;
     type: string;
     createdAt: string;
   }>;
@@ -50,8 +49,8 @@ interface DashboardData {
     id: string;
     name: string;
     email: string;
-    totalSpent: number;
-    balance: number;
+    totalSpentCents: number;
+    balanceCents: number;
   }>;
 }
 
@@ -88,7 +87,7 @@ export default function AdminDashboard() {
   const dashboardQuery = useQuery({
     queryKey: ["adminDashboard"],
     queryFn: async () => {
-      const response = await apiRequest("/api/admin/dashboard");
+      const response = await apiRequest("/api/admin/summary");
       return response as DashboardData;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -195,27 +194,27 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <StatCard
                 title="Celkem členů"
-                value={dashboardQuery.data.stats.totalCustomers}
+                value={dashboardQuery.data.stats.membersCount}
                 icon={Users}
                 trend="aktivních účtů"
               />
               <StatCard
-                title="Celkem transakcí"
-                value={dashboardQuery.data.stats.totalTransactions}
+                title="Dnešní transakce"
+                value={dashboardQuery.data.stats.todayCount}
                 icon={CreditCard}
-                trend="za všechny časy"
+                trend="za dnešní den"
               />
               <StatCard
-                title="Celkové tržby"
-                value={`${dashboardQuery.data.stats.totalRevenue.toLocaleString('cs-CZ')} Kč`}
+                title="Dnešní tržby"
+                value={`${Math.round(dashboardQuery.data.stats.todayTotalCents / 100).toLocaleString('cs-CZ')} Kč`}
                 icon={TrendingUp}
-                trend="od spuštění systému"
+                trend="za dnešní den"
               />
               <StatCard
                 title="Průměrná transakce"
-                value={`${dashboardQuery.data.stats.averageTransaction.toLocaleString('cs-CZ')} Kč`}
+                value={`${Math.round((dashboardQuery.data.stats.todayTotalCents / dashboardQuery.data.stats.todayCount) / 100 || 0).toLocaleString('cs-CZ')} Kč`}
                 icon={Coffee}
-                trend="na jednu objednávku"
+                trend="za dnešní den"
               />
             </div>
 
@@ -232,14 +231,14 @@ export default function AdminDashboard() {
                       dashboardQuery.data.recentTransactions.map((transaction) => (
                         <div key={transaction.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
                           <div>
-                            <p className="font-medium text-amber-900">{transaction.customerName}</p>
+                            <p className="font-medium text-amber-900">{transaction.user.name}</p>
                             <p className="text-sm text-amber-700">
                               {new Date(transaction.createdAt).toLocaleString('cs-CZ')}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className={`font-bold ${transaction.type === 'charge' ? 'text-red-600' : 'text-green-600'}`}>
-                              {transaction.type === 'charge' ? '-' : '+'}{transaction.amount.toLocaleString('cs-CZ')} Kč
+                              {transaction.type === 'charge' ? '-' : '+'}{Math.round(Math.abs(transaction.amountCents) / 100).toLocaleString('cs-CZ')} Kč
                             </p>
                             <p className="text-xs text-amber-600 capitalize">{transaction.type}</p>
                           </div>
@@ -271,7 +270,7 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-amber-900">{customer.totalSpent.toLocaleString('cs-CZ')} Kč</p>
+                            <p className="font-bold text-amber-900">{Math.round(customer.totalSpentCents / 100).toLocaleString('cs-CZ')} Kč</p>
                             <p className="text-xs text-amber-600">utraceno celkem</p>
                           </div>
                         </div>
