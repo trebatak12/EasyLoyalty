@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshAuth = async () => {
     try {
       // 🔒 Refresh token sent automatically via HTTP-only cookie
-      const response = await api.post("/api/auth/refresh");
+      const response = await api.post("/api/auth/refresh", {});
       const { accessToken } = response;
       
       setTokens(accessToken);

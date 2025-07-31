@@ -245,9 +245,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Refresh access token
   app.post("/api/auth/refresh", async (req, res) => {
     try {
+      // Get refresh token from HTTP-only cookie
       const refreshToken = req.cookies?.refresh_token;
+
       if (!refreshToken) {
         return res.status(401).json(createErrorResponse("Unauthorized", "Refresh token missing", "E_AUTH_NO_REFRESH_TOKEN"));
       }
@@ -264,10 +267,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await logAuthEvent("token_reuse_detected", payload.sub, getClientIP(req), getUserAgent(req), { 
           tokenId: payload.jti 
         });
-        
+
         // Revoke all tokens for this user
         await logoutEverywhere(payload.sub);
-        
+
         return res.status(401).json(createErrorResponse("Unauthorized", "Token reuse detected - all sessions revoked", "E_AUTH_TOKEN_REUSE"));
       }
 
@@ -306,7 +309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const tokenPayload = req.tokenPayload;
-      
+
       // Blacklist current access token
       if (tokenPayload?.jti) {
         await blacklistToken(tokenPayload.jti, 15 * 60); // 15 minutes
@@ -338,10 +341,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/logout-everywhere", authenticate, async (req, res) => {
     try {
       const userId = req.user.id;
-      
+
       // Revoke all refresh tokens for user
       await logoutEverywhere(userId);
-      
+
       // Clear current refresh token cookie
       res.clearCookie("refresh_token", { path: "/auth/refresh" });
 
