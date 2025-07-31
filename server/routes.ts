@@ -162,63 +162,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = loginSchema.parse(req.body);
       const ip = getClientIP(req);
+      const userAgent = getUserAgent(req);
 
       // Rate limiting
       const ipLimit = checkRateLimit(`login:ip:${ip}`, 5, 5 * 60 * 1000);
       const emailLimit = checkRateLimit(`login:email:${body.email}`, 10, 15 * 60 * 1000, 15 * 60 * 1000);
 
       if (!ipLimit.allowed || !emailLimit.allowed) {
-        await auditLog("system", null, "login_rate_limited", { email: body.email, ip }, getUserAgent(req), ip);
+        await logAuthEvent("login_rate_limited", null, ip, userAgent, { email: body.email });
         return res.status(429).json(createErrorResponse("TooManyRequests", "Too many login attempts", "E_RATE_LIMIT"));
       }
 
       // Find user
       const user = await storage.getUserByEmail(body.email);
       if (!user) {
-        await auditLog("system", null, "login_failed", { email: body.email, reason: "user_not_found" }, getUserAgent(req), ip);
+        await logAuthEvent("login_failed", null, ip, userAgent, { email: body.email, reason: "user_not_found" });
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid credentials", "E_AUTH"));
       }
 
       // Check if blocked
       if (user.status === "blocked") {
-        await auditLog("user", user.id, "login_blocked", { email: body.email }, getUserAgent(req), ip);
+        await logAuthEvent("login_blocked", user.id, ip, userAgent, { email: body.email });
         return res.status(403).json(createErrorResponse("Forbidden", "Account is blocked", "E_FORBIDDEN"));
       }
 
       // Verify password
       const isValid = await verifyPassword(body.password, user.passwordHash);
       if (!isValid) {
-        await auditLog("user", user.id, "login_failed", { email: body.email, reason: "invalid_password" }, getUserAgent(req), ip);
+        await logAuthEvent("login_failed", user.id, ip, userAgent, { email: body.email, reason: "invalid_password" });
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid credentials", "E_AUTH"));
       }
 
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
-      // Generate tokens
-      const accessToken = generateAccessToken(user.id);
-      const { token: refreshToken, hash: refreshTokenHash } = generateRefreshToken();
+      // Generate secure tokens
+      const deviceId = `${ip}_${userAgent.substring(0, 50)}`;
+      const accessToken = generateAccessToken(user.id, ["user"]);
+      const refreshToken = generateRefreshToken(user.id, deviceId);
 
-      await storage.createRefreshToken({
+      // Store refresh token in database for rotation detection
+      await storage.storeRefreshToken({
         userId: user.id,
-        tokenHash: refreshTokenHash,
-        userAgent: getUserAgent(req),
-        ip: ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        revokedAt: null
+        tokenId: jwt.decode(refreshToken)?.jti,
+        deviceId,
+        ip,
+        userAgent,
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)
       });
 
+      // Set secure refresh token cookie
+      res.cookie("refresh_token", refreshToken, getSecureCookieOptions("/auth/refresh"));
+
       // Audit log
-      await auditLog("user", user.id, "login_success", { email: body.email }, getUserAgent(req), ip);
+      await logAuthEvent("login_success", user.id, ip, userAgent, { email: body.email });
 
       res.json({
+        accessToken,
         user: {
           id: user.id,
           email: user.email,
           name: user.name
-        },
-        accessToken,
-        refreshToken
+        }
       });
     } catch (error) {
       console.error("Login error:", error);
@@ -231,66 +236,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/refresh", async (req, res) => {
     try {
-      const { refreshToken } = req.body;
+      const refreshToken = req.cookies?.refresh_token;
       if (!refreshToken) {
-        return res.status(400).json(createErrorResponse("BadRequest", "Refresh token required", "E_INPUT"));
+        return res.status(401).json(createErrorResponse("Unauthorized", "Refresh token missing", "E_AUTH_NO_REFRESH_TOKEN"));
       }
 
-      // Hash the token to look it up
-      const crypto = await import("crypto");
-      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-
-      const storedToken = await storage.getRefreshToken(tokenHash);
-      if (!storedToken) {
-        return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH"));
+      const payload = verifyRefreshToken(refreshToken);
+      if (!payload) {
+        return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH_INVALID_REFRESH_TOKEN"));
       }
+
+      // Check if token was already used (rotation detection)
+      const storedToken = await storage.getRefreshToken(payload.jti);
+      if (!storedToken || storedToken.used) {
+        // Token reuse detected - security breach!
+        await logAuthEvent("token_reuse_detected", payload.sub, getClientIP(req), getUserAgent(req), { 
+          tokenId: payload.jti 
+        });
+        
+        // Revoke all tokens for this user
+        await logoutEverywhere(payload.sub);
+        
+        return res.status(401).json(createErrorResponse("Unauthorized", "Token reuse detected - all sessions revoked", "E_AUTH_TOKEN_REUSE"));
+      }
+
+      // Mark old token as used
+      await storage.markRefreshTokenUsed(payload.jti);
 
       // Get user
-      const user = await storage.getUser(storedToken.userId);
+      const user = await storage.getUser(payload.sub);
       if (!user || user.status === "blocked") {
         return res.status(403).json(createErrorResponse("Forbidden", "User account is blocked", "E_FORBIDDEN"));
       }
 
-      // Revoke old token
-      await storage.revokeRefreshToken(tokenHash);
-
       // Generate new tokens
-      const accessToken = generateAccessToken(user.id);
-      const { token: newRefreshToken, hash: newRefreshTokenHash } = generateRefreshToken();
+      const userRoles = await storage.getUserRoles(user.id);
+      const newAccessToken = generateAccessToken(user.id, userRoles);
+      const newRefreshToken = generateRefreshToken(user.id, payload.deviceId);
 
-      await storage.createRefreshToken({
+      // Store new refresh token
+      await storage.storeRefreshToken({
         userId: user.id,
-        tokenHash: newRefreshTokenHash,
-        userAgent: getUserAgent(req),
+        tokenId: jwt.decode(newRefreshToken)?.jti,
+        deviceId: payload.deviceId,
         ip: getClientIP(req),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        revokedAt: null
+        userAgent: getUserAgent(req),
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)
       });
+
+      // Set new refresh token cookie
+      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions("/auth/refresh"));
 
       // Audit log
-      await auditLog("user", user.id, "token_refresh", {}, getUserAgent(req), getClientIP(req));
+      await logAuthEvent("token_refresh", user.id, getClientIP(req), getUserAgent(req), {});
 
       res.json({
-        accessToken,
-        refreshToken: newRefreshToken
+        accessToken: newAccessToken
       });
+
     } catch (error) {
       console.error("Refresh error:", error);
       res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
     }
   });
 
-  app.post("/api/auth/logout", async (req, res) => {
+  app.post("/api/auth/logout", authenticate, async (req, res) => {
     try {
-      const { refreshToken } = req.body;
-      if (refreshToken) {
-        const crypto = await import("crypto");
-        const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-        await storage.revokeRefreshToken(tokenHash);
+      const userId = req.user.id;
+      const tokenPayload = req.tokenPayload;
+      
+      // Blacklist current access token
+      if (tokenPayload?.jti) {
+        await blacklistToken(tokenPayload.jti, 15 * 60); // 15 minutes
       }
+
+      // Revoke refresh token from cookie
+      const refreshToken = req.cookies?.refresh_token;
+      if (refreshToken) {
+        const payload = verifyRefreshToken(refreshToken);
+        if (payload) {
+          await storage.revokeRefreshToken(payload.jti);
+        }
+      }
+
+      // Clear refresh token cookie
+      res.clearCookie("refresh_token", { path: "/auth/refresh" });
+
+      // Audit log
+      await logAuthEvent("logout", userId, getClientIP(req), getUserAgent(req), {});
+
       res.status(204).send();
     } catch (error) {
       console.error("Logout error:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
+  // Logout from all devices
+  app.post("/api/auth/logout-everywhere", authenticate, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      
+      // Revoke all refresh tokens for user
+      await logoutEverywhere(userId);
+      
+      // Clear current refresh token cookie
+      res.clearCookie("refresh_token", { path: "/auth/refresh" });
+
+      // Audit log
+      await logAuthEvent("logout_everywhere", userId, getClientIP(req), getUserAgent(req), {});
+
+      res.json({ message: "Logged out from all devices" });
+    } catch (error) {
+      console.error("Logout everywhere error:", error);
       res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
     }
   });

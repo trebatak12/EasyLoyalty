@@ -1,5 +1,19 @@
 class ApiService {
   private authToken: string | null = null;
+  public interceptors: any;
+
+  constructor() {
+    // Setup axios interceptors for auto-refresh
+    this.interceptors = {
+      response: {
+        use: (fulfilled: any, rejected: any) => {
+          // This will be implemented by the auth provider
+          return { eject: () => {} };
+        },
+        eject: (id: any) => {}
+      }
+    };
+  }
 
   setAuthToken(token: string | null) {
     this.authToken = token;
