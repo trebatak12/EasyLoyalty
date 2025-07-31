@@ -235,14 +235,16 @@ export default function AdminDashboard() {
 
   const { logout } = useAdminAuth();
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const handleLogout = async () => {
+    if (isLoggingOut || !admin) return;
+    setIsLoggingOut(true);
     try {
       await logout();
       setLocation("/admin/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-      // Even if logout fails, redirect to login
-      setLocation("/admin/login");
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 

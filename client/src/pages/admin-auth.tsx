@@ -33,9 +33,9 @@ export default function AdminAuth() {
     if (isLoading) {
       return;
     }
-    
+
     console.log("Admin login form submitted with data:", loginData);
-    
+
     try {
       await login(loginData.email, loginData.password);
       console.log("Admin login successful, redirecting to dashboard");
@@ -63,7 +63,7 @@ export default function AdminAuth() {
           <ArrowLeft size={18} />
           Back to Mode Selection
         </Button>
-        
+
         <Card className="bg-white border-2 border-blue-300 rounded-3xl shadow-strong">
           <CardContent className="pt-6">
             <div className="text-center mb-8">
