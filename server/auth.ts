@@ -47,6 +47,20 @@ export function generateAccessToken(userId: string, roles: string[] = ["user"]):
   });
 }
 
+export function generateAdminAccessToken(adminId: string): string {
+  const jti = randomBytes(16).toString("hex");
+  return jwt.sign({ 
+    sub: adminId, 
+    type: "access",
+    roles: ["admin"],
+    jti
+  }, JWT_ACCESS_SECRET, { 
+    expiresIn: ACCESS_TOKEN_TTL,
+    issuer: "easyloyalty-api",
+    audience: "easyloyalty-client"
+  });
+}
+
 export function generateRefreshToken(userId: string, deviceId?: string): string {
   const jti = randomBytes(16).toString("hex");
   return jwt.sign({
@@ -194,41 +208,58 @@ export function requireRole(roles: string[]) {
 
 // Admin authentication using JWT (unified system)
 export async function authenticateAdmin(req: Request, res: Response, next: NextFunction) {
-  // Try JWT first (new system)
   const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7);
-    const payload = verifyAccessToken(token);
-    
-    if (payload && payload.roles.includes("admin")) {
-      const admin = await storage.getAdminUser(payload.sub);
-      if (admin && admin.status === "active") {
-        req.admin = admin;
-        req.tokenPayload = payload;
-        return next();
-      }
-    }
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ 
+      error: "Unauthorized", 
+      message: "Missing or invalid authorization header",
+      code: "E_AUTH_MISSING_TOKEN"
+    });
   }
 
-  // Fallback to legacy session system (temporary)
-  const sessionId = req.cookies?.admin_sid;
-  if (sessionId) {
-    const session = await storage.getAdminSession(sessionId);
-    if (session && session.expiresAt > new Date()) {
-      const admin = await storage.getAdminUser(session.adminId);
-      if (admin && admin.status === "active") {
-        req.admin = admin;
-        req.sessionId = sessionId;
-        return next();
-      }
-    }
+  const token = authHeader.slice(7);
+  const payload = verifyAccessToken(token);
+  
+  if (!payload) {
+    return res.status(401).json({ 
+      error: "Unauthorized", 
+      message: "Invalid or expired token",
+      code: "E_AUTH_INVALID_TOKEN"
+    });
   }
 
-  return res.status(401).json({ 
-    error: "Unauthorized", 
-    message: "Missing or invalid admin authentication",
-    code: "E_AUTH_ADMIN_REQUIRED"
-  });
+  // Check if user has admin role
+  if (!payload.roles.includes("admin")) {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Admin access required",
+      code: "E_AUTH_ADMIN_REQUIRED"
+    });
+  }
+
+  // Check token blacklist
+  const isBlacklisted = await storage.isTokenBlacklisted(payload.jti);
+  if (isBlacklisted) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Token has been revoked", 
+      code: "E_AUTH_TOKEN_REVOKED"
+    });
+  }
+
+  // Get admin and validate status
+  const admin = await storage.getAdminUser(payload.sub);
+  if (!admin || admin.status !== "active") {
+    return res.status(403).json({ 
+      error: "Forbidden", 
+      message: "Admin account is blocked or not found",
+      code: "E_FORBIDDEN"
+    });
+  }
+
+  req.admin = admin;
+  req.tokenPayload = payload;
+  next();
 }
 
 // Rate limiting store (simple in-memory for demo)
@@ -291,13 +322,13 @@ export async function verifyGoogleToken(idToken: string): Promise<{
 }
 
 // Secure cookie configuration
-export function getSecureCookieOptions(path: string = "/") {
+export function getSecureCookieOptions(path: string = "/api/auth/refresh") {
   return {
     httpOnly: true,
     secure: isProd,
     sameSite: "strict" as const,
     path,
-    maxAge: REFRESH_TOKEN_TTL
+    maxAge: REFRESH_TOKEN_TTL // 30 days
   };
 }
 

@@ -1,212 +1,59 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { CreditCard, Users, TrendingUp, Clock, ArrowUpRight, Plus, Minus, RotateCcw, Coffee, LogOut } from "lucide-react";
-import { useLocation } from "wouter";
+import { Coffee, LogOut, Users, Wallet, Gift, TrendingUp, Store } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardData {
-  todayTotalCents: number;
-  todayTotalCZK: string;
-  todayCount: number;
-  membersCount: number;
-  recentTransactions: Array<{
-    id: string;
-    type: 'topup' | 'charge' | 'void' | 'adjustment';
-    amountCents: number;
-    amountCZK: string;
-    createdAt: string;
-    user: { name: string };
-    meta?: any;
-  }>;
+  totalCustomers: number;
+  totalBalance: number;
+  totalTransactions: number;
+  monthlyStats: {
+    newCustomers: number;
+    totalSpent: number;
+    transactions: number;
+  };
 }
 
-function StatsRow({ data }: { data: DashboardData }) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <Card className="border-2 border-green-200 bg-green-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-green-800">
-            Tržba dnes
-          </CardTitle>
-          <TrendingUp className="h-4 w-4 text-green-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-900">
-            {data.todayTotalCZK}
-          </div>
-          <p className="text-xs text-green-600 mt-1">
-            Celkové příjmy za dnešní den
-          </p>
-        </CardContent>
-      </Card>
+// API helper function
+async function apiRequest(url: string, options: RequestInit = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
 
-      <Card className="border-2 border-blue-200 bg-blue-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-blue-800">
-            Počet plateb dnes
-          </CardTitle>
-          <CreditCard className="h-4 w-4 text-blue-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-blue-900">
-            {data.todayCount}
-          </div>
-          <p className="text-xs text-blue-600 mt-1">
-            Provedených transakcí
-          </p>
-        </CardContent>
-      </Card>
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
+  }
 
-      <Card className="border-2 border-purple-200 bg-purple-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-purple-800">
-            Aktivních členů
-          </CardTitle>
-          <Users className="h-4 w-4 text-purple-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-purple-900">
-            {data.membersCount}
-          </div>
-          <p className="text-xs text-purple-600 mt-1">
-            Registrovaných zákazníků
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  return response.json();
 }
 
-function AcceptButton() {
-  const [, setLocation] = useLocation();
-
+function StatCard({ title, value, icon: Icon, trend }: {
+  title: string;
+  value: string | number;
+  icon: React.ComponentType<any>;
+  trend?: string;
+}) {
   return (
-    <Button 
-      onClick={() => setLocation("/pos/charge")}
-      className="w-full h-16 text-lg font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-lg mb-8"
-    >
-      <CreditCard className="w-6 h-6 mr-3" />
-      Přijmout platbu
-      <ArrowUpRight className="w-5 h-5 ml-3" />
-    </Button>
-  );
-}
-
-function RecentTransactions({ transactions }: { transactions: DashboardData['recentTransactions'] }) {
-  const [, setLocation] = useLocation();
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'topup':
-        return <Plus className="w-4 h-4 text-white" />;
-      case 'void':
-        return <RotateCcw className="w-4 h-4 text-white" />;
-      default:
-        return <Minus className="w-4 h-4 text-white" />;
-    }
-  };
-
-  const getTransactionColor = (type: string) => {
-    switch (type) {
-      case 'topup':
-        return 'bg-green-500';
-      case 'void':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-600';
-    }
-  };
-
-  const getTransactionLabel = (type: string, meta?: any) => {
-    switch (type) {
-      case 'topup':
-        return `Dobití ${meta?.packageCode || ''}`;
-      case 'void':
-        return 'Storno platby';
-      case 'charge':
-        return 'Platba v kavárně';
-      default:
-        return 'Úprava';
-    }
-  };
-
-  const getTransactionStatus = (type: string) => {
-    switch (type) {
-      case 'topup':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Dobití</Badge>;
-      case 'void':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Storno</Badge>;
-      case 'charge':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Platba</Badge>;
-      default:
-        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Úprava</Badge>;
-    }
-  };
-
-  return (
-    <Card className="border-2 border-amber-200">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-amber-900">Nedávné transakce</CardTitle>
-          <Button 
-            variant="outline"
-            onClick={() => setLocation("/admin/transactions")}
-            className="border-amber-200 text-amber-700 hover:bg-amber-50"
-          >
-            Zobrazit vše
-            <ArrowUpRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
+    <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-bold text-amber-900">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-amber-600" />
       </CardHeader>
       <CardContent>
-        {transactions.length === 0 ? (
-          <div className="text-center py-8 text-amber-600">
-            Žádné transakce dnes
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {transactions.map((transaction) => (
-              <div 
-                key={transaction.id}
-                className="flex items-center justify-between p-4 bg-white rounded-lg border border-amber-100 hover:bg-amber-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTransactionColor(transaction.type)}`}>
-                    {getTransactionIcon(transaction.type)}
-                  </div>
-                  <div>
-                    <p className="font-medium text-amber-900 text-sm">
-                      {getTransactionLabel(transaction.type, transaction.meta)}
-                    </p>
-                    <p className="text-xs text-amber-600">
-                      {transaction.user.name}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  {getTransactionStatus(transaction.type)}
-                  <div className="text-right">
-                    <div className="font-medium text-amber-900">
-                      {transaction.type === 'topup' ? '+' : ''}
-                      {transaction.amountCZK}
-                    </div>
-                    <div className="text-xs text-amber-600">
-                      {new Date(transaction.createdAt).toLocaleTimeString('cs-CZ', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="text-2xl font-bold text-amber-900">{value}</div>
+        {trend && (
+          <p className="text-xs text-amber-700 font-medium">
+            {trend}
+          </p>
         )}
       </CardContent>
     </Card>
@@ -214,51 +61,73 @@ function RecentTransactions({ transactions }: { transactions: DashboardData['rec
 }
 
 export default function AdminDashboard() {
+  // Všechny hooks na začátku komponenty
+  const { admin, isLoading, logout } = useAdminAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  // Check admin authentication
-  const { data: admin, error } = useQuery({
-    queryKey: ["/api/admin/me"],
-    retry: false
+  const dashboardQuery = useQuery({
+    queryKey: ["adminDashboard"],
+    queryFn: async () => {
+      const response = await apiRequest("/api/admin/summary");
+      return response as DashboardData;
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+    enabled: !!admin, // Only run query if admin is logged in
   });
 
-  if (error && error.message.includes("401")) {
-    setLocation("/admin/login");
-    return null;
-  }
-
-  const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ["/api/admin/dashboard"],
-    refetchInterval: 30000 // Refresh every 30 seconds
-  });
-
-  const { logout } = useAdminAuth();
-
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    if (isLoggingOut) return;
-    setIsLoggingOut(true);
-    try {
-      await logout();
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("/api/admin/logout", { method: "POST" });
+    },
+    onSuccess: () => {
+      logout();
+      toast({
+        title: "Odhlášení úspěšné",
+        description: "Byli jste úspěšně odhlášeni"
+      });
       setLocation("/admin/login");
-    } finally {
-      setIsLoggingOut(false);
+    },
+    onError: (error: any) => {
+      console.error("Logout error:", error);
+      // Force logout even if API call fails
+      logout();
+      setLocation("/admin/login");
     }
+  });
+
+  // Effect pro přesměrování neautentizovaných uživatelů
+  useEffect(() => {
+    if (!isLoading && !admin) {
+      setLocation("/admin/login");
+    }
+  }, [admin, isLoading, setLocation]);
+
+  // Handler pro odhlášení
+  const handleLogout = async () => {
+    logoutMutation.mutate();
   };
 
-  if (!admin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
-          <p className="mt-2 text-amber-700">Načítání...</p>
-        </div>
+  // Loading spinner component
+  const LoadingSpinner = () => (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Načítání...</p>
       </div>
-    );
+    </div>
+  );
+
+  // Podmíněné renderování bez early returns
+  if (isLoading) {
+    return <LoadingSpinner />;
   }
 
+  if (!admin) {
+    return <LoadingSpinner />; // Zobrazí loading během přesměrování
+  }
+
+  // Hlavní render dashboardu
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
       {/* Header */}
@@ -284,6 +153,7 @@ export default function AdminDashboard() {
               variant="outline" 
               onClick={handleLogout}
               className="border-amber-200 text-amber-700 hover:bg-amber-50"
+              disabled={logoutMutation.isPending}
             >
               <LogOut className="w-4 h-4 mr-2" />
               Odhlásit
@@ -292,44 +162,102 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto p-6">
-        {isLoading ? (
+        {dashboardQuery.isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4"></div>
+            <p className="text-amber-700">Načítám data...</p>
+          </div>
+        ) : dashboardQuery.error ? (
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 text-center">
+            <p className="text-red-800 font-semibold">Chyba při načítání dat dashboardu</p>
+            <Button 
+              onClick={() => dashboardQuery.refetch()}
+              className="mt-4 bg-red-600 hover:bg-red-700"
+            >
+              Zkusit znovu
+            </Button>
+          </div>
+        ) : (
           <div className="space-y-6">
-            {/* Loading stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="border-2 border-amber-200">
-                  <CardContent className="p-6">
-                    <div className="animate-pulse">
-                      <div className="h-4 bg-amber-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-8 bg-amber-200 rounded w-1/2"></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                title="Celkový počet zákazníků"
+                value={dashboardQuery.data?.totalCustomers || 0}
+                icon={Users}
+                trend="Aktivní členové"
+              />
+              <StatCard
+                title="Celkový zůstatek"
+                value={`${dashboardQuery.data?.totalBalance || 0} Kč`}
+                icon={Wallet}
+                trend="Na všech účtech"
+              />
+              <StatCard
+                title="Počet transakcí"
+                value={dashboardQuery.data?.totalTransactions || 0}
+                icon={TrendingUp}
+                trend="Celkem provedeno"
+              />
+              <StatCard
+                title="Tento měsíc"
+                value={`${dashboardQuery.data?.monthlyStats?.totalSpent || 0} Kč`}
+                icon={Gift}
+                trend={`${dashboardQuery.data?.monthlyStats?.transactions || 0} transakcí`}
+              />
             </div>
-            {/* Loading button */}
-            <div className="h-16 bg-amber-200 rounded-xl animate-pulse"></div>
-            {/* Loading transactions */}
-            <Card className="border-2 border-amber-200">
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-16 bg-amber-100 rounded"></div>
-                    </div>
-                  ))}
+
+            {/* Quick Actions */}
+            <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-amber-900">Rychlé akce</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button
+                    onClick={() => setLocation("/admin/customers")}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl h-12"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Spravovat zákazníky
+                  </Button>
+                  <Button
+                    onClick={() => setLocation("/admin/summaries")}
+                    className="bg-green-600 hover:bg-green-700 text-white rounded-2xl h-12"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Zobrazit statistiky
+                  </Button>
+                  <Button
+                    onClick={() => setLocation("/pos/charge")}
+                    className="bg-purple-600 hover:bg-purple-700 text-white rounded-2xl h-12"
+                  >
+                    <Store className="w-4 h-4 mr-2" />
+                    POS systém
+                  </Button>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Welcome Message */}
+            {dashboardQuery.data && (
+              <Card className="bg-gradient-to-r from-amber-100 to-orange-100 border-2 border-amber-200 rounded-2xl shadow-lg">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold text-amber-900 mb-2">
+                      Vítejte zpět, {admin.name}!
+                    </h2>
+                    <p className="text-amber-800">
+                      Máte {dashboardQuery.data.totalCustomers} aktivních zákazníků s celkovým zůstatkem {dashboardQuery.data.totalBalance} Kč
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        ) : dashboardData ? (
-          <>
-            <StatsRow data={dashboardData} />
-            <AcceptButton />
-            <RecentTransactions transactions={dashboardData.recentTransactions} />
-          </>
-        ) : null}
+        )}
       </div>
     </div>
   );

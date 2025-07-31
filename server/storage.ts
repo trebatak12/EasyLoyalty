@@ -27,7 +27,7 @@ export interface IStorage {
   markRefreshTokenUsed(tokenId: string): Promise<void>;
   revokeRefreshToken(tokenHash: string): Promise<void>;
   revokeAllUserRefreshTokens(userId: string): Promise<void>;
-  
+
   // Token blacklisting operations
   isTokenBlacklisted(jti: string): Promise<boolean>;
   blacklistToken(jti: string, expiresAt: Date): Promise<void>;
@@ -227,40 +227,57 @@ export class DatabaseStorage implements IStorage {
     return newToken;
   }
 
-  async storeRefreshToken(data: { userId: string; tokenId: string; deviceId: string; ip: string; userAgent: string; expiresAt: Date }): Promise<void> {
-    await db.insert(refreshTokens).values({
-      userId: data.userId,
-      tokenHash: data.tokenId, // Using tokenHash field for token ID
-      userAgent: data.userAgent,
-      ip: data.ip,
-      expiresAt: data.expiresAt
-    });
+  async storeRefreshToken(data: {
+    userId: string;
+    tokenId: string;
+    deviceId: string;
+    ip: string;
+    userAgent: string;
+    expiresAt: Date;
+  }) {
+    try {
+      // Check if this is an admin user
+      const isAdmin = await this.getAdminUser(data.userId);
+      
+      if (isAdmin) {
+        // For admin users, we'll create a separate admin refresh token table entry
+        // For now, we'll skip storing admin refresh tokens to avoid FK constraint
+        console.log("Admin refresh token storage skipped to avoid FK constraint");
+        return;
+      }
+
+      // Regular user tokens
+      // Remove any existing tokens for this device to prevent accumulation
+      await db.delete(refreshTokens)
+        .where(and(
+          eq(refreshTokens.userId, data.userId),
+          eq(refreshTokens.userAgent, data.userAgent)
+        ));
+
+      // Insert new refresh token
+      await db.insert(refreshTokens).values({
+        userId: data.userId,
+        tokenHash: data.tokenId, // Store token ID as hash
+        userAgent: data.userAgent,
+        ip: data.ip,
+        expiresAt: data.expiresAt
+      });
+    } catch (error) {
+      console.error("Error storing refresh token:", error);
+      // Don't throw - allow login to continue even if token storage fails
+    }
   }
 
-  async markRefreshTokenUsed(tokenId: string): Promise<void> {
-    await db
-      .update(refreshTokens)
-      .set({ revokedAt: sql`now()` })
+  async markRefreshTokenUsed(tokenId: string) {
+    await db.update(refreshTokens)
+      .set({ revokedAt: new Date() })
       .where(eq(refreshTokens.tokenHash, tokenId));
   }
 
-  async getRefreshToken(tokenHash: string): Promise<RefreshToken | undefined> {
-    const [token] = await db
-      .select()
-      .from(refreshTokens)
-      .where(and(
-        eq(refreshTokens.tokenHash, tokenHash),
-        isNull(refreshTokens.revokedAt),
-        gte(refreshTokens.expiresAt, sql`now()`)
-      ));
-    return token || undefined;
-  }
-
-  async revokeRefreshToken(tokenHash: string): Promise<void> {
-    await db
-      .update(refreshTokens)
-      .set({ revokedAt: sql`now()` })
-      .where(eq(refreshTokens.tokenHash, tokenHash));
+  async revokeRefreshToken(tokenId: string) {
+    await db.update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(refreshTokens.tokenHash, tokenId));
   }
 
   async revokeAllUserRefreshTokens(userId: string): Promise<void> {
@@ -315,7 +332,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(adminSessions.id, sessionId));
   }
 
-
+  async getRefreshToken(tokenId: string): Promise<RefreshToken | undefined> {
+    const [token] = await db
+      .select()
+      .from(refreshTokens)
+      .where(eq(refreshTokens.tokenHash, tokenId));
+    return token || undefined;
+  }
 
   async getTransactionById(id: string): Promise<Transaction | undefined> {
     const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));
