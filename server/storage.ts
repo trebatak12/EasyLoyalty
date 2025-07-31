@@ -27,7 +27,7 @@ export interface IStorage {
   markRefreshTokenUsed(tokenId: string): Promise<void>;
   revokeRefreshToken(tokenHash: string): Promise<void>;
   revokeAllUserRefreshTokens(userId: string): Promise<void>;
-
+  
   // Token blacklisting operations
   isTokenBlacklisted(jti: string): Promise<boolean>;
   blacklistToken(jti: string, expiresAt: Date): Promise<void>;
@@ -227,41 +227,40 @@ export class DatabaseStorage implements IStorage {
     return newToken;
   }
 
-  async storeRefreshToken(data: {
-    userId: string;
-    tokenId: string;
-    deviceId: string;
-    ip: string;
-    userAgent: string;
-    expiresAt: Date;
-  }) {
-    // Remove any existing tokens for this device to prevent accumulation
-    await db.delete(refreshTokens)
-      .where(and(
-        eq(refreshTokens.userId, data.userId),
-        eq(refreshTokens.userAgent, data.userAgent)
-      ));
-
-    // Insert new refresh token
+  async storeRefreshToken(data: { userId: string; tokenId: string; deviceId: string; ip: string; userAgent: string; expiresAt: Date }): Promise<void> {
     await db.insert(refreshTokens).values({
       userId: data.userId,
-      tokenHash: data.tokenId, // Store token ID as hash
+      tokenHash: data.tokenId, // Using tokenHash field for token ID
       userAgent: data.userAgent,
       ip: data.ip,
       expiresAt: data.expiresAt
     });
   }
 
-  async markRefreshTokenUsed(tokenId: string) {
-    await db.update(refreshTokens)
-      .set({ revokedAt: new Date() })
+  async markRefreshTokenUsed(tokenId: string): Promise<void> {
+    await db
+      .update(refreshTokens)
+      .set({ revokedAt: sql`now()` })
       .where(eq(refreshTokens.tokenHash, tokenId));
   }
 
-  async revokeRefreshToken(tokenId: string) {
-    await db.update(refreshTokens)
-      .set({ revokedAt: new Date() })
-      .where(eq(refreshTokens.tokenHash, tokenId));
+  async getRefreshToken(tokenHash: string): Promise<RefreshToken | undefined> {
+    const [token] = await db
+      .select()
+      .from(refreshTokens)
+      .where(and(
+        eq(refreshTokens.tokenHash, tokenHash),
+        isNull(refreshTokens.revokedAt),
+        gte(refreshTokens.expiresAt, sql`now()`)
+      ));
+    return token || undefined;
+  }
+
+  async revokeRefreshToken(tokenHash: string): Promise<void> {
+    await db
+      .update(refreshTokens)
+      .set({ revokedAt: sql`now()` })
+      .where(eq(refreshTokens.tokenHash, tokenHash));
   }
 
   async revokeAllUserRefreshTokens(userId: string): Promise<void> {
