@@ -238,7 +238,7 @@ export default function AdminDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    if (isLoggingOut || !admin) return;
+    if (isLoggingOut) return;
     setIsLoggingOut(true);
     try {
       await logout();
