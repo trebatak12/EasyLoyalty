@@ -70,19 +70,15 @@ function App() {
             <Route path="/history" component={CustomerHistory} />
 
             {/* Admin Routes - wrapped in AdminAuthProvider */}
-            <Route path="/admin/*">
-              <AdminAuthProvider>
-                <Switch>
-                  <Route path="/admin/login" component={AdminAuth} />
-                  <Route path="/admin/dashboard" component={AdminDashboard} />
-                  <Route path="/admin/customers" component={AdminCustomers} />
-                  <Route path="/admin/summaries" component={AdminSummaries} />
-                </Switch>
-              </AdminAuthProvider>
-            </Route>
-
-            {/* POS Routes (admin protected) */}
-            <Route path="/pos/charge" component={POSCharge} />
+            <AdminAuthProvider>
+              <Route path="/admin/login" component={AdminAuth} />
+              <Route path="/admin/dashboard" component={AdminDashboard} />
+              <Route path="/admin/customers" component={AdminCustomers} />
+              <Route path="/admin/summaries" component={AdminSummaries} />
+              
+              {/* POS Routes (admin protected) */}
+              <Route path="/pos/charge" component={POSCharge} />
+            </AdminAuthProvider>
 
             {/* Fallback to 404 */}
             <Route component={NotFound} />
