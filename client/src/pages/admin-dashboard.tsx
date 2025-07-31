@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -216,15 +216,23 @@ function RecentTransactions({ transactions }: { transactions: DashboardData['rec
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setLocation("/admin/login");
+    }
+  }, [isAuthenticated, authLoading, setLocation]);
 
   // Check admin authentication
   const { data: admin, error } = useQuery({
     queryKey: ["/api/admin/me"],
-    retry: false
+    retry: false,
+    enabled: isAuthenticated // Only run query if authenticated
   });
 
-  if (error && error.message.includes("401")) {
-    setLocation("/admin/login");
+  if (!authLoading && !isAuthenticated) {
     return null;
   }
 
