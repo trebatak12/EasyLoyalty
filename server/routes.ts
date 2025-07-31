@@ -742,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify password
-      const isValid = await verifyPassword(body.password, admin.passwordHash);
+      const isValid = await verifyPassword(body.password, admin.passwordHash || '');
       if (!isValid) {
         await auditLog("admin", admin.id, "admin_login_failed", { email: body.email, reason: "invalid_password" });
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid credentials", "E_AUTH"));
@@ -772,7 +772,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Audit log
       await auditLog("admin", admin.id, "admin_login_success", { email: body.email });
 
-      res.status(204).send();
+      // Return admin data for frontend
+      res.json({
+        admin: {
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          role: admin.role,
+          status: admin.status,
+          lastLoginAt: admin.lastLoginAt
+        }
+      });
     } catch (error) {
       console.error("Admin login error:", error);
       if (error instanceof z.ZodError) {
@@ -1299,7 +1309,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (tokenOrCode.length > 10) {
         try {
           const payload = verifyQRToken(tokenOrCode);
-          userId = payload?.sub;
+          if (!payload?.sub) {
+            return res.status(400).json(createErrorResponse("BadRequest", "Neplatný QR kód", "E_INPUT"));
+          }
+          userId = payload.sub;
         } catch {
           return res.status(400).json(createErrorResponse("BadRequest", "Neplatný QR kód", "E_INPUT"));
         }

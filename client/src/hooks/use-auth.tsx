@@ -71,19 +71,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (error) => {
         const originalRequest = error.config;
         
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Skip refresh attempts for auth endpoints to prevent infinite loops
+        if (originalRequest.url?.includes('/api/auth/')) {
+          return Promise.reject(error);
+        }
+        
+        if (error.response?.status === 401 && !originalRequest._retry && accessToken) {
           originalRequest._retry = true;
           
           try {
             await refreshAuth();
-            // Retry original request with new token
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            // Retry with the new access token that was set by refreshAuth
             return api.request(originalRequest);
           } catch (refreshError) {
-            // Refresh failed - redirect to login
+            // Refresh failed - clear state but don't redirect during login
             clearTokens();
-            window.location.href = "/auth/customer";
-            return Promise.reject(refreshError);
+            if (!window.location.pathname.includes('/auth/')) {
+              window.location.href = "/auth/customer";
+            }
           }
         }
         
@@ -171,9 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const response = await api.post("/api/auth/google", { idToken });
-      const { user: userData, accessToken, refreshToken } = response;
+      const { user: userData, accessToken } = response;
       
-      setTokens(accessToken, refreshToken);
+      setTokens(accessToken);
       setUser(userData);
     } catch (error) {
       throw error;

@@ -44,11 +44,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Admin login sets session cookie automatically
-      await api.post("/api/admin/login", { email, password });
-
-      // Get admin data after successful login
-      const adminData = await api.get("/api/admin/me");
+      // Admin login returns admin data directly now
+      const response = await api.post("/api/admin/login", { email, password });
+      const { admin: adminData } = response;
+      
       setAdmin(adminData);
     } catch (error) {
       throw error;
