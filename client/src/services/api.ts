@@ -65,13 +65,20 @@ class ApiService {
           errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
         }
 
-        console.error("API Error:", {
-          url,
-          method,
-          status: response.status,
-          statusText: response.statusText,
-          errorData
-        });
+        // Don't log expected 401 errors during initialization
+        const isExpected401 = response.status === 401 && (
+          url === "/api/auth/refresh" || url === "/api/admin/me"
+        );
+        
+        if (!isExpected401) {
+          console.error("API Error:", {
+            url,
+            method,
+            status: response.status,
+            statusText: response.statusText,
+            errorData
+          });
+        }
 
         const error = new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
         (error as any).response = {
