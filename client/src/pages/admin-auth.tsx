@@ -11,6 +11,22 @@ import { useToast } from "@/hooks/use-toast";
 export default function AdminAuth() {
   const [, setLocation] = useLocation();
   const adminAuth = useAdminAuth();
+  // Destructure adminAuth immediately after getting it - before any conditional returns
+  const { login, isLoading, isAuthenticated } = adminAuth || {};
+  const { toast } = useToast();
+
+  // All useState hooks must be at the top before any conditional returns
+  const [loginData, setLoginData] = useState({
+    email: "",
+    password: ""
+  });
+
+  // All useEffect hooks must also be before any conditional returns
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLocation("/admin/dashboard");
+    }
+  }, [isAuthenticated, setLocation]);
 
   // Check if context is available
   if (!adminAuth) {
@@ -23,21 +39,6 @@ export default function AdminAuth() {
       </div>
     );
   }
-
-  const { login, isLoading, isAuthenticated } = adminAuth;
-  const { toast } = useToast();
-
-  // Pokud je admin už přihlášený, přesměruj ho
-  useEffect(() => {
-    if (isAuthenticated) {
-      setLocation("/admin/dashboard");
-    }
-  }, [isAuthenticated, setLocation]);
-
-  const [loginData, setLoginData] = useState({
-    email: "",
-    password: ""
-  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
