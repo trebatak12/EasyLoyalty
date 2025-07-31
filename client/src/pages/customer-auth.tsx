@@ -45,10 +45,30 @@ export default function CustomerAuth() {
       setLocation("/home");
 
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Login error:", {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+        fullError: error
+      });
+      
+      let errorMessage = "Nesprávné přihlašovací údaje";
+      
+      if (error?.response?.status === 401) {
+        errorMessage = "Nesprávný email nebo heslo";
+      } else if (error?.response?.status === 403) {
+        errorMessage = "Účet je zablokován";
+      } else if (error?.response?.status === 429) {
+        errorMessage = "Příliš mnoho pokusů o přihlášení. Zkuste to později.";
+      } else if (error?.response?.status >= 500) {
+        errorMessage = "Chyba serveru. Zkuste to později.";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Přihlášení se nezdařilo",
-        description: error.message || "Nesprávné přihlašovací údaje",
+        description: errorMessage,
         variant: "destructive"
       });
       // Don't clear form data on error, keep it for retry

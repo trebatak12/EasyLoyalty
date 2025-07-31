@@ -27,6 +27,9 @@ import { z } from "zod";
 import cookieParser from "cookie-parser";
 import { randomUUID } from "crypto";
 
+// Token lifetimes
+const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
+
 // Validation schemas
 const signupSchema = z.object({
   email: z.string().email(),

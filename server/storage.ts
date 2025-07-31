@@ -284,6 +284,25 @@ export class DatabaseStorage implements IStorage {
     await db.insert(auditLogs).values(log);
   }
 
+  // Enhanced audit logging for new auth system
+  async createEnhancedAuditLog(data: {
+    event: string;
+    userId: string | null;
+    ip: string;
+    userAgent: string;
+    meta: Record<string, any>;
+    timestamp: Date;
+  }): Promise<void> {
+    await db.insert(auditLogs).values({
+      actorType: data.userId ? "user" : "system",
+      actorId: data.userId,
+      event: data.event,
+      meta: data.meta,
+      userAgent: data.userAgent,
+      ip: data.ip
+    });
+  }
+
   async checkIdempotency(key: string, requestHash: string): Promise<boolean> {
     const [existing] = await db
       .select()
@@ -430,9 +449,9 @@ export class DatabaseStorage implements IStorage {
       .then(results => results.map(r => ({ ...r.transaction, user: r.user! })));
   }
 
-  
 
-  
+
+
 }
 
 export const storage = new DatabaseStorage();

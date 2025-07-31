@@ -43,27 +43,35 @@ class ApiService {
       const response = await fetch(url, config);
 
       if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}`;
+        let errorData: any = {};
+
         try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
+          errorData = await response.json();
+        } catch (parseError) {
+          console.warn("Failed to parse error response:", parseError);
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
         }
-        throw new Error(errorMessage);
+
+        console.error("API Error:", {
+          url,
+          method,
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
+
+        const error = new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        (error as any).response = {
+          status: response.status,
+          statusText: response.statusText,
+          data: errorData
+        };
+        (error as any).code = errorData.code;
+
+        throw error;
       }
 
-      // Handle 204 No Content responses
-      if (response.status === 204) {
-        return null;
-      }
-
-      const contentType = response.headers.get("content-type");
-      if (contentType?.includes("application/json")) {
-        return await response.json();
-      }
-
-      return await response.text();
+      return await response.json();
     } catch (error) {
       if (error instanceof Error) {
         throw error;

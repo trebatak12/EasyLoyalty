@@ -330,7 +330,7 @@ export async function logAuthEvent(
   userAgent: string, 
   meta: Record<string, any> = {}
 ) {
-  await storage.createAuditLog({
+  await storage.createEnhancedAuditLog({
     event,
     userId,
     ip,

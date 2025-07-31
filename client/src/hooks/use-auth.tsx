@@ -112,8 +112,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokens(accessToken);
       setUser(userData);
       
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      console.error("Login failed:", {
+        message: error?.message || "Unknown error",
+        status: error?.response?.status || "No status",
+        data: error?.response?.data || "No response data",
+        code: error?.code || "No error code",
+        fullError: error
+      });
+      
+      // Create a proper error message for the UI
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          "Chyba při přihlašování";
+      
+      // Re-throw with better error structure
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
       setLoginInProgress(false);
