@@ -316,7 +316,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(adminSessions.id, sessionId));
   }
 
-
+  async getRefreshToken(tokenId: string): Promise<RefreshToken | undefined> {
+    const [token] = await db
+      .select()
+      .from(refreshTokens)
+      .where(eq(refreshTokens.tokenHash, tokenId));
+    return token || undefined;
+  }
 
   async getTransactionById(id: string): Promise<Transaction | undefined> {
     const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));

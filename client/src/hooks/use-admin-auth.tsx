@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { api } from "@/services/api";
 
 interface AdminUser {
@@ -20,26 +20,86 @@ const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefin
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [admin, setAdmin] = useState<AdminUser | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Setup automatic token refresh
+  const setupTokenRefresh = (token: string) => {
+    // Clear existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
+    // Decode token to get expiration
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expiresAt = payload.exp * 1000;
+      const now = Date.now();
+      const timeUntilRefresh = expiresAt - now - 60000; // Refresh 1 minute before expiry
+
+      if (timeUntilRefresh > 0) {
+        refreshTimeoutRef.current = setTimeout(async () => {
+          try {
+            console.log("Auto-refreshing admin token");
+            const response = await api.post("/api/admin/refresh");
+            setAccessToken(response.accessToken);
+            setupTokenRefresh(response.accessToken);
+          } catch (error) {
+            console.error("Auto-refresh failed:", error);
+            // Clear state on refresh failure
+            setAdmin(null);
+            setAccessToken(null);
+          }
+        }, timeUntilRefresh);
+      }
+    } catch (error) {
+      console.error("Failed to decode token for refresh setup:", error);
+    }
+  };
 
   // Initialize admin auth state on app start
   useEffect(() => {
     const initAdminAuth = async () => {
       try {
-        // Try to get current admin session
-        const adminData = await api.get("/api/admin/me");
+        // Try to refresh token first (if cookie exists)
+        const refreshResponse = await api.post("/api/admin/refresh");
+        setAccessToken(refreshResponse.accessToken);
+        setupTokenRefresh(refreshResponse.accessToken);
+
+        // Get admin data
+        const adminData = await api.get("/api/admin/me", {
+          headers: { Authorization: `Bearer ${refreshResponse.accessToken}` }
+        });
         setAdmin(adminData);
       } catch (error) {
-        // No valid session
+        // No valid refresh token or session
         setAdmin(null);
+        setAccessToken(null);
       }
 
       setIsInitialized(true);
     };
 
     initAdminAuth();
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
   }, []);
+
+  // Update API instance when token changes
+  useEffect(() => {
+    if (accessToken) {
+      api.defaults.headers.authorization = `Bearer ${accessToken}`;
+    } else {
+      delete api.defaults.headers.authorization;
+    }
+  }, [accessToken]);
 
   const login = async (email: string, password: string) => {
     if (isLoading) {
@@ -50,10 +110,12 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("Admin login API call starting");
       const response = await api.post("/api/admin/login", { email, password });
-      const { admin: adminData } = response;
+      const { accessToken: newAccessToken, admin: adminData } = response;
 
       console.log("Admin login successful, setting admin data:", adminData);
+      setAccessToken(newAccessToken);
       setAdmin(adminData);
+      setupTokenRefresh(newAccessToken);
     } catch (error: any) {
       console.error("Admin login failed:", {
         message: error?.message || "Unknown error",
@@ -75,8 +137,15 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     console.log("Admin logout initiated");
     
+    // Clear refresh timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
+    }
+    
     // Always clear state first to prevent UI issues
     setAdmin(null);
+    setAccessToken(null);
     
     try {
       // Try to call logout API - server will handle invalid sessions gracefully
