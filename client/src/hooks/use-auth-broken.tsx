@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  // Define refreshAuth function
+  // Define refreshAuth function first, before useEffect
   const refreshAuth = async () => {
     try {
       // 🔒 Refresh token sent automatically via HTTP-only cookie
@@ -85,29 +85,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 🔒 Auto-refresh interceptor setup
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
-      (response: any) => response,
-      async (error: any) => {
+      (response) => response,
+      async (error) => {
         const originalRequest = error.config;
         
         // Skip refresh attempts for auth endpoints to prevent infinite loops
-        if (originalRequest?.url?.includes('/api/auth/')) {
+        if (originalRequest.url?.includes('/api/auth/')) {
           return Promise.reject(error);
         }
         
-        if (error.response?.status === 401 && !originalRequest?._retry && accessToken) {
+        if (error.response?.status === 401 && !originalRequest._retry && accessToken) {
           originalRequest._retry = true;
           
           try {
             await refreshAuth();
-            // Retry with the updated token
-            return await api.request(originalRequest.method || 'GET', originalRequest.url || '', originalRequest.data);
+            // Retry with the updated config
+            const newConfig = { ...originalRequest };
+            newConfig.headers = { ...newConfig.headers, Authorization: `Bearer ${accessToken}` };
+            return api.request(newConfig.method, newConfig.url, newConfig.data);
           } catch (refreshError) {
             // Refresh failed - clear state but don't redirect during login
             clearTokens();
             if (!window.location.pathname.includes('/auth/')) {
               window.location.href = "/auth/customer";
             }
-            return Promise.reject(refreshError);
           }
         }
         
@@ -116,9 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
-      if (interceptor && typeof interceptor.eject === 'function') {
-        interceptor.eject();
-      }
+      api.interceptors.response.eject(interceptor);
     };
   }, [accessToken]);
 
@@ -176,6 +175,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshAuth = async () => {
+    try {
+      // 🔒 Refresh token sent automatically via HTTP-only cookie
+      const response = await api.post("/api/auth/refresh");
+      const { accessToken } = response;
+      
+      setTokens(accessToken);
+      
+      // Get updated user data
+      const userData = await api.get("/api/me");
+      setUser(userData);
+    } catch (error) {
+      clearTokens();
+      throw error;
+    }
+  };
+
   const googleAuth = async (idToken: string) => {
     setIsLoading(true);
     try {
@@ -226,6 +242,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshAuth
   };
 
+
+
   return (
     <AuthContext.Provider value={value}>
       {children}
@@ -235,8 +253,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

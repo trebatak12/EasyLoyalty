@@ -1,25 +1,36 @@
 class ApiService {
   private authToken: string | null = null;
   public interceptors: any;
+  private responseInterceptors: Array<{id: number, fulfilled: any, rejected: any}> = [];
+  private nextInterceptorId = 0;
 
   constructor() {
-    // Setup axios interceptors for auto-refresh
+    // Setup proper interceptors system
     this.interceptors = {
       response: {
         use: (fulfilled: any, rejected: any) => {
-          // This will be implemented by the auth provider
-          return { eject: () => {} };
+          const id = this.nextInterceptorId++;
+          this.responseInterceptors.push({ id, fulfilled, rejected });
+          return { eject: () => this.eject(id) };
         },
-        eject: (id: any) => {}
+        eject: (interceptor: any) => {
+          if (interceptor && typeof interceptor.eject === 'function') {
+            interceptor.eject();
+          }
+        }
       }
     };
+  }
+
+  private eject(id: number) {
+    this.responseInterceptors = this.responseInterceptors.filter(i => i.id !== id);
   }
 
   setAuthToken(token: string | null) {
     this.authToken = token;
   }
 
-  private async request(method: string, url: string, data?: any): Promise<any> {
+  async request(method: string, url: string, data?: any): Promise<any> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json"
     };
@@ -41,6 +52,7 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
+      let result: any;
 
       if (!response.ok) {
         let errorData: any = {};
@@ -67,11 +79,38 @@ class ApiService {
           data: errorData
         };
         (error as any).code = errorData.code;
+        (error as any).config = { url, method, headers, data };
 
-        throw error;
+        // Run through error interceptors
+        for (const interceptor of this.responseInterceptors) {
+          if (interceptor.rejected) {
+            try {
+              result = await interceptor.rejected(error);
+              break; // If interceptor handles it, break
+            } catch (interceptorError) {
+              // If interceptor fails, continue to next or throw original
+              if (interceptorError === error) {
+                continue; // Interceptor re-threw same error, try next
+              }
+              throw interceptorError; // Interceptor threw different error
+            }
+          }
+        }
+
+        if (!result) throw error; // No interceptor handled it
+        return result;
       }
 
-      return await response.json();
+      result = await response.json();
+
+      // Run through success interceptors
+      for (const interceptor of this.responseInterceptors) {
+        if (interceptor.fulfilled) {
+          result = await interceptor.fulfilled(result);
+        }
+      }
+
+      return result;
     } catch (error) {
       if (error instanceof Error) {
         throw error;
