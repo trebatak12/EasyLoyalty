@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAuth() {
   const [, setLocation] = useLocation();
-  const { login, isLoading, isAuthenticated } = useAdminAuth();
+  const adminAuth = useAdminAuth();
 
   // Check if context is available
   if (!adminAuth) {
