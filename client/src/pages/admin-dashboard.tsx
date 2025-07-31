@@ -27,6 +27,7 @@ async function apiRequest(url: string, options: RequestInit = {}) {
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    credentials: 'include', // Important for admin session cookies
   });
 
   if (!response.ok) {
@@ -60,16 +61,31 @@ function StatCard({ title, value, icon: Icon, trend }: {
   );
 }
 
+// Loading spinner component
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
+      <p className="text-amber-700">Načítání...</p>
+    </div>
+  </div>
+);
+
 export default function AdminDashboard() {
   // Všechny hooks na začátku komponenty
-  const { admin, isLoading, logout } = useAdminAuth();
+  const adminAuth = useAdminAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  // Safe destructuring with fallbacks
+  const admin = adminAuth?.admin || null;
+  const isLoading = adminAuth?.isLoading || false;
+  const logout = adminAuth?.logout;
 
   const dashboardQuery = useQuery({
     queryKey: ["adminDashboard"],
     queryFn: async () => {
-      const response = await apiRequest("/api/admin/summary");
+      const response = await apiRequest("/api/admin/dashboard");
       return response as DashboardData;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -81,7 +97,9 @@ export default function AdminDashboard() {
       await apiRequest("/api/admin/logout", { method: "POST" });
     },
     onSuccess: () => {
-      logout();
+      if (logout) {
+        logout();
+      }
       toast({
         title: "Odhlášení úspěšné",
         description: "Byli jste úspěšně odhlášeni"
@@ -91,7 +109,9 @@ export default function AdminDashboard() {
     onError: (error: any) => {
       console.error("Logout error:", error);
       // Force logout even if API call fails
-      logout();
+      if (logout) {
+        logout();
+      }
       setLocation("/admin/login");
     }
   });
@@ -103,22 +123,16 @@ export default function AdminDashboard() {
     }
   }, [admin, isLoading, setLocation]);
 
-  // Handler pro odhlášení
-  const handleLogout = async () => {
+  // Handler pro odhlášení - now properly defined
+  const handleLogout = () => {
     logoutMutation.mutate();
   };
 
-  // Loading spinner component
-  const LoadingSpinner = () => (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Načítání...</p>
-      </div>
-    </div>
-  );
+  // Early returns only after all hooks are called
+  if (!adminAuth) {
+    return <LoadingSpinner />;
+  }
 
-  // Podmíněné renderování bez early returns
   if (isLoading) {
     return <LoadingSpinner />;
   }

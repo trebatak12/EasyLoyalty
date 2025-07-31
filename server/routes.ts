@@ -1203,6 +1203,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard endpoint with proper structure
+  app.get("/api/admin/dashboard", adminAuth, async (req, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      
+      res.json({
+        totalCustomers: stats.membersCount || 0,
+        totalBalance: Math.floor((stats.liabilityCents || 0) / 100), // Convert to whole CZK
+        totalTransactions: stats.transactionsCount || 0,
+        monthlyStats: {
+          newCustomers: stats.newMembersThisMonth || 0,
+          totalSpent: Math.floor((stats.spendThisMonthCents || 0) / 100),  
+          transactions: stats.transactionsThisMonth || 0
+        }
+      });
+    } catch (error) {
+      console.error("Dashboard error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.get("/api/admin/summary", authenticateAdmin, async (req, res) => {
     try {
       const stats = await storage.getSummaryStats();
