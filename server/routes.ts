@@ -22,6 +22,9 @@ import {
   getSecureCookieOptions
 } from "./auth";
 import { auditLog, createErrorResponse, validateEmail, validatePassword, formatCZK, parseCZK, addRequestId, getClientIP, getUserAgent } from "./utils";
+
+// Production flag for cookie security
+const isProd = process.env.NODE_ENV === "production";
 import { TOP_UP_PACKAGES, type PackageCode } from "@shared/schema";
 import { z } from "zod";
 import cookieParser from "cookie-parser";
@@ -223,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Set secure refresh token cookie
-      res.cookie("refresh_token", refreshToken, getSecureCookieOptions("/auth/refresh"));
+      res.cookie("refresh_token", refreshToken, getSecureCookieOptions("/api/auth/refresh"));
 
       // Audit log
       await logAuthEvent("login_success", user.id, ip, userAgent, { email: body.email });
@@ -292,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Set new refresh token cookie
-      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions("/auth/refresh"));
+      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions("/api/auth/refresh"));
 
       // Audit log
       await logAuthEvent("token_refresh", payload.sub, getClientIP(req), getUserAgent(req), {});
@@ -325,7 +328,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Clear refresh token cookie
-      res.clearCookie("refresh_token", { path: "/auth/refresh" });
+      res.clearCookie("refresh_token", { 
+        path: "/api/auth/refresh",
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "strict"
+      });
 
       // Audit log
       await logAuthEvent("logout", userId, getClientIP(req), getUserAgent(req), {});
@@ -346,7 +354,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await logoutEverywhere(userId);
 
       // Clear current refresh token cookie
-      res.clearCookie("refresh_token", { path: "/auth/refresh" });
+      res.clearCookie("refresh_token", { 
+        path: "/api/auth/refresh",
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "strict"
+      });
 
       // Audit log
       await logAuthEvent("logout_everywhere", userId, getClientIP(req), getUserAgent(req), {});

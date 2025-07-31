@@ -291,13 +291,13 @@ export async function verifyGoogleToken(idToken: string): Promise<{
 }
 
 // Secure cookie configuration
-export function getSecureCookieOptions(path: string = "/") {
+export function getSecureCookieOptions(path: string = "/api/auth/refresh") {
   return {
     httpOnly: true,
     secure: isProd,
     sameSite: "strict" as const,
     path,
-    maxAge: REFRESH_TOKEN_TTL
+    maxAge: REFRESH_TOKEN_TTL // 30 days
   };
 }
 
