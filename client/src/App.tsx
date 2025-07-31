@@ -25,15 +25,6 @@ function Router() {
       {/* Public routes */}
       <Route path="/" component={ModeSelection} />
       <Route path="/auth/customer" component={CustomerAuth} />
-      <Route path="/admin/login" component={AdminAuth} />
-      
-
-      {/* Admin routes (session protected) */}
-       <AdminAuthProvider>
-            <Route path="/admin/dashboard" component={AdminDashboard} />
-            <Route path="/admin/customers" component={AdminCustomers} />
-            <Route path="/admin/summaries" component={AdminSummaries} />
-        </AdminAuthProvider>
 
       {/* Customer routes (JWT protected) */}
       <Route path="/home" component={CustomerHome} />
@@ -41,26 +32,37 @@ function Router() {
       <Route path="/qr" component={CustomerQR} />
       <Route path="/history" component={CustomerHistory} />
 
-      {/* Admin routes (session protected) */}
-      <Route path="/admin" component={AdminDashboard} />
-      {/* POS routes (admin protected) */}
-      <Route path="/pos/charge" component={POSCharge} />
-
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
+function AdminRouter() {
+    return (
+      <Switch>
+        <Route path="/admin/login" component={AdminAuth} />
+        <Route path="/admin/dashboard" component={AdminDashboard} />
+        <Route path="/admin/customers" component={AdminCustomers} />
+        <Route path="/admin/summaries" component={AdminSummaries} />
+        {/* POS routes (admin protected) */}
+        <Route path="/pos/charge" component={POSCharge} />
+        {/* Fallback to 404 */}
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          
-            <Toaster />
-            <Router />
-          
+          <Toaster />
+          <Router />
+          <AdminAuthProvider>
+            <AdminRouter />
+          </AdminAuthProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
