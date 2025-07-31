@@ -314,7 +314,7 @@ export function getCSRFCookieOptions() {
 
 // Token blacklist operations
 export async function blacklistToken(jti: string, ttlSeconds: number = 15 * 60) {
-  await storage.blacklistToken(jti, ttlSeconds);
+  await storage.blacklistToken(jti, new Date(Date.now() + ttlSeconds * 1000));
 }
 
 export async function logoutEverywhere(userId: string) {

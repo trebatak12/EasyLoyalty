@@ -136,15 +136,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate tokens
       const accessToken = generateAccessToken(user.id);
-      const { token: refreshToken, hash: refreshTokenHash } = generateRefreshToken();
+      const deviceId = `${ip}_${getUserAgent(req).substring(0, 50)}`;
+      const refreshToken = generateRefreshToken(user.id, deviceId);
 
-      await storage.createRefreshToken({
+      await storage.storeRefreshToken({
         userId: user.id,
-        tokenHash: refreshTokenHash,
+        tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
+        deviceId,
+        ip,
         userAgent: getUserAgent(req),
-        ip: ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        revokedAt: null
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
       });
 
       // Audit log
@@ -197,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify password
-      const isValid = await verifyPassword(body.password, user.passwordHash);
+      const isValid = await verifyPassword(body.password, user.passwordHash || '');
       if (!isValid) {
         await logAuthEvent("login_failed", user.id, ip, userAgent, { email: body.email, reason: "invalid_password" });
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid credentials", "E_AUTH"));
@@ -214,7 +215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store refresh token in database for rotation detection
       await storage.storeRefreshToken({
         userId: user.id,
-        tokenId: jwt.decode(refreshToken)?.jti,
+        tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
         deviceId,
         ip,
         userAgent,
@@ -258,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if token was already used (rotation detection)
       const storedToken = await storage.getRefreshToken(payload.jti);
-      if (!storedToken || storedToken.used) {
+      if (!storedToken || storedToken.revokedAt) {
         // Token reuse detected - security breach!
         await logAuthEvent("token_reuse_detected", payload.sub, getClientIP(req), getUserAgent(req), { 
           tokenId: payload.jti 
@@ -273,21 +274,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mark old token as used
       await storage.markRefreshTokenUsed(payload.jti);
 
-      // Get user
-      const user = await storage.getUser(payload.sub);
-      if (!user || user.status === "blocked") {
-        return res.status(403).json(createErrorResponse("Forbidden", "User account is blocked", "E_FORBIDDEN"));
-      }
+      // Generate new access token
+      const newAccessToken = generateAccessToken(payload.sub, ["user"]);
 
-      // Generate new tokens
-      const userRoles = await storage.getUserRoles(user.id);
-      const newAccessToken = generateAccessToken(user.id, userRoles);
-      const newRefreshToken = generateRefreshToken(user.id, payload.deviceId);
-
-      // Store new refresh token
+      // Rotate refresh token  
+      const newRefreshToken = generateRefreshToken(payload.sub, payload.deviceId);
       await storage.storeRefreshToken({
-        userId: user.id,
-        tokenId: jwt.decode(newRefreshToken)?.jti,
+        userId: payload.sub,
+        tokenId: (jwt.decode(newRefreshToken) as any)?.jti || 'unknown',
         deviceId: payload.deviceId,
         ip: getClientIP(req),
         userAgent: getUserAgent(req),
@@ -298,11 +292,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions("/auth/refresh"));
 
       // Audit log
-      await logAuthEvent("token_refresh", user.id, getClientIP(req), getUserAgent(req), {});
+      await logAuthEvent("token_refresh", payload.sub, getClientIP(req), getUserAgent(req), {});
 
-      res.json({
-        accessToken: newAccessToken
-      });
+      res.json({ accessToken: newAccessToken });
 
     } catch (error) {
       console.error("Refresh error:", error);
@@ -416,16 +408,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate tokens
       const accessToken = generateAccessToken(user.id);
-      const { token: refreshToken, hash: refreshTokenHash } = generateRefreshToken();
+      const deviceId = `${ip}_${getUserAgent(req).substring(0, 50)}`;
+      const refreshToken = generateRefreshToken(user.id, deviceId);
 
       // Store refresh token
-      await storage.createRefreshToken({
+      await storage.storeRefreshToken({
         userId: user.id,
-        tokenHash: refreshTokenHash,
+        tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
+        deviceId,
+        ip,
         userAgent: getUserAgent(req),
-        ip: ip,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        revokedAt: null
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
       });
 
       // Audit log
@@ -1306,7 +1299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (tokenOrCode.length > 10) {
         try {
           const payload = verifyQRToken(tokenOrCode);
-          userId = payload.sub;
+          userId = payload?.sub;
         } catch {
           return res.status(400).json(createErrorResponse("BadRequest", "Neplatný QR kód", "E_INPUT"));
         }

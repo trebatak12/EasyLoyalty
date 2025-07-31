@@ -22,9 +22,16 @@ export interface IStorage {
 
   // Refresh token operations
   createRefreshToken(token: Omit<RefreshToken, "id" | "createdAt">): Promise<RefreshToken>;
+  storeRefreshToken(data: { userId: string; tokenId: string; deviceId: string; ip: string; userAgent: string; expiresAt: Date }): Promise<void>;
   getRefreshToken(tokenHash: string): Promise<RefreshToken | undefined>;
+  markRefreshTokenUsed(tokenId: string): Promise<void>;
   revokeRefreshToken(tokenHash: string): Promise<void>;
   revokeAllUserRefreshTokens(userId: string): Promise<void>;
+  
+  // Token blacklisting operations
+  isTokenBlacklisted(jti: string): Promise<boolean>;
+  blacklistToken(jti: string, expiresAt: Date): Promise<void>;
+  revokeAllUserTokens(userId: string): Promise<void>;
 
   // Admin session operations
   createAdminSession(session: Omit<AdminSession, "id" | "createdAt">): Promise<AdminSession>;
@@ -220,6 +227,23 @@ export class DatabaseStorage implements IStorage {
     return newToken;
   }
 
+  async storeRefreshToken(data: { userId: string; tokenId: string; deviceId: string; ip: string; userAgent: string; expiresAt: Date }): Promise<void> {
+    await db.insert(refreshTokens).values({
+      userId: data.userId,
+      tokenHash: data.tokenId, // Using tokenHash field for token ID
+      userAgent: data.userAgent,
+      ip: data.ip,
+      expiresAt: data.expiresAt
+    });
+  }
+
+  async markRefreshTokenUsed(tokenId: string): Promise<void> {
+    await db
+      .update(refreshTokens)
+      .set({ revokedAt: sql`now()` })
+      .where(eq(refreshTokens.tokenHash, tokenId));
+  }
+
   async getRefreshToken(tokenHash: string): Promise<RefreshToken | undefined> {
     const [token] = await db
       .select()
@@ -244,6 +268,31 @@ export class DatabaseStorage implements IStorage {
       .update(refreshTokens)
       .set({ revokedAt: sql`now()` })
       .where(eq(refreshTokens.userId, userId));
+  }
+
+  async isTokenBlacklisted(jti: string): Promise<boolean> {
+    // For simplicity, we'll use refresh tokens table to track blacklisted tokens
+    // In production, use Redis for better performance
+    const [token] = await db
+      .select()
+      .from(refreshTokens)
+      .where(and(
+        eq(refreshTokens.tokenHash, jti),
+        isNull(refreshTokens.revokedAt)
+      ));
+    return !token; // Token is blacklisted if not found or revoked
+  }
+
+  async blacklistToken(jti: string, expiresAt: Date): Promise<void> {
+    // Mark token as revoked to blacklist it
+    await db
+      .update(refreshTokens)
+      .set({ revokedAt: sql`now()` })
+      .where(eq(refreshTokens.tokenHash, jti));
+  }
+
+  async revokeAllUserTokens(userId: string): Promise<void> {
+    await this.revokeAllUserRefreshTokens(userId);
   }
 
   async createAdminSession(session: Omit<AdminSession, "id" | "createdAt">): Promise<AdminSession> {
@@ -296,10 +345,8 @@ export class DatabaseStorage implements IStorage {
     await db.insert(auditLogs).values({
       actorType: data.userId ? "user" : "system",
       actorId: data.userId,
-      event: data.event,
-      meta: data.meta,
-      userAgent: data.userAgent,
-      ip: data.ip
+      action: data.event,
+      meta: data.meta
     });
   }
 
@@ -349,11 +396,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getDashboardStats(): Promise<{
-    todayTotalCents: number;
-    todayCount: number;
-    membersCount: number;
-  }>;
+
 
   async getSummaryStats(): Promise<{
     membersCount: number;
