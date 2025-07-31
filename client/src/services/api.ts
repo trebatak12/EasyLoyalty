@@ -102,7 +102,18 @@ class ApiService {
         return result;
       }
 
-      result = await response.json();
+      // Handle empty responses (204 No Content)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        result = null;
+      } else {
+        try {
+          result = await response.json();
+        } catch (parseError) {
+          // If JSON parsing fails but response was successful, return null
+          console.warn("Failed to parse JSON response, returning null:", parseError);
+          result = null;
+        }
+      }
 
       // Run through success interceptors
       for (const interceptor of this.responseInterceptors) {

@@ -58,7 +58,6 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
           <Switch>
             {/* Public routes */}
             <Route path="/" component={ModeSelection} />
@@ -69,7 +68,7 @@ function App() {
             <Route path="/topup" component={CustomerTopup} />
             <Route path="/qr" component={CustomerQR} />
             <Route path="/history" component={CustomerHistory} />
-            
+
             {/* Admin Routes - wrapped in AdminAuthProvider */}
             <Route path="/admin/*">
               <AdminAuthProvider>

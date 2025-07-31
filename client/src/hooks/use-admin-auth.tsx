@@ -63,6 +63,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       setAdmin(null);
     } catch (error) {
       console.error("Logout error:", error);
+      // Even if logout fails, clear the admin state
+      setAdmin(null);
     } finally {
       setIsLoading(false);
     }
