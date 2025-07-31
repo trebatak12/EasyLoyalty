@@ -73,17 +73,17 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // Always clear state first to prevent UI issues
+    setAdmin(null);
+    
     try {
-      // Always try to call logout API - server will handle invalid sessions gracefully
+      // Try to call logout API - server will handle invalid sessions gracefully
       await api.post("/api/admin/logout");
     } catch (error) {
       // Don't log 401 errors as they're expected when already logged out
       if (error?.response?.status !== 401) {
         console.error("Logout error:", error);
       }
-    } finally {
-      // Always clear state regardless of API call success
-      setAdmin(null);
     }
   };
 
