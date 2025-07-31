@@ -1,57 +1,39 @@
-import React from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Coffee, Users, CreditCard, TrendingUp, LogOut } from "lucide-react";
-import { useLocation } from "wouter";
+import { Coffee, LogOut, Users, Wallet, Gift, TrendingUp, Store } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+
+interface DashboardData {
+  totalCustomers: number;
+  totalBalance: number;
+  totalTransactions: number;
+  monthlyStats: {
+    newCustomers: number;
+    totalSpent: number;
+    transactions: number;
+  };
+}
 
 // API helper function
 async function apiRequest(url: string, options: RequestInit = {}) {
   const response = await fetch(url, {
-    credentials: "include",
+    ...options,
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...options.headers,
     },
-    ...options,
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    const error = new Error(`HTTP ${response.status}`);
-    (error as any).response = {
-      status: response.status,
-      statusText: response.statusText,
-      data: errorData,
-    };
-    throw error;
+    throw new Error(`API Error: ${response.status}`);
   }
 
   return response.json();
-}
-
-interface DashboardData {
-  stats: {
-    membersCount: number;
-    todayCount: number;
-    todayTotalCents: number;
-  };
-  recentTransactions: Array<{
-    id: string;
-    user: { name: string };
-    amountCents: number;
-    type: string;
-    createdAt: string;
-  }>;
-  topCustomers: Array<{
-    id: string;
-    name: string;
-    email: string;
-    totalSpentCents: number;
-    balanceCents: number;
-  }>;
 }
 
 function StatCard({ title, value, icon: Icon, trend }: {
@@ -114,6 +96,13 @@ export default function AdminDashboard() {
     }
   });
 
+  // Effect pro přesměrování neautentizovaných uživatelů
+  useEffect(() => {
+    if (!isLoading && !admin) {
+      setLocation("/admin/login");
+    }
+  }, [admin, isLoading, setLocation]);
+
   // Handler pro odhlášení
   const handleLogout = async () => {
     logoutMutation.mutate();
@@ -135,8 +124,7 @@ export default function AdminDashboard() {
   }
 
   if (!admin) {
-    setLocation("/admin/login");
-    return <LoadingSpinner />;
+    return <LoadingSpinner />; // Zobrazí loading během přesměrování
   }
 
   // Hlavní render dashboardu
@@ -165,6 +153,7 @@ export default function AdminDashboard() {
               variant="outline" 
               onClick={handleLogout}
               className="border-amber-200 text-amber-700 hover:bg-amber-50"
+              disabled={logoutMutation.isPending}
             >
               <LogOut className="w-4 h-4 mr-2" />
               Odhlásit
@@ -176,115 +165,97 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto p-6">
         {dashboardQuery.isLoading ? (
-          <LoadingSpinner />
-        ) : dashboardQuery.error ? (
           <div className="text-center py-12">
-            <p className="text-red-600 font-medium">Chyba při načítání dat dashboardu</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4"></div>
+            <p className="text-amber-700">Načítám data...</p>
+          </div>
+        ) : dashboardQuery.error ? (
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 text-center">
+            <p className="text-red-800 font-semibold">Chyba při načítání dat dashboardu</p>
             <Button 
               onClick={() => dashboardQuery.refetch()}
-              className="mt-4"
-              variant="outline"
+              className="mt-4 bg-red-600 hover:bg-red-700"
             >
               Zkusit znovu
             </Button>
           </div>
-        ) : dashboardQuery.data ? (
-          <>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <StatCard
-                title="Celkem členů"
-                value={dashboardQuery.data.stats.membersCount}
-                icon={Users}
-                trend="aktivních účtů"
-              />
-              <StatCard
-                title="Dnešní transakce"
-                value={dashboardQuery.data.stats.todayCount}
-                icon={CreditCard}
-                trend="za dnešní den"
-              />
-              <StatCard
-                title="Dnešní tržby"
-                value={`${Math.round(dashboardQuery.data.stats.todayTotalCents / 100).toLocaleString('cs-CZ')} Kč`}
-                icon={TrendingUp}
-                trend="za dnešní den"
-              />
-              <StatCard
-                title="Průměrná transakce"
-                value={`${Math.round((dashboardQuery.data.stats.todayTotalCents / dashboardQuery.data.stats.todayCount) / 100 || 0).toLocaleString('cs-CZ')} Kč`}
-                icon={Coffee}
-                trend="za dnešní den"
-              />
-            </div>
-
-            {/* Recent Transactions & Top Customers */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Transactions */}
-              <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold text-amber-900">Poslední transakce</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {dashboardQuery.data.recentTransactions.length > 0 ? 
-                      dashboardQuery.data.recentTransactions.map((transaction) => (
-                        <div key={transaction.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-amber-900">{transaction.user.name}</p>
-                            <p className="text-sm text-amber-700">
-                              {new Date(transaction.createdAt).toLocaleString('cs-CZ')}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className={`font-bold ${transaction.type === 'charge' ? 'text-red-600' : 'text-green-600'}`}>
-                              {transaction.type === 'charge' ? '-' : '+'}{Math.round(Math.abs(transaction.amountCents) / 100).toLocaleString('cs-CZ')} Kč
-                            </p>
-                            <p className="text-xs text-amber-600 capitalize">{transaction.type}</p>
-                          </div>
-                        </div>
-                      )) :
-                      <p className="text-amber-700 text-center py-4">Žádné transakce</p>
-                    }
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Top Customers */}
-              <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold text-amber-900">Nejlepší zákazníci</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {dashboardQuery.data.topCustomers.length > 0 ?
-                      dashboardQuery.data.topCustomers.map((customer, index) => (
-                        <div key={customer.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-amber-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <p className="font-medium text-amber-900">{customer.name}</p>
-                              <p className="text-sm text-amber-700">{customer.email}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-amber-900">{Math.round(customer.totalSpentCents / 100).toLocaleString('cs-CZ')} Kč</p>
-                            <p className="text-xs text-amber-600">utraceno celkem</p>
-                          </div>
-                        </div>
-                      )) :
-                      <p className="text-amber-700 text-center py-4">Žádní zákazníci</p>
-                    }
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-amber-700">Načítání dat...</p>
+          <div className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                title="Celkový počet zákazníků"
+                value={dashboardQuery.data?.totalCustomers || 0}
+                icon={Users}
+                trend="Aktivní členové"
+              />
+              <StatCard
+                title="Celkový zůstatek"
+                value={`${dashboardQuery.data?.totalBalance || 0} Kč`}
+                icon={Wallet}
+                trend="Na všech účtech"
+              />
+              <StatCard
+                title="Počet transakcí"
+                value={dashboardQuery.data?.totalTransactions || 0}
+                icon={TrendingUp}
+                trend="Celkem provedeno"
+              />
+              <StatCard
+                title="Tento měsíc"
+                value={`${dashboardQuery.data?.monthlyStats?.totalSpent || 0} Kč`}
+                icon={Gift}
+                trend={`${dashboardQuery.data?.monthlyStats?.transactions || 0} transakcí`}
+              />
+            </div>
+
+            {/* Quick Actions */}
+            <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-amber-900">Rychlé akce</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button
+                    onClick={() => setLocation("/admin/customers")}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl h-12"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Spravovat zákazníky
+                  </Button>
+                  <Button
+                    onClick={() => setLocation("/admin/summaries")}
+                    className="bg-green-600 hover:bg-green-700 text-white rounded-2xl h-12"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Zobrazit statistiky
+                  </Button>
+                  <Button
+                    onClick={() => setLocation("/pos/charge")}
+                    className="bg-purple-600 hover:bg-purple-700 text-white rounded-2xl h-12"
+                  >
+                    <Store className="w-4 h-4 mr-2" />
+                    POS systém
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Welcome Message */}
+            {dashboardQuery.data && (
+              <Card className="bg-gradient-to-r from-amber-100 to-orange-100 border-2 border-amber-200 rounded-2xl shadow-lg">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold text-amber-900 mb-2">
+                      Vítejte zpět, {admin.name}!
+                    </h2>
+                    <p className="text-amber-800">
+                      Máte {dashboardQuery.data.totalCustomers} aktivních zákazníků s celkovým zůstatkem {dashboardQuery.data.totalBalance} Kč
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>
