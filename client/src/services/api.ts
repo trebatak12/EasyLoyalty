@@ -35,9 +35,10 @@ class ApiService {
       "Content-Type": "application/json"
     };
 
-    // Add authorization header for customer routes (but not auth routes)
+    // Add authorization header for customer routes (but not auth/admin routes)
     if (this.authToken && url.startsWith("/api/") && !url.startsWith("/api/admin/") && !url.startsWith("/api/auth/")) {
       headers.Authorization = `Bearer ${this.authToken}`;
+      console.log("Adding auth header to:", url, "with token:", this.authToken?.substring(0, 20) + "...");
     }
 
     const config: RequestInit = {

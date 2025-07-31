@@ -135,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user: userData, accessToken } = response;
       // 🔒 Refresh token automatically set as HTTP-only cookie
       
+      console.log("Login successful, setting tokens and user:", { accessToken: accessToken?.substring(0, 20) + "...", userData });
       setTokens(accessToken);
       setUser(userData);
       

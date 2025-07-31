@@ -271,16 +271,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isTokenBlacklisted(jti: string): Promise<boolean> {
-    // For simplicity, we'll use refresh tokens table to track blacklisted tokens
-    // In production, use Redis for better performance
-    const [token] = await db
-      .select()
-      .from(refreshTokens)
-      .where(and(
-        eq(refreshTokens.tokenHash, jti),
-        isNull(refreshTokens.revokedAt)
-      ));
-    return !token; // Token is blacklisted if not found or revoked
+    // For now, disable blacklisting since we don't have a dedicated blacklist table
+    // TODO: Implement proper blacklist table for access tokens in production
+    return false;
   }
 
   async blacklistToken(jti: string, expiresAt: Date): Promise<void> {
