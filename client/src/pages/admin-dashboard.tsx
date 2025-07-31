@@ -19,23 +19,8 @@ interface DashboardData {
   };
 }
 
-// API helper function
-async function apiRequest(url: string, options: RequestInit = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
-  }
-
-  return response.json();
-}
+// Import API service with auth token support
+import { api } from "@/services/api";
 
 function StatCard({ title, value, icon: Icon, trend }: {
   title: string;
@@ -84,7 +69,9 @@ export default function AdminDashboard() {
   const dashboardQuery = useQuery({
     queryKey: ["adminDashboard"],
     queryFn: async () => {
-      const response = await apiRequest("/api/admin/dashboard");
+      console.log("Fetching admin dashboard data...");
+      const response = await api.get("/api/admin/dashboard");
+      console.log("Dashboard data received:", response);
       return response as DashboardData;
     },
     refetchInterval: 30000,
@@ -93,7 +80,7 @@ export default function AdminDashboard() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("/api/admin/logout", { method: "POST" });
+      await api.post("/api/admin/logout");
     },
     onSuccess: () => {
       if (logout) {

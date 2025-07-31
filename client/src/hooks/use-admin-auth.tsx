@@ -120,6 +120,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       setAccessToken(newAccessToken);
       setAdmin(adminData);
       setupTokenRefresh(newAccessToken);
+      
+      // Ensure token is set immediately in API service
+      api.setAuthToken(newAccessToken);
+      console.log("Admin token set in API service:", newAccessToken.substring(0, 20) + "...");
     } catch (error: any) {
       console.error("Admin login failed:", {
         message: error?.message || "Unknown error",
