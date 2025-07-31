@@ -23,37 +23,35 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Switch>
-            {/* Public routes */}
-            <Route path="/" component={ModeSelection} />
-            <Route path="/auth/customer" component={CustomerAuth} />
+          <AdminAuthProvider>
+            <Switch>
+              {/* Public routes */}
+              <Route path="/" component={ModeSelection} />
+              <Route path="/auth/customer" component={CustomerAuth} />
 
-            {/* Customer routes (JWT protected) */}
-            <Route path="/home" component={CustomerHome} />
-            <Route path="/topup" component={CustomerTopup} />
-            <Route path="/qr" component={CustomerQR} />
-            <Route path="/history" component={CustomerHistory} />
+              {/* Customer routes (JWT protected) */}
+              <Route path="/home" component={CustomerHome} />
+              <Route path="/topup" component={CustomerTopup} />
+              <Route path="/qr" component={CustomerQR} />
+              <Route path="/history" component={CustomerHistory} />
 
-            {/* Admin Routes - Protected by AdminAuthProvider */}
-            <AdminAuthProvider>
+              {/* Admin Routes */}
               <Route path="/admin/login" component={AdminAuth} />
               <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/admin/customers" component={AdminCustomers} />
               <Route path="/admin/summaries" component={AdminSummaries} />
-            </AdminAuthProvider>
 
-            {/* POS routes - also wrapped in AdminAuthProvider */}
-            <Route path="/pos/*">
-              <AdminAuthProvider>
+              {/* POS routes */}
+              <Route path="/pos/*">
                 <Switch>
                   <Route path="/pos/charge" component={POSCharge} />
                 </Switch>
-              </AdminAuthProvider>
-            </Route>
+              </Route>
 
-            {/* Fallback to 404 */}
-            <Route component={NotFound} />
-          </Switch>
+              {/* Fallback to 404 */}
+              <Route component={NotFound} />
+            </Switch>
+          </AdminAuthProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
