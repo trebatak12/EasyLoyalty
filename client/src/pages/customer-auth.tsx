@@ -41,8 +41,13 @@ export default function CustomerAuth() {
     try {
       await login(signInData.email, signInData.password);
 
-      // Navigate immediately after successful login
-      setLocation("/home");
+      // Clear form after successful login to prevent resubmission
+      setSignInData({ email: "", password: "" });
+      
+      // Small delay to ensure state is properly set before navigation
+      setTimeout(() => {
+        setLocation("/home");
+      }, 100);
 
     } catch (error: any) {
       console.error("Login error:", {
@@ -88,7 +93,14 @@ export default function CustomerAuth() {
 
     try {
       await signup(signUpData.email, signUpData.name, signUpData.password);
-      setLocation("/home");
+      
+      // Clear form after successful signup
+      setSignUpData({ email: "", name: "", password: "" });
+      
+      // Small delay to ensure state is properly set before navigation
+      setTimeout(() => {
+        setLocation("/home");
+      }, 100);
     } catch (error: any) {
       toast({
         title: "Registrace se nezdařila",
