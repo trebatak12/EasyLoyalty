@@ -195,7 +195,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       // 🔒 Server will handle refresh token cookie clearing
-      await api.post("/api/auth/logout");
+      // Make sure we have the token available for the logout call
+      if (accessToken) {
+        await api.post("/api/auth/logout");
+      }
     } catch (error) {
       // Ignore logout errors - clear local state anyway
       console.warn("Logout API call failed:", error);
