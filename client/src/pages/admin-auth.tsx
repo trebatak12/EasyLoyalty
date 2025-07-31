@@ -34,14 +34,15 @@ export default function AdminAuth() {
       return;
     }
     
-    console.log("Form submitted with data:", loginData);
+    console.log("Admin login form submitted with data:", loginData);
     
     try {
       await login(loginData.email, loginData.password);
+      console.log("Admin login successful, redirecting to dashboard");
       // Po úspěšném přihlášení přesměruj na admin dashboard
       setLocation("/admin/dashboard");
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Admin login error:", error);
       toast({
         title: "Přihlášení se nezdařilo",
         description: error.message || "Nesprávné přihlašovací údaje",

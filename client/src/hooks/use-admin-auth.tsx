@@ -42,15 +42,31 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    if (isLoading) {
+      return; // Prevent double submissions
+    }
+    
     setIsLoading(true);
     try {
-      // Admin login returns admin data directly now
+      console.log("Admin login API call starting");
       const response = await api.post("/api/admin/login", { email, password });
       const { admin: adminData } = response;
       
+      console.log("Admin login successful, setting admin data:", adminData);
       setAdmin(adminData);
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      console.error("Admin login failed:", {
+        message: error?.message || "Unknown error",
+        status: error?.response?.status || "No status",
+        data: error?.response?.data || "No response data"
+      });
+      
+      // Create a proper error message for the UI
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          "Chyba při přihlašování administrátora";
+      
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
