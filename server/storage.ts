@@ -61,6 +61,8 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private db = db;
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -428,100 +430,9 @@ export class DatabaseStorage implements IStorage {
       .then(results => results.map(r => ({ ...r.transaction, user: r.user! })));
   }
 
-  // 🔒 Secure token management
-  async blacklistToken(jti: string, ttlSeconds: number): Promise<void> {
-    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
-    await this.db.execute(sql`
-      INSERT INTO token_blacklist (jti, expires_at) 
-      VALUES (${jti}, ${expiresAt})
-      ON CONFLICT (jti) DO NOTHING
-    `);
-  }
+  
 
-  async isTokenBlacklisted(jti: string): Promise<boolean> {
-    const result = await this.db.execute(sql`
-      SELECT 1 FROM token_blacklist 
-      WHERE jti = ${jti} AND expires_at > NOW()
-      LIMIT 1
-    `);
-    return result.rowCount > 0;
-  }
-
-  // Enhanced refresh token management with rotation
-  async storeRefreshToken(data: {
-    userId: string;
-    tokenId: string;
-    deviceId: string;
-    ip: string;
-    userAgent: string;
-    expiresAt: Date;
-  }): Promise<void> {
-    await this.db.execute(sql`
-      INSERT INTO refresh_tokens_v2 
-      (user_id, token_id, device_id, ip_address, user_agent, expires_at)
-      VALUES (${data.userId}, ${data.tokenId}, ${data.deviceId}, ${data.ip}, ${data.userAgent}, ${data.expiresAt})
-    `);
-  }
-
-  async getRefreshToken(tokenId: string): Promise<{ userId: string; used: boolean } | null> {
-    const result = await this.db.execute(sql`
-      SELECT user_id, used FROM refresh_tokens_v2 
-      WHERE token_id = ${tokenId} AND expires_at > NOW()
-      LIMIT 1
-    `);
-
-    return result.rows[0] ? {
-      userId: result.rows[0].user_id as string,
-      used: result.rows[0].used as boolean
-    } : null;
-  }
-
-  async markRefreshTokenUsed(tokenId: string): Promise<void> {
-    await this.db.execute(sql`
-      UPDATE refresh_tokens_v2 
-      SET used = TRUE 
-      WHERE token_id = ${tokenId}
-    `);
-  }
-
-  async revokeRefreshToken(tokenId: string): Promise<void> {
-    await this.db.execute(sql`
-      DELETE FROM refresh_tokens_v2 
-      WHERE token_id = ${tokenId}
-    `);
-  }
-
-  async revokeAllUserTokens(userId: string): Promise<void> {
-    await this.db.execute(sql`
-      DELETE FROM refresh_tokens_v2 
-      WHERE user_id = ${userId}
-    `);
-  }
-
-  // User roles management
-  async getUserRoles(userId: string): Promise<string[]> {
-    const result = await this.db.execute(sql`
-      SELECT role FROM user_roles 
-      WHERE user_id = ${userId}
-    `);
-    return result.rows.map(row => row.role as string);
-  }
-
-  // Enhanced audit logging
-  async createAuditLog(data: {
-    event: string;
-    userId: string | null;
-    ip: string;
-    userAgent: string;
-    meta: Record<string, any>;
-    timestamp: Date;
-  }): Promise<void> {
-    await this.db.execute(sql`
-      INSERT INTO auth_audit_log 
-      (event, user_id, ip_address, user_agent, metadata, created_at)
-      VALUES (${data.event}, ${data.userId}, ${data.ip}, ${data.userAgent}, ${JSON.stringify(data.meta)}, ${data.timestamp})
-    `);
-  }
+  
 }
 
 export const storage = new DatabaseStorage();
