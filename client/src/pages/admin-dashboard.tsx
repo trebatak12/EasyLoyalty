@@ -214,57 +214,55 @@ function RecentTransactions({ transactions }: { transactions: DashboardData['rec
 }
 
 export default function AdminDashboard() {
+  const { admin, isLoading, logout } = useAdminAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      setLocation("/admin/login");
-    }
-  }, [isAuthenticated, authLoading, setLocation]);
-
-  // Check admin authentication
-  const { data: admin, error } = useQuery({
-    queryKey: ["/api/admin/me"],
-    retry: false,
-    enabled: isAuthenticated // Only run query if authenticated
+  const dashboardQuery = useQuery({
+    queryKey: ["adminDashboard"],
+    queryFn: async () => {
+      const response = await apiRequest("/api/admin/dashboard");
+      return response as DashboardData;
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+    enabled: !!admin, // Only run query if admin is logged in
   });
 
-  if (!authLoading && !isAuthenticated) {
-    return null;
-  }
-
-  const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ["/api/admin/dashboard"],
-    refetchInterval: 30000 // Refresh every 30 seconds
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("/api/admin/logout", { method: "POST" });
+    },
+    onSuccess: () => {
+      logout();
+      toast({
+        title: "Odhlášení úspěšné",
+        description: "Byli jste úspěšně odhlášeni"
+      });
+      setLocation("/admin/login");
+    },
+    onError: (error: any) => {
+      console.error("Logout error:", error);
+      // Force logout even if API call fails
+      logout();
+      setLocation("/admin/login");
+    }
   });
 
-  const { logout } = useAdminAuth();
-
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    if (isLoggingOut) return;
-    setIsLoggingOut(true);
-    try {
-      await logout();
-      setLocation("/admin/login");
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-
-  if (!admin) {
+  // Move all early returns AFTER all hooks are called
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
-          <p className="mt-2 text-amber-700">Načítání...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Načítání...</p>
         </div>
       </div>
     );
+  }
+
+  if (!admin) {
+    setLocation("/admin/login");
+    return null;
   }
 
   return (
@@ -301,7 +299,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
-        {isLoading ? (
+        {dashboardQuery.isLoading ? (
           <div className="space-y-6">
             {/* Loading stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -331,11 +329,11 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </div>
-        ) : dashboardData ? (
+        ) : dashboardQuery.data ? (
           <>
-            <StatsRow data={dashboardData} />
+            <StatsRow data={dashboardQuery.data} />
             <AcceptButton />
-            <RecentTransactions transactions={dashboardData.recentTransactions} />
+            <RecentTransactions transactions={dashboardQuery.data.recentTransactions} />
           </>
         ) : null}
       </div>

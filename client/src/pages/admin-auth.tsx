@@ -28,7 +28,7 @@ export default function AdminAuth() {
     }
   }, [isAuthenticated, setLocation]);
 
-  // Check if context is available
+  // Move early returns AFTER all hooks are called
   if (!adminAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -38,6 +38,22 @@ export default function AdminAuth() {
         </div>
       </div>
     );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+          <p className="mt-2 text-amber-700">Načítání...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    setLocation("/admin/dashboard");
+    return null;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
