@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,33 +9,28 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAuth() {
-  // Všechny hooks na začátku komponenty
   const [, setLocation] = useLocation();
-  const adminAuth = useAdminAuth();
+  const { login, isLoading, isAuthenticated } = useAdminAuth();
   const { toast } = useToast();
-  const [loginData, setLoginData] = useState({
-    email: "",
-    password: ""
-  });
 
-  // Destructure z adminAuth (může být undefined)
-  const login = adminAuth?.login;
-  const isLoading = adminAuth?.isLoading || false;
-  const isAuthenticated = adminAuth?.isAuthenticated || false;
-
-  // Effect pro přesměrování po přihlášení
+  // Pokud je admin už přihlášený, přesměruj ho
   useEffect(() => {
     if (isAuthenticated) {
       setLocation("/admin/dashboard");
     }
   }, [isAuthenticated, setLocation]);
 
-  // Handler pro přihlášení
+  const [loginData, setLoginData] = useState({
+    email: "",
+    password: ""
+  });
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (isLoading || !login) {
+    // Zabránit duplicitnímu odeslání během načítání
+    if (isLoading) {
       return;
     }
 
@@ -45,6 +39,8 @@ export default function AdminAuth() {
     try {
       await login(loginData.email, loginData.password);
       console.log("Admin login successful, redirecting to dashboard");
+      // Po úspěšném přihlášení přesměruj na admin dashboard
+      setLocation("/admin/dashboard");
     } catch (error: any) {
       console.error("Admin login error:", error);
       toast({
@@ -55,26 +51,6 @@ export default function AdminAuth() {
     }
   };
 
-  // Loading spinner component
-  const LoadingSpinner = () => (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
-        <p className="mt-2 text-amber-700">Načítání...</p>
-      </div>
-    </div>
-  );
-
-  // Podmíněné renderování bez early returns
-  if (!adminAuth || isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  if (isAuthenticated) {
-    return <LoadingSpinner />; // Zobrazí loading během přesměrování
-  }
-
-  // Hlavní render formu
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white text-high-contrast">
       <div className="container mx-auto px-4 py-16 max-w-md">

@@ -235,37 +235,21 @@ export class DatabaseStorage implements IStorage {
     userAgent: string;
     expiresAt: Date;
   }) {
-    try {
-      // Check if this is an admin user
-      const isAdmin = await this.getAdminUser(data.userId);
-      
-      if (isAdmin) {
-        // For admin users, we'll create a separate admin refresh token table entry
-        // For now, we'll skip storing admin refresh tokens to avoid FK constraint
-        console.log("Admin refresh token storage skipped to avoid FK constraint");
-        return;
-      }
+    // Remove any existing tokens for this device to prevent accumulation
+    await db.delete(refreshTokens)
+      .where(and(
+        eq(refreshTokens.userId, data.userId),
+        eq(refreshTokens.userAgent, data.userAgent)
+      ));
 
-      // Regular user tokens
-      // Remove any existing tokens for this device to prevent accumulation
-      await db.delete(refreshTokens)
-        .where(and(
-          eq(refreshTokens.userId, data.userId),
-          eq(refreshTokens.userAgent, data.userAgent)
-        ));
-
-      // Insert new refresh token
-      await db.insert(refreshTokens).values({
-        userId: data.userId,
-        tokenHash: data.tokenId, // Store token ID as hash
-        userAgent: data.userAgent,
-        ip: data.ip,
-        expiresAt: data.expiresAt
-      });
-    } catch (error) {
-      console.error("Error storing refresh token:", error);
-      // Don't throw - allow login to continue even if token storage fails
-    }
+    // Insert new refresh token
+    await db.insert(refreshTokens).values({
+      userId: data.userId,
+      tokenHash: data.tokenId, // Store token ID as hash
+      userAgent: data.userAgent,
+      ip: data.ip,
+      expiresAt: data.expiresAt
+    });
   }
 
   async markRefreshTokenUsed(tokenId: string) {
@@ -332,13 +316,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(adminSessions.id, sessionId));
   }
 
-  async getRefreshToken(tokenId: string): Promise<RefreshToken | undefined> {
-    const [token] = await db
-      .select()
-      .from(refreshTokens)
-      .where(eq(refreshTokens.tokenHash, tokenId));
-    return token || undefined;
-  }
+
 
   async getTransactionById(id: string): Promise<Transaction | undefined> {
     const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));

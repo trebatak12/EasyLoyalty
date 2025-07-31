@@ -6,7 +6,6 @@ import {
   hashPassword, 
   verifyPassword, 
   generateAccessToken, 
-  generateAdminAccessToken,
   generateRefreshToken, 
   generateQRToken, 
   generateShortCode, 
@@ -738,68 +737,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const body = loginSchema.parse(req.body);
       const ip = getClientIP(req);
-      const userAgent = getUserAgent(req);
 
       // Rate limiting
-      const ipLimit = checkRateLimit(`admin_login:ip:${ip}`, 3, 5 * 60 * 1000);
-      const emailLimit = checkRateLimit(`admin_login:email:${body.email}`, 5, 15 * 60 * 1000, 15 * 60 * 1000);
-
-      if (!ipLimit.allowed || !emailLimit.allowed) {
-        await logAuthEvent("admin_login_rate_limited", null, ip, userAgent, { email: body.email });
+      const rateLimit = checkRateLimit(`admin_login:${ip}`, 3, 5 * 60 * 1000);
+      if (!rateLimit.allowed) {
         return res.status(429).json(createErrorResponse("TooManyRequests", "Too many login attempts", "E_RATE_LIMIT"));
       }
 
       // Find admin
       const admin = await storage.getAdminUserByEmail(body.email);
       if (!admin) {
-        await logAuthEvent("admin_login_failed", null, ip, userAgent, { email: body.email, reason: "admin_not_found" });
+        await auditLog("system", null, "admin_login_failed", { email: body.email, reason: "admin_not_found" });
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid credentials", "E_AUTH"));
       }
 
       // Check if blocked
-      if (admin.status !== "active") {
-        await logAuthEvent("admin_login_blocked", admin.id, ip, userAgent, { email: body.email });
+      if (admin.status === "blocked") {
+        await auditLog("admin", admin.id, "admin_login_blocked", { email: body.email });
         return res.status(403).json(createErrorResponse("Forbidden", "Account is blocked", "E_FORBIDDEN"));
       }
 
       // Verify password
       const isValid = await verifyPassword(body.password, admin.passwordHash || '');
       if (!isValid) {
-        await logAuthEvent("admin_login_failed", admin.id, ip, userAgent, { email: body.email, reason: "invalid_password" });
+        await auditLog("admin", admin.id, "admin_login_failed", { email: body.email, reason: "invalid_password" });
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid credentials", "E_AUTH"));
       }
+
+      // Create session
+      const newSession = await storage.createAdminSession({
+        adminId: admin.id,
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours
+        ip: ip,
+        userAgent: getUserAgent(req),
+        revokedAt: null
+      });
 
       // Update last login
       await storage.updateAdminLastLogin(admin.id);
 
-      // Generate secure tokens
-      const deviceId = `admin_${ip}_${userAgent.substring(0, 50)}`;
-      const accessToken = generateAdminAccessToken(admin.id);
-      const refreshToken = generateRefreshToken(admin.id, deviceId);
-
-      // Store refresh token in database for rotation detection
-      try {
-        await storage.storeRefreshToken({
-          userId: admin.id,
-          tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
-          deviceId,
-          ip,
-          userAgent,
-          expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)
-        });
-      } catch (tokenError) {
-        console.error("Failed to store admin refresh token:", tokenError);
-        // Continue with login even if token storage fails
-      }
-
-      // Set secure refresh token cookie
-      res.cookie("refresh_token", refreshToken, getSecureCookieOptions("/api/admin/refresh"));
+      // Set cookie
+      res.cookie("admin_sid", newSession.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 8 * 60 * 60 * 1000, // 8 hours
+        path: "/"
+      });
 
       // Audit log
-      await logAuthEvent("admin_login_success", admin.id, ip, userAgent, { email: body.email });
+      await auditLog("admin", admin.id, "admin_login_success", { email: body.email });
 
+      // Return admin data for frontend
       res.json({
-        accessToken,
         admin: {
           id: admin.id,
           email: admin.email,
@@ -818,92 +808,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin refresh access token
-  app.post("/api/admin/refresh", async (req, res) => {
-    try {
-      // Get refresh token from HTTP-only cookie
-      const refreshToken = req.cookies?.refresh_token;
-
-      if (!refreshToken) {
-        return res.status(401).json(createErrorResponse("Unauthorized", "Refresh token missing", "E_AUTH_NO_REFRESH_TOKEN"));
-      }
-
-      const payload = verifyRefreshToken(refreshToken);
-      if (!payload) {
-        return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH_INVALID_REFRESH_TOKEN"));
-      }
-
-      // Verify this is for an admin user
-      const admin = await storage.getAdminUser(payload.sub);
-      if (!admin || admin.status !== "active") {
-        return res.status(403).json(createErrorResponse("Forbidden", "Admin account not found or blocked", "E_FORBIDDEN"));
-      }
-
-      // Generate new access token
-      const newAccessToken = generateAdminAccessToken(payload.sub);
-
-      // Rotate refresh token  
-      const newRefreshToken = generateRefreshToken(payload.sub, payload.deviceId);
-      
-      // Try to store the new refresh token (will be skipped for admin users)
-      try {
-        await storage.storeRefreshToken({
-          userId: payload.sub,
-          tokenId: (jwt.decode(newRefreshToken) as any)?.jti || 'unknown',
-          deviceId: payload.deviceId,
-          ip: getClientIP(req),
-          userAgent: getUserAgent(req),
-          expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)
-        });
-      } catch (tokenError) {
-        // Continue even if token storage fails
-        console.log("Admin refresh token storage skipped");
-      }
-
-      // Set new refresh token cookie
-      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions("/api/admin/refresh"));
-
-      // Audit log
-      await logAuthEvent("admin_token_refresh", payload.sub, getClientIP(req), getUserAgent(req), {});
-
-      res.json({ accessToken: newAccessToken });
-
-    } catch (error) {
-      console.error("Admin refresh error:", error);
-      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
-    }
-  });
-
   app.post("/api/admin/logout", authenticateAdmin, async (req, res) => {
     try {
-      const adminId = req.admin.id;
-      const tokenPayload = req.tokenPayload;
-
-      // Blacklist current access token
-      if (tokenPayload?.jti) {
-        await blacklistToken(tokenPayload.jti, 15 * 60); // 15 minutes
-      }
-
-      // Revoke refresh token from cookie
-      const refreshToken = req.cookies?.refresh_token;
-      if (refreshToken) {
-        const payload = verifyRefreshToken(refreshToken);
-        if (payload) {
-          await storage.revokeRefreshToken(payload.jti);
-        }
-      }
-
-      // Clear refresh token cookie
-      res.clearCookie("refresh_token", { 
-        path: "/api/admin/refresh",
-        httpOnly: true,
-        secure: isProd,
-        sameSite: "strict"
-      });
-
-      // Audit log
-      await logAuthEvent("admin_logout", adminId, getClientIP(req), getUserAgent(req), {});
-
+      await storage.revokeAdminSession(req.sessionId!);
+      res.clearCookie("admin_sid");
+      await auditLog("admin", req.admin.id, "admin_logout", {});
       res.status(204).send();
     } catch (error) {
       console.error("Admin logout error:", error);

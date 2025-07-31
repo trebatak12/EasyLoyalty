@@ -1,16 +1,10 @@
 class ApiService {
   private authToken: string | null = null;
   public interceptors: any;
-  public defaults: any;
   private responseInterceptors: Array<{id: number, fulfilled: any, rejected: any}> = [];
   private nextInterceptorId = 0;
 
   constructor() {
-    // Initialize defaults structure to match axios-like interface
-    this.defaults = {
-      headers: {}
-    };
-
     // Setup proper interceptors system
     this.interceptors = {
       response: {
