@@ -1,211 +1,78 @@
-import { useState, useEffect } from "react";
+import React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { CreditCard, Users, TrendingUp, Clock, ArrowUpRight, Plus, Minus, RotateCcw, Coffee, LogOut } from "lucide-react";
+import { Coffee, Users, CreditCard, TrendingUp, LogOut } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
-import { api as apiRequest } from "@/services/api";
+
+// API helper function
+async function apiRequest(url: string, options: RequestInit = {}) {
+  const response = await fetch(url, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    const error = new Error(`HTTP ${response.status}`);
+    (error as any).response = {
+      status: response.status,
+      statusText: response.statusText,
+      data: errorData,
+    };
+    throw error;
+  }
+
+  return response.json();
+}
 
 interface DashboardData {
-  todayTotalCents: number;
-  todayTotalCZK: string;
-  todayCount: number;
-  membersCount: number;
+  stats: {
+    totalCustomers: number;
+    totalTransactions: number;
+    totalRevenue: number;
+    averageTransaction: number;
+  };
   recentTransactions: Array<{
     id: string;
-    type: 'topup' | 'charge' | 'void' | 'adjustment';
-    amountCents: number;
-    amountCZK: string;
+    customerName: string;
+    amount: number;
+    type: string;
     createdAt: string;
-    user: { name: string };
-    meta?: any;
+  }>;
+  topCustomers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    totalSpent: number;
+    balance: number;
   }>;
 }
 
-function StatsRow({ data }: { data: DashboardData }) {
+function StatCard({ title, value, icon: Icon, trend }: {
+  title: string;
+  value: string | number;
+  icon: React.ComponentType<any>;
+  trend?: string;
+}) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <Card className="border-2 border-green-200 bg-green-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-green-800">
-            Tržba dnes
-          </CardTitle>
-          <TrendingUp className="h-4 w-4 text-green-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-900">
-            {data.todayTotalCZK}
-          </div>
-          <p className="text-xs text-green-600 mt-1">
-            Celkové příjmy za dnešní den
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="border-2 border-blue-200 bg-blue-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-blue-800">
-            Počet plateb dnes
-          </CardTitle>
-          <CreditCard className="h-4 w-4 text-blue-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-blue-900">
-            {data.todayCount}
-          </div>
-          <p className="text-xs text-blue-600 mt-1">
-            Provedených transakcí
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="border-2 border-purple-200 bg-purple-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-purple-800">
-            Aktivních členů
-          </CardTitle>
-          <Users className="h-4 w-4 text-purple-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-purple-900">
-            {data.membersCount}
-          </div>
-          <p className="text-xs text-purple-600 mt-1">
-            Registrovaných zákazníků
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function AcceptButton() {
-  const [, setLocation] = useLocation();
-
-  return (
-    <Button 
-      onClick={() => setLocation("/pos/charge")}
-      className="w-full h-16 text-lg font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-lg mb-8"
-    >
-      <CreditCard className="w-6 h-6 mr-3" />
-      Přijmout platbu
-      <ArrowUpRight className="w-5 h-5 ml-3" />
-    </Button>
-  );
-}
-
-function RecentTransactions({ transactions }: { transactions: DashboardData['recentTransactions'] }) {
-  const [, setLocation] = useLocation();
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'topup':
-        return <Plus className="w-4 h-4 text-white" />;
-      case 'void':
-        return <RotateCcw className="w-4 h-4 text-white" />;
-      default:
-        return <Minus className="w-4 h-4 text-white" />;
-    }
-  };
-
-  const getTransactionColor = (type: string) => {
-    switch (type) {
-      case 'topup':
-        return 'bg-green-500';
-      case 'void':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-600';
-    }
-  };
-
-  const getTransactionLabel = (type: string, meta?: any) => {
-    switch (type) {
-      case 'topup':
-        return `Dobití ${meta?.packageCode || ''}`;
-      case 'void':
-        return 'Storno platby';
-      case 'charge':
-        return 'Platba v kavárně';
-      default:
-        return 'Úprava';
-    }
-  };
-
-  const getTransactionStatus = (type: string) => {
-    switch (type) {
-      case 'topup':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Dobití</Badge>;
-      case 'void':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Storno</Badge>;
-      case 'charge':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Platba</Badge>;
-      default:
-        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Úprava</Badge>;
-    }
-  };
-
-  return (
-    <Card className="border-2 border-amber-200">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-amber-900">Nedávné transakce</CardTitle>
-          <Button 
-            variant="outline"
-            onClick={() => setLocation("/admin/transactions")}
-            className="border-amber-200 text-amber-700 hover:bg-amber-50"
-          >
-            Zobrazit vše
-            <ArrowUpRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
+    <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-bold text-amber-900">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-amber-600" />
       </CardHeader>
       <CardContent>
-        {transactions.length === 0 ? (
-          <div className="text-center py-8 text-amber-600">
-            Žádné transakce dnes
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {transactions.map((transaction) => (
-              <div 
-                key={transaction.id}
-                className="flex items-center justify-between p-4 bg-white rounded-lg border border-amber-100 hover:bg-amber-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTransactionColor(transaction.type)}`}>
-                    {getTransactionIcon(transaction.type)}
-                  </div>
-                  <div>
-                    <p className="font-medium text-amber-900 text-sm">
-                      {getTransactionLabel(transaction.type, transaction.meta)}
-                    </p>
-                    <p className="text-xs text-amber-600">
-                      {transaction.user.name}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  {getTransactionStatus(transaction.type)}
-                  <div className="text-right">
-                    <div className="font-medium text-amber-900">
-                      {transaction.type === 'topup' ? '+' : ''}
-                      {transaction.amountCZK}
-                    </div>
-                    <div className="text-xs text-amber-600">
-                      {new Date(transaction.createdAt).toLocaleTimeString('cs-CZ', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="text-2xl font-bold text-amber-900">{value}</div>
+        {trend && (
+          <p className="text-xs text-amber-700 font-medium">
+            {trend}
+          </p>
         )}
       </CardContent>
     </Card>
@@ -213,6 +80,7 @@ function RecentTransactions({ transactions }: { transactions: DashboardData['rec
 }
 
 export default function AdminDashboard() {
+  // Všechny hooks na začátku komponenty
   const { admin, isLoading, logout } = useAdminAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -247,27 +115,32 @@ export default function AdminDashboard() {
     }
   });
 
-  // Move all early returns AFTER all hooks are called
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Načítání...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!admin) {
-    setLocation("/admin/login");
-    return null;
-  }
-
+  // Handler pro odhlášení
   const handleLogout = async () => {
     logoutMutation.mutate();
   };
 
+  // Loading spinner component
+  const LoadingSpinner = () => (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Načítání...</p>
+      </div>
+    </div>
+  );
+
+  // Podmíněné renderování bez early returns
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!admin) {
+    setLocation("/admin/login");
+    return <LoadingSpinner />;
+  }
+
+  // Hlavní render dashboardu
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
       {/* Header */}
@@ -301,44 +174,120 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto p-6">
         {dashboardQuery.isLoading ? (
-          <div className="space-y-6">
-            {/* Loading stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="border-2 border-amber-200">
-                  <CardContent className="p-6">
-                    <div className="animate-pulse">
-                      <div className="h-4 bg-amber-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-8 bg-amber-200 rounded w-1/2"></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            {/* Loading button */}
-            <div className="h-16 bg-amber-200 rounded-xl animate-pulse"></div>
-            {/* Loading transactions */}
-            <Card className="border-2 border-amber-200">
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-16 bg-amber-100 rounded"></div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+          <LoadingSpinner />
+        ) : dashboardQuery.error ? (
+          <div className="text-center py-12">
+            <p className="text-red-600 font-medium">Chyba při načítání dat dashboardu</p>
+            <Button 
+              onClick={() => dashboardQuery.refetch()}
+              className="mt-4"
+              variant="outline"
+            >
+              Zkusit znovu
+            </Button>
           </div>
         ) : dashboardQuery.data ? (
           <>
-            <StatsRow data={dashboardQuery.data} />
-            <AcceptButton />
-            <RecentTransactions transactions={dashboardQuery.data.recentTransactions} />
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <StatCard
+                title="Celkem členů"
+                value={dashboardQuery.data.stats.totalCustomers}
+                icon={Users}
+                trend="aktivních účtů"
+              />
+              <StatCard
+                title="Celkem transakcí"
+                value={dashboardQuery.data.stats.totalTransactions}
+                icon={CreditCard}
+                trend="za všechny časy"
+              />
+              <StatCard
+                title="Celkové tržby"
+                value={`${dashboardQuery.data.stats.totalRevenue.toLocaleString('cs-CZ')} Kč`}
+                icon={TrendingUp}
+                trend="od spuštění systému"
+              />
+              <StatCard
+                title="Průměrná transakce"
+                value={`${dashboardQuery.data.stats.averageTransaction.toLocaleString('cs-CZ')} Kč`}
+                icon={Coffee}
+                trend="na jednu objednávku"
+              />
+            </div>
+
+            {/* Recent Transactions & Top Customers */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent Transactions */}
+              <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-amber-900">Poslední transakce</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {dashboardQuery.data.recentTransactions.length > 0 ? 
+                      dashboardQuery.data.recentTransactions.map((transaction) => (
+                        <div key={transaction.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-amber-900">{transaction.customerName}</p>
+                            <p className="text-sm text-amber-700">
+                              {new Date(transaction.createdAt).toLocaleString('cs-CZ')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-bold ${transaction.type === 'charge' ? 'text-red-600' : 'text-green-600'}`}>
+                              {transaction.type === 'charge' ? '-' : '+'}{transaction.amount.toLocaleString('cs-CZ')} Kč
+                            </p>
+                            <p className="text-xs text-amber-600 capitalize">{transaction.type}</p>
+                          </div>
+                        </div>
+                      )) :
+                      <p className="text-amber-700 text-center py-4">Žádné transakce</p>
+                    }
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Top Customers */}
+              <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-amber-900">Nejlepší zákazníci</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {dashboardQuery.data.topCustomers.length > 0 ?
+                      dashboardQuery.data.topCustomers.map((customer, index) => (
+                        <div key={customer.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-amber-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium text-amber-900">{customer.name}</p>
+                              <p className="text-sm text-amber-700">{customer.email}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-amber-900">{customer.totalSpent.toLocaleString('cs-CZ')} Kč</p>
+                            <p className="text-xs text-amber-600">utraceno celkem</p>
+                          </div>
+                        </div>
+                      )) :
+                      <p className="text-amber-700 text-center py-4">Žádní zákazníci</p>
+                    }
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </>
-        ) : null}
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-amber-700">Načítání dat...</p>
+          </div>
+        )}
       </div>
     </div>
   );
