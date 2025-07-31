@@ -65,21 +65,26 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // Try to refresh token first (if cookie exists)
         const refreshResponse = await api.post("/api/admin/refresh");
-        setAccessToken(refreshResponse.accessToken);
-        setupTokenRefresh(refreshResponse.accessToken);
+        if (refreshResponse?.accessToken) {
+          setAccessToken(refreshResponse.accessToken);
+          setupTokenRefresh(refreshResponse.accessToken);
 
-        // Get admin data
-        const adminData = await api.get("/api/admin/me", {
-          headers: { Authorization: `Bearer ${refreshResponse.accessToken}` }
-        });
-        setAdmin(adminData);
+          // Get admin data
+          const adminData = await api.get("/api/admin/me", {
+            headers: { Authorization: `Bearer ${refreshResponse.accessToken}` }
+          });
+          if (adminData) {
+            setAdmin(adminData);
+          }
+        }
       } catch (error) {
-        // No valid refresh token or session
+        // No valid refresh token or session - this is expected on first load
+        console.log("No valid admin session found, user needs to login");
         setAdmin(null);
         setAccessToken(null);
+      } finally {
+        setIsInitialized(true);
       }
-
-      setIsInitialized(true);
     };
 
     initAdminAuth();
@@ -163,12 +168,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AdminAuthContextType = {
     admin,
-    isAuthenticated: !!admin,
+    isAuthenticated: !!admin && !!accessToken,
     isLoading: isLoading || !isInitialized,
     login,
     logout
   };
 
+  // Always render children, even if not initialized yet
   return (
     <AdminAuthContext.Provider value={value}>
       {children}

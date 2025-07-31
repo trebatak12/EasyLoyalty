@@ -10,7 +10,21 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAuth() {
   const [, setLocation] = useLocation();
-  const { login, isLoading, isAuthenticated } = useAdminAuth();
+  const adminAuth = useAdminAuth();
+  
+  // Check if context is available
+  if (!adminAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+          <p className="mt-2 text-amber-700">Načítání...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { login, isLoading, isAuthenticated } = adminAuth;
   const { toast } = useToast();
 
   // Pokud je admin už přihlášený, přesměruj ho
