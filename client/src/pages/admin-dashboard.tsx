@@ -27,7 +27,7 @@ async function apiRequest(url: string, options: RequestInit = {}) {
       'Content-Type': 'application/json',
       ...options.headers,
     },
-    credentials: 'include', // Important for admin session cookies
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -61,7 +61,6 @@ function StatCard({ title, value, icon: Icon, trend }: {
   );
 }
 
-// Loading spinner component
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center">
     <div className="text-center">
@@ -72,7 +71,7 @@ const LoadingSpinner = () => (
 );
 
 export default function AdminDashboard() {
-  // Všechny hooks na začátku komponenty
+  // Všechny hooks MUSÍ být na začátku komponenty a volány vždy
   const adminAuth = useAdminAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -88,8 +87,8 @@ export default function AdminDashboard() {
       const response = await apiRequest("/api/admin/dashboard");
       return response as DashboardData;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
-    enabled: !!admin, // Only run query if admin is logged in
+    refetchInterval: 30000,
+    enabled: !!admin,
   });
 
   const logoutMutation = useMutation({
@@ -108,7 +107,6 @@ export default function AdminDashboard() {
     },
     onError: (error: any) => {
       console.error("Logout error:", error);
-      // Force logout even if API call fails
       if (logout) {
         logout();
       }
@@ -123,22 +121,18 @@ export default function AdminDashboard() {
     }
   }, [admin, isLoading, setLocation]);
 
-  // Handler pro odhlášení - now properly defined
+  // Handler pro odhlášení
   const handleLogout = () => {
     logoutMutation.mutate();
   };
 
-  // Early returns only after all hooks are called
-  if (!adminAuth) {
-    return <LoadingSpinner />;
-  }
-
-  if (isLoading) {
+  // Po všech hooks můžeme dělat podmíněné renderování
+  if (!adminAuth || isLoading) {
     return <LoadingSpinner />;
   }
 
   if (!admin) {
-    return <LoadingSpinner />; // Zobrazí loading během přesměrování
+    return <LoadingSpinner />;
   }
 
   // Hlavní render dashboardu

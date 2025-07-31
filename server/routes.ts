@@ -1172,39 +1172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin dashboard stats
-  const adminAuth = authenticateAdmin;
-  app.get("/api/admin/dashboard", adminAuth, async (req, res) => {
-    try {
-      const stats = await storage.getDashboardStats();
-      const recentTransactions = await storage.getRecentTransactions(10);
-
-      // Convert cents to CZK display format
-      const formatCurrency = (cents: number) => {
-        const czk = cents / 100;
-        return czk.toLocaleString('cs-CZ', { 
-          style: 'currency', 
-          currency: 'CZK',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        }).replace('CZK', 'Kč');
-      };
-
-      res.json({
-        ...stats,
-        todayTotalCZK: formatCurrency(stats.todayTotalCents),
-        recentTransactions: recentTransactions.map(tx => ({
-          ...tx,
-          amountCZK: formatCurrency(Math.abs(tx.amountCents))
-        }))
-      });
-    } catch (error) {
-      console.error("Admin dashboard error:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-
-  // Dashboard endpoint with proper structure
-  app.get("/api/admin/dashboard", adminAuth, async (req, res) => {
+  app.get("/api/admin/dashboard", authenticateAdmin, async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
       
