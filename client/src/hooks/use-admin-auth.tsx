@@ -95,15 +95,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   // Update API instance when token changes
   useEffect(() => {
     if (accessToken) {
-      // Ensure defaults and headers objects exist
-      if (!api.defaults) api.defaults = {};
-      if (!api.defaults.headers) api.defaults.headers = {};
       api.defaults.headers.authorization = `Bearer ${accessToken}`;
     } else {
-      // Safely delete authorization header
-      if (api.defaults?.headers?.authorization) {
-        delete api.defaults.headers.authorization;
-      }
+      delete api.defaults.headers.authorization;
     }
   }, [accessToken]);
 

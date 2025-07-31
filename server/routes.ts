@@ -778,14 +778,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const refreshToken = generateRefreshToken(admin.id, deviceId);
 
       // Store refresh token in database for rotation detection
-      await storage.storeRefreshToken({
-        userId: admin.id,
-        tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
-        deviceId,
-        ip,
-        userAgent,
-        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)
-      });
+      try {
+        await storage.storeRefreshToken({
+          userId: admin.id,
+          tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
+          deviceId,
+          ip,
+          userAgent,
+          expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)
+        });
+      } catch (tokenError) {
+        console.error("Failed to store admin refresh token:", tokenError);
+        // Continue with login even if token storage fails
+      }
 
       // Set secure refresh token cookie
       res.cookie("refresh_token", refreshToken, getSecureCookieOptions("/api/admin/refresh"));

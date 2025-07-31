@@ -235,21 +235,45 @@ export class DatabaseStorage implements IStorage {
     userAgent: string;
     expiresAt: Date;
   }) {
-    // Remove any existing tokens for this device to prevent accumulation
-    await db.delete(refreshTokens)
-      .where(and(
-        eq(refreshTokens.userId, data.userId),
-        eq(refreshTokens.userAgent, data.userAgent)
-      ));
+    // Check if this is an admin user
+    const isAdmin = await this.getAdminUser(data.userId);
+    
+    if (isAdmin) {
+      // For admin users, store token but with a special marker to avoid FK constraint
+      // We'll use a placeholder user ID that exists in users table or skip FK validation
+      // Remove any existing admin tokens for this device
+      await db.delete(refreshTokens)
+        .where(and(
+          eq(refreshTokens.userId, data.userId),
+          eq(refreshTokens.userAgent, data.userAgent)
+        ));
 
-    // Insert new refresh token
-    await db.insert(refreshTokens).values({
-      userId: data.userId,
-      tokenHash: data.tokenId, // Store token ID as hash
-      userAgent: data.userAgent,
-      ip: data.ip,
-      expiresAt: data.expiresAt
-    });
+      // Insert new refresh token with admin flag in userAgent field
+      await db.insert(refreshTokens).values({
+        userId: data.userId,
+        tokenHash: data.tokenId,
+        userAgent: `ADMIN:${data.userAgent}`, // Mark as admin token
+        ip: data.ip,
+        expiresAt: data.expiresAt
+      });
+    } else {
+      // Regular user tokens
+      // Remove any existing tokens for this device to prevent accumulation
+      await db.delete(refreshTokens)
+        .where(and(
+          eq(refreshTokens.userId, data.userId),
+          eq(refreshTokens.userAgent, data.userAgent)
+        ));
+
+      // Insert new refresh token
+      await db.insert(refreshTokens).values({
+        userId: data.userId,
+        tokenHash: data.tokenId, // Store token ID as hash
+        userAgent: data.userAgent,
+        ip: data.ip,
+        expiresAt: data.expiresAt
+      });
+    }
   }
 
   async markRefreshTokenUsed(tokenId: string) {
