@@ -34,17 +34,13 @@ function App() {
             <Route path="/qr" component={CustomerQR} />
             <Route path="/history" component={CustomerHistory} />
 
-            {/* Admin routes - all wrapped in AdminAuthProvider */}
-            <Route path="/admin/*">
-              <AdminAuthProvider>
-                <Switch>
-                  <Route path="/admin/login" component={AdminAuth} />
-                  <Route path="/admin/dashboard" component={AdminDashboard} />
-                  <Route path="/admin/customers" component={AdminCustomers} />
-                  <Route path="/admin/summaries" component={AdminSummaries} />
-                </Switch>
-              </AdminAuthProvider>
-            </Route>
+            {/* Admin Routes - Protected by AdminAuthProvider */}
+            <AdminAuthProvider>
+              <Route path="/admin/login" component={AdminAuth} />
+              <Route path="/admin/dashboard" component={AdminDashboard} />
+              <Route path="/admin/customers" component={AdminCustomers} />
+              <Route path="/admin/summaries" component={AdminSummaries} />
+            </AdminAuthProvider>
 
             {/* POS routes - also wrapped in AdminAuthProvider */}
             <Route path="/pos/*">
