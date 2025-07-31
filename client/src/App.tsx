@@ -26,10 +26,14 @@ function Router() {
       <Route path="/" component={ModeSelection} />
       <Route path="/auth/customer" component={CustomerAuth} />
       <Route path="/admin/login" component={AdminAuth} />
-      <Route path="/admin/dashboard" component={AdminDashboard} />
       
-      <Route path="/admin/customers" component={AdminCustomers} />
-      <Route path="/admin/summaries" component={AdminSummaries} />
+
+      {/* Admin routes (session protected) */}
+       <AdminAuthProvider>
+            <Route path="/admin/dashboard" component={AdminDashboard} />
+            <Route path="/admin/customers" component={AdminCustomers} />
+            <Route path="/admin/summaries" component={AdminSummaries} />
+        </AdminAuthProvider>
 
       {/* Customer routes (JWT protected) */}
       <Route path="/home" component={CustomerHome} />
@@ -53,10 +57,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <AdminAuthProvider>
+          
             <Toaster />
             <Router />
-          </AdminAuthProvider>
+          
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
