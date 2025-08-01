@@ -19,12 +19,20 @@ export default function CustomerHome() {
     }
   }, [isAuthenticated, setLocation]);
 
-  const { data: wallet, isLoading: walletLoading } = useQuery({
+  const { data: wallet, isLoading: walletLoading } = useQuery<{
+    balanceCZK: string;
+    balanceCents: number;
+    bonusGrantedTotalCZK: string;
+    bonusGrantedTotalCents: number;
+    lastActivity: string;
+  }>({
     queryKey: ["/api/me/wallet"],
     enabled: isAuthenticated
   });
 
-  const { data: recentTransactions, isLoading: historyLoading } = useQuery({
+  const { data: recentTransactions, isLoading: historyLoading } = useQuery<{
+    transactions: any[];
+  }>({
     queryKey: ["/api/me/history"],
     enabled: isAuthenticated
   });
@@ -180,9 +188,9 @@ export default function CustomerHome() {
                   </div>
                 ))}
               </div>
-            ) : recentTransactions && recentTransactions.length > 0 ? (
+            ) : recentTransactions?.transactions && recentTransactions.transactions.length > 0 ? (
               <div className="space-y-3">
-                {recentTransactions.slice(0, 5).map((transaction: any) => (
+                {recentTransactions.transactions.slice(0, 5).map((transaction: any) => (
                   <div key={transaction.id} className="flex items-center justify-between p-4 bg-surface/30 rounded-xl hover:bg-surface/40 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
