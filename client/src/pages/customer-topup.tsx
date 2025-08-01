@@ -66,7 +66,7 @@ export default function CustomerTopup() {
         }
       });
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       const message = data.idempotent 
         ? "Top-up already processed - wallet unchanged"
         : "Top-up successful! Your wallet has been updated.";
@@ -77,12 +77,22 @@ export default function CustomerTopup() {
         variant: "default"
       });
       
-      // Navigate home first to avoid race conditions
-      setLocation("/home");
-      
-      // Invalidate queries immediately - the auth interceptor will handle token refresh if needed
-      queryClient.invalidateQueries({ queryKey: ["/api/me/wallet"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/me/history"] });
+      try {
+        // First invalidate and refetch wallet/history data
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/me/wallet"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/me/history"] })
+        ]);
+        
+        // Small delay to ensure queries have time to start fetching
+        setTimeout(() => {
+          setLocation("/home");
+        }, 100);
+      } catch (error) {
+        console.warn("Failed to refresh data after top-up:", error);
+        // Still navigate home even if refresh fails
+        setLocation("/home");
+      }
     },
     onError: (error: any) => {
       toast({

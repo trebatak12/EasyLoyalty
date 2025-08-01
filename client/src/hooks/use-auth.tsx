@@ -91,8 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (error: any) => {
         const originalRequest = error.config;
         
-        // Skip refresh attempts for auth endpoints and admin refresh to prevent infinite loops
-        if (originalRequest?.url?.includes('/api/auth/') || originalRequest?.url?.includes('/api/admin/refresh')) {
+        // Skip refresh attempts for auth endpoints and admin endpoints to prevent infinite loops
+        if (originalRequest?.url?.includes('/api/auth/') || originalRequest?.url?.includes('/api/admin/')) {
           return Promise.reject(error);
         }
         
