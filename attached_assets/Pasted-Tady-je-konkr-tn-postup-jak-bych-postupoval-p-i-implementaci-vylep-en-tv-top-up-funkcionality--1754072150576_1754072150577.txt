@@ -1,0 +1,103 @@
+Tady je konkrétní postup, jak bych postupoval při implementaci vylepšení tvé top-up funkcionality:
+
+Otevřít samostatnou feature-branch
+
+git checkout -b feature/robust-topup
+Udržíš main čistý a můžeš průběžně commity pravidelně pushovat.
+
+Nastavení SQL transakce
+
+V kódu backendu (např. v Drizzle nebo v Prisma) obalit createTransaction + updateWalletBalance do jedné DB transakce:
+
+ts
+Zkopírovat
+Upravit
+await db.transaction(async (tx) => {
+  await tx.insert(transactions).values(...);
+  await tx.update(wallets).set(...).where(...);
+});
+Tím zajistíš atomicitu – pokud jedna část selže, vše se rollbackne.
+
+Idempotentní top-up
+
+Klient: vygenerovat UUID (např. idempotencyKey = uuidv4()) a posílat ho v hlavičce Idempotency-Key.
+
+Backend: při příjmu requestu zkontrolovat, zda už transakce s tímto klíčem existuje (uložit ho třeba do transactions.meta.idempotencyKey).
+
+Pokud ano → vrátit uloženou odpověď bez opakované změny stavu (HTTP 200).
+
+Pokud ne → pokračovat v běžném flow a klíč uložit.
+
+Atomické inkrementy zůstatku a bonusu
+
+V updateWalletBalance přejít plně na SQL výraz:
+
+ts
+Zkopírovat
+Upravit
+.set({
+  balanceCents: sql`${wallets.balanceCents} + ${packageData.total}`,
+  bonusGrantedTotalCents: sql`${wallets.bonusGrantedTotalCents} + ${packageData.bonus}`,
+  lastActivityAt: new Date()
+})
+Už neměnit newBalance v JS, ale nechat to v jediné update operaci.
+
+Lepší validace a chybová hlášení
+
+Rozšířit Zod schéma o vlastnost idempotencyKey (volitelně).
+
+V handleru explicitně kontrolovat, zda TOP_UP_PACKAGES[body.packageCode] existuje, a v případě neznámého kódu vrátit res.status(400).json({ error: "Neplatný packageCode" }).
+
+Frontend: UX pro loading a error stavy
+
+V customer-topup.tsx:
+
+tsx
+Zkopírovat
+Upravit
+<button
+  disabled={topupMutation.isLoading}
+  onClick={() => handleTopup("MINI")}
+>
+  {topupMutation.isLoading ? "Načítám…" : "Dobít MINI"}
+</button>
+{topupMutation.isError && <p className="error">{topupMutation.error.message}</p>}
+Tím zamezíš duplicitním klikům a zobrazíš uživateli chybu.
+
+Logging a metriky
+
+Na backendu přidat logování každého top-upu (např. logger.info({ userId, packageCode, totalCents })).
+
+Exponovat metriku (Prometheus) počtu úspěšných vs. neúspěšných top-upů.
+
+Testování
+
+Unit testy pro storage.createTransaction a storage.updateWalletBalance, mock DB.
+
+Integration test endpointu /api/me/topup (např. Jest + Supertest):
+
+Validní kód → zkontrolovat nový zůstatek.
+
+Duplicitní Idempotency-Key → žádná změna stavu.
+
+Neplatný packageCode → HTTP 400.
+
+E2E (Cypress/Playwright) ověří chování tlačítka, spinner, chybové hlášky.
+
+Code review a CI
+
+Otevřít Pull Request s popisem změn a odkazem na tuto feature-branch.
+
+Ověřit, že všechny tests projely v CI, linter/formatter (ESLint, Prettier) je v pořádku.
+
+Po schválení mergnout a nasadit na staging.
+
+Nasazení a monitoring v produkci
+
+Deploy na produkci.
+
+Zkontrolovat v logovacím systému nové logy top-upů.
+
+Otestovat na produkci minimální top-up (např. sandboxový uživatel), jestli zůstatek sedí.
+
+Tímto způsobem dostaneš spolehlivou, odolnou a dobře otestovanou top-up funkcionalitu se správnou ochranou proti duplicitám, srozumitelnými chybovými hláškami a jasným monitoringem.
