@@ -65,15 +65,6 @@ export interface IStorage {
     membersCount: number;
   }>;
   getRecentTransactions(limit?: number): Promise<(Transaction & { user: { name: string } })[]>;
-
-  // Top-up specific methods
-  getTopupByIdempotencyKey(idempotencyKey: string): Promise<any | null>;
-  executeAtomicTopup(params: {
-    userId: string;
-    packageCode: string;
-    packageData: { pay: number; bonus: number; total: number };
-    idempotencyKey: string;
-  }): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -390,79 +381,6 @@ export class DatabaseStorage implements IStorage {
       .insert(idempotencyKeys)
       .values({ key, requestHash })
       .onConflictDoNothing();
-  }
-
-  async getTopupByIdempotencyKey(idempotencyKey: string): Promise<any | null> {
-    const [transaction] = await db
-      .select()
-      .from(transactions)
-      .where(and(
-        eq(transactions.idempotencyKey, idempotencyKey),
-        eq(transactions.type, "topup")
-      ));
-
-    if (!transaction) return null;
-
-    // Return the same response that would be sent for a new topup
-    const wallet = await this.getWalletByUserId(transaction.userId);
-    if (!wallet) return null;
-
-    return {
-      balanceCZK: `${Math.floor(wallet.balanceCents / 100)} CZK`,
-      balanceCents: wallet.balanceCents,
-      bonusGrantedTotalCZK: `${Math.floor(wallet.bonusGrantedTotalCents / 100)} CZK`,
-      bonusGrantedTotalCents: wallet.bonusGrantedTotalCents
-    };
-  }
-
-  async executeAtomicTopup(params: {
-    userId: string;
-    packageCode: string;
-    packageData: { pay: number; bonus: number; total: number };
-    idempotencyKey: string;
-  }): Promise<any> {
-    return await db.transaction(async (tx) => {
-      // Create transaction record first
-      const [transaction] = await tx
-        .insert(transactions)
-        .values({
-          userId: params.userId,
-          type: "topup",
-          amountCents: params.packageData.total,
-          relatedId: null,
-          idempotencyKey: params.idempotencyKey,
-          createdBy: "user",
-          meta: {
-            packageCode: params.packageCode,
-            payCents: params.packageData.pay,
-            bonusCents: params.packageData.bonus
-          }
-        })
-        .returning();
-
-      // Atomically update wallet using SQL expressions
-      const [updatedWallet] = await tx
-        .update(wallets)
-        .set({
-          balanceCents: sql`${wallets.balanceCents} + ${params.packageData.total}`,
-          bonusGrantedTotalCents: sql`${wallets.bonusGrantedTotalCents} + ${params.packageData.bonus}`,
-          lastActivityAt: new Date()
-        })
-        .where(eq(wallets.userId, params.userId))
-        .returning();
-
-      if (!updatedWallet) {
-        throw new Error("Wallet not found");
-      }
-
-      return {
-        balanceCZK: `${Math.floor(updatedWallet.balanceCents / 100)} CZK`,
-        balanceCents: updatedWallet.balanceCents,
-        bonusGrantedTotalCZK: `${Math.floor(updatedWallet.bonusGrantedTotalCents / 100)} CZK`,
-        bonusGrantedTotalCents: updatedWallet.bonusGrantedTotalCents,
-        transactionId: transaction.id
-      };
-    });
   }
 
   async getCustomersList(search?: string, limit: number = 50, offset: number = 0): Promise<{ users: (User & { wallet: Wallet })[], total: number }> {

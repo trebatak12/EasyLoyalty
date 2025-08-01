@@ -36,10 +36,9 @@ class ApiService {
     this.authToken = token;
   }
 
-  async request(method: string, url: string, data?: any, config?: { headers?: Record<string, string> }): Promise<any> {
+  async request(method: string, url: string, data?: any): Promise<any> {
     const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...(config?.headers || {})
+      "Content-Type": "application/json"
     };
 
     // Add authorization header for protected routes (customer and admin)
@@ -149,8 +148,8 @@ class ApiService {
     return this.request("GET", url);
   }
 
-  async post(url: string, data?: any, config?: { headers?: Record<string, string> }): Promise<any> {
-    return this.request("POST", url, data, config);
+  async post(url: string, data?: any): Promise<any> {
+    return this.request("POST", url, data);
   }
 
   async put(url: string, data?: any): Promise<any> {
