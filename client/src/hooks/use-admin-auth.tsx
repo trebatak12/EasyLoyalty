@@ -59,9 +59,15 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Initialize admin auth state on app start
+  // Initialize admin auth state on app start - ONLY for admin routes
   useEffect(() => {
     const initAdminAuth = async () => {
+      // Only initialize admin auth on admin routes to prevent unnecessary API calls
+      if (!window.location.pathname.startsWith('/admin')) {
+        setIsInitialized(true);
+        return;
+      }
+      
       try {
         // Try to refresh token first (if cookie exists)
         const refreshResponse = await api.post("/api/admin/refresh");
