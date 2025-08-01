@@ -1,158 +1,55 @@
+import axios, { AxiosInstance, AxiosError } from 'axios';
+
 class ApiService {
-  private _authToken: string | null = null;
-  public interceptors: any;
-  public defaults: any;
-  private responseInterceptors: Array<{id: number, fulfilled: any, rejected: any}> = [];
-  private nextInterceptorId = 0;
+  private instance: AxiosInstance;
 
   constructor() {
-    // Initialize defaults structure to match axios-like interface
-    this.defaults = {
-      headers: {}
-    };
-
-    // Setup proper interceptors system
-    this.interceptors = {
-      response: {
-        use: (fulfilled: any, rejected: any) => {
-          const id = this.nextInterceptorId++;
-          this.responseInterceptors.push({ id, fulfilled, rejected });
-          return { eject: () => this.eject(id) };
-        },
-        eject: (interceptor: any) => {
-          if (interceptor && typeof interceptor.eject === 'function') {
-            interceptor.eject();
-          }
-        }
+    this.instance = axios.create({
+      baseURL: '',
+      withCredentials: true, // Important for cookies
+      headers: {
+        'Content-Type': 'application/json'
       }
-    };
+    });
   }
 
-  private eject(id: number) {
-    this.responseInterceptors = this.responseInterceptors.filter(i => i.id !== id);
+  get interceptors() {
+    return this.instance.interceptors;
   }
 
   setAuthToken(token: string | null) {
-    this._authToken = token;
+    if (token) {
+      this.instance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log("Setting auth token in axios:", token.substring(0, 20) + "...");
+    } else {
+      delete this.instance.defaults.headers.common['Authorization'];
+      console.log("Clearing auth token from axios");
+    }
   }
 
   get authToken() {
-    return this._authToken;
+    const authHeader = this.instance.defaults.headers.common['Authorization'] as string;
+    return authHeader ? authHeader.replace('Bearer ', '') : null;
   }
 
   async request(method: string, url: string, data?: any): Promise<any> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json"
+    const config: any = {
+      method: method.toLowerCase(),
+      url,
     };
 
-    // Add authorization header for protected routes (customer and admin)
-    if (this._authToken && url.startsWith("/api/") && !url.startsWith("/api/auth/")) {
-      headers.Authorization = `Bearer ${this._authToken}`;
-      console.log("Adding auth header to:", url, "with token:", this._authToken?.substring(0, 20) + "...");
-    } else if (url.startsWith("/api/") && !url.startsWith("/api/auth/")) {
-      console.warn("No auth token available for protected route:", url);
+    if (data && ['post', 'put', 'patch'].includes(config.method)) {
+      config.data = data;
     }
 
-    const config: RequestInit = {
-      method,
-      headers,
-      credentials: "include" // Important for admin session cookies
-    };
-
-    if (data && (method === "POST" || method === "PUT" || method === "PATCH")) {
-      config.body = JSON.stringify(data);
-    }
-
+    console.log("Making axios request:", config.method.toUpperCase(), url, "with auth:", !!this.authToken);
+    
     try {
-      const response = await fetch(url, config);
-      let result: any;
-
-      if (!response.ok) {
-        let errorData: any = {};
-
-        try {
-          errorData = await response.json();
-        } catch (parseError) {
-          console.warn("Failed to parse error response:", parseError);
-          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
-        }
-
-        // Don't log expected 401 errors during initialization
-        const isExpected401 = response.status === 401 && (
-          url === "/api/auth/refresh" || url === "/api/admin/me"
-        );
-        
-        if (!isExpected401) {
-          console.error("API Error:", {
-            url,
-            method,
-            status: response.status,
-            statusText: response.statusText,
-            errorData
-          });
-        }
-
-        const error = new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-        (error as any).response = {
-          status: response.status,
-          statusText: response.statusText,
-          data: errorData
-        };
-        (error as any).code = errorData.code;
-        (error as any).config = { url, method, headers, data };
-
-        // Run through error interceptors - CRITICAL FIX!
-        for (const interceptor of this.responseInterceptors) {
-          if (interceptor.rejected) {
-            try {
-              console.log('🔧 Running error interceptor for:', url, 'status:', response.status);
-              result = await interceptor.rejected(error);
-              console.log('✅ Interceptor handled error, got result:', !!result);
-              break; // If interceptor handles it, break
-            } catch (interceptorError) {
-              console.log('❌ Interceptor failed:', interceptorError);
-              // If interceptor fails, continue to next or throw original
-              if (interceptorError === error) {
-                continue; // Interceptor re-threw same error, try next
-              }
-              throw interceptorError; // Interceptor threw different error
-            }
-          }
-        }
-
-        if (!result) {
-          console.log('⚠️ No interceptor handled the error, throwing:', error);
-          throw error; // No interceptor handled it
-        }
-        return result;
-      }
-
-      // Handle empty responses (204 No Content)
-      if (response.status === 204 || response.headers.get('content-length') === '0') {
-        result = null;
-      } else {
-        try {
-          result = await response.json();
-        } catch (parseError) {
-          // If JSON parsing fails but response was successful, return null
-          console.warn("Failed to parse JSON response, returning null:", parseError);
-          result = null;
-        }
-      }
-
-      // Run through success interceptors
-      for (const interceptor of this.responseInterceptors) {
-        if (interceptor.fulfilled) {
-          result = await interceptor.fulfilled(result);
-        }
-      }
-
-      return result;
+      const response = await this.instance(config);
+      return response.data;
     } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error("Network error occurred");
+      console.log("Axios request failed for:", url, error);
+      throw error;
     }
   }
 

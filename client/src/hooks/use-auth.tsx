@@ -171,9 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     return () => {
       console.log('🗑️ Cleaning up customer interceptor:', interceptor);
-      if (interceptor && typeof interceptor.eject === 'function') {
-        interceptor.eject();
-      }
+      api.interceptors.response.eject(interceptor);
     };
   }, [accessToken]);
 
