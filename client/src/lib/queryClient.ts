@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { api } from "@/services/api";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -62,11 +63,22 @@ export const getQueryFn: <T>(options: {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
+      queryFn: async ({ queryKey }) => {
+        const url = queryKey[0] as string
+        console.log("🔍 TanStack Query fetching:", url)
+        try {
+          const response = await api.get(url)
+          console.log("✅ TanStack Query success:", url)
+          return response
+        } catch (error: any) {
+          console.error("❌ TanStack Query failed:", url, "status:", error?.response?.status)
+          throw error
+        }
+      },
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
     },
     mutations: {
       retry: false,
