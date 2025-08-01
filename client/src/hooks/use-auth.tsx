@@ -33,8 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Set access token in memory and API headers
   const setTokens = (newAccessToken: string) => {
+    console.log("Setting new access token:", newAccessToken?.substring(0, 20) + "...");
     setAccessToken(newAccessToken);
     api.setAuthToken(newAccessToken);
+    console.log("Token set in API service, current token:", api.authToken?.substring(0, 20) + "...");
   };
 
   // Clear tokens (refresh token cleared via cookie)
@@ -89,8 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (error: any) => {
         const originalRequest = error.config;
         
-        // Skip refresh attempts for auth endpoints to prevent infinite loops
-        if (originalRequest?.url?.includes('/api/auth/')) {
+        // Skip refresh attempts for auth endpoints and admin refresh to prevent infinite loops
+        if (originalRequest?.url?.includes('/api/auth/') || originalRequest?.url?.includes('/api/admin/refresh')) {
           return Promise.reject(error);
         }
         
