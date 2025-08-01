@@ -12,7 +12,7 @@ const AUTH_PEPPER = process.env.AUTH_PEPPER || "";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 // Secure token lifetimes
-const ACCESS_TOKEN_TTL = "15m";
+const ACCESS_TOKEN_TTL = "2h"; // Extended for better UX during development 
 const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 hours
 const SESSION_IDLE_TTL = 30 * 60 * 60 * 1000; // 30 minutes
