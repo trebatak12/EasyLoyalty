@@ -115,12 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const interceptor = api.interceptors.response.use(
       (response: any) => {
-        console.log('✅ Response OK:', response.status || 'unknown', response.config?.url || 'unknown url');
+        console.log('✅ Response OK:', response.status, response.config?.url);
         return response;
       },
       async (error: any) => {
         const originalRequest = error.config;
-        console.log('✖️ INTERCEPTOR CALLED - Response error:', error.response?.status, originalRequest?.url, 'retry?', originalRequest?._retry, 'has accessToken:', !!accessToken, 'current api token:', !!api.authToken);
+        console.log('✖️ AXIOS INTERCEPTOR CALLED - Response error:', error.response?.status, originalRequest?.url, 'retry?', originalRequest?._retry, 'has accessToken:', !!accessToken);
         
         // Skip refresh attempts for auth endpoints and ALL admin endpoints
         if (originalRequest?.url?.includes('/api/auth/') || 
@@ -136,20 +136,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             originalRequest?.url?.startsWith('/api/me')) {
           originalRequest._retry = true;
           
-          console.log('→ Starting customer token refresh, isRefreshing=', isRefreshing);
+          console.log('→ Starting customer token refresh...');
           
           try {
             console.log("Customer token expired, refreshing...");
             await refreshAuth();
-            console.log('✅ Customer refresh OK, new accessToken:', !!accessToken, 'api.authToken set:', !!api.authToken);
-            console.log("Customer token refreshed, retrying request to:", originalRequest.url);
+            console.log('✅ Customer refresh OK, retrying original request');
             
-            // Retry original request with new token - API service will add auth header automatically
-            const retryResult = await api.request(originalRequest.method || 'GET', originalRequest.url || '', originalRequest.data);
-            console.log('🔄 Retry successful for:', originalRequest.url);
-            return retryResult;
+            // Retry original request with axios instance directly
+            return api.instance(originalRequest);
           } catch (refreshError) {
-            console.log("❌ Customer refresh failed, clearing tokens:", refreshError);
+            console.log("❌ Customer refresh failed:", refreshError);
             clearTokens();
             return Promise.reject(refreshError);
           }
@@ -157,8 +154,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         console.log('⚠️ 401 error but not handling:', {
           status: error.response?.status,
-          retry: originalRequest?._retry,
-          hasToken: !!accessToken,
           url: originalRequest?.url,
           isCustomerEndpoint: originalRequest?.url?.startsWith('/api/me')
         });

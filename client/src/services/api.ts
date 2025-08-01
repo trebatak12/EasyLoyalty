@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 class ApiService {
-  private instance: AxiosInstance;
+  public instance: AxiosInstance;
 
   constructor() {
     this.instance = axios.create({
