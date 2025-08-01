@@ -84,30 +84,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
   }, []);
 
-  // 🔒 Auto-refresh interceptor setup
+  // 🔒 Auto-refresh interceptor setup (CUSTOMER ONLY)
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (response: any) => response,
       async (error: any) => {
         const originalRequest = error.config;
         
-        // Skip refresh attempts for auth endpoints and admin refresh to prevent infinite loops
-        if (originalRequest?.url?.includes('/api/auth/') || originalRequest?.url?.includes('/api/admin/refresh')) {
+        // Skip refresh attempts for auth endpoints and ALL admin endpoints
+        if (originalRequest?.url?.includes('/api/auth/') || 
+            originalRequest?.url?.includes('/api/admin/')) {
           return Promise.reject(error);
         }
         
-        if (error.response?.status === 401 && !originalRequest?._retry && accessToken) {
+        // Only handle customer 401 errors with customer refresh token
+        if (error.response?.status === 401 && 
+            !originalRequest?._retry && 
+            accessToken && 
+            originalRequest?.url?.startsWith('/api/me')) {
           originalRequest._retry = true;
           
           try {
-            console.log("Token expired, refreshing...");
+            console.log("Customer token expired, refreshing...");
             await refreshAuth();
-            console.log("Token refreshed, retrying request to:", originalRequest.url);
+            console.log("Customer token refreshed, retrying request to:", originalRequest.url);
             
             // Retry original request with new token - API service will add auth header automatically
             return await api.request(originalRequest.method || 'GET', originalRequest.url || '', originalRequest.data);
           } catch (refreshError) {
-            console.log("Refresh failed, clearing tokens");
+            console.log("Customer refresh failed, clearing tokens");
             clearTokens();
             return Promise.reject(refreshError);
           }
