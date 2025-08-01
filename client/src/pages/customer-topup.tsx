@@ -76,9 +76,16 @@ export default function CustomerTopup() {
         description: message,
         variant: "default"
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/me/wallet"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/me/history"] });
+      
+      // Navigate home where data will be refreshed automatically
+      // instead of invalidating queries here to avoid token refresh race condition
       setLocation("/home");
+      
+      // Invalidate queries after a brief delay to avoid race condition
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/me/wallet"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/me/history"] });
+      }, 500);
     },
     onError: (error: any) => {
       toast({
