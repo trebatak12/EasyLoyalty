@@ -101,13 +101,16 @@ class ApiService {
         (error as any).code = errorData.code;
         (error as any).config = { url, method, headers, data };
 
-        // Run through error interceptors
+        // Run through error interceptors - CRITICAL FIX!
         for (const interceptor of this.responseInterceptors) {
           if (interceptor.rejected) {
             try {
+              console.log('🔧 Running error interceptor for:', url, 'status:', response.status);
               result = await interceptor.rejected(error);
+              console.log('✅ Interceptor handled error, got result:', !!result);
               break; // If interceptor handles it, break
             } catch (interceptorError) {
+              console.log('❌ Interceptor failed:', interceptorError);
               // If interceptor fails, continue to next or throw original
               if (interceptorError === error) {
                 continue; // Interceptor re-threw same error, try next
@@ -117,7 +120,10 @@ class ApiService {
           }
         }
 
-        if (!result) throw error; // No interceptor handled it
+        if (!result) {
+          console.log('⚠️ No interceptor handled the error, throwing:', error);
+          throw error; // No interceptor handled it
+        }
         return result;
       }
 
