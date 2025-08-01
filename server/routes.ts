@@ -498,64 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Top-up route
-  app.post("/api/me/topup", authenticateUser, async (req, res) => {
-    try {
-      const { packageCode } = req.body;
-      const userId = req.user!.id;
-      const ip = getClientIP(req);
 
-      // Define packages
-      const packages = {
-        MINI: { pay: 39000, bonus: 3000, name: "MINI" },
-        STANDARD: { pay: 89000, bonus: 9000, name: "STANDARD" },
-        MAXI: { pay: 159000, bonus: 23000, name: "MAXI" },
-        ULTRA: { pay: 209000, bonus: 40000, name: "ULTRA" }
-      };
-
-      const pkg = packages[packageCode as keyof typeof packages];
-      if (!pkg) {
-        return res.status(400).json(createErrorResponse("BadRequest", "Invalid package code", "E_INPUT"));
-      }
-
-      // In a real app, here you would process the external payment
-      // For this demo, we'll simulate successful payment
-
-      const totalCents = pkg.pay + pkg.bonus;
-
-      // Update wallet balance
-      const wallet = await storage.updateWalletBalance(userId, totalCents, pkg.bonus);
-
-      // Create transaction record
-      await storage.createTransaction({
-        userId,
-        type: "topup",
-        amountCents: totalCents,
-        createdBy: "user",
-        meta: { packageCode, paidAmount: pkg.pay, bonusAmount: pkg.bonus }
-      });
-
-      // Audit log
-      await auditLog("user", userId, "topup", { 
-        packageCode, 
-        amount: totalCents, 
-        bonus: pkg.bonus 
-      }, getUserAgent(req), ip);
-
-      res.json({
-        success: true,
-        wallet: {
-          balanceCZK: `${Math.floor(wallet.balanceCents / 100)} CZK`,
-          balanceCents: wallet.balanceCents,
-          bonusGrantedTotalCZK: `${Math.floor(wallet.bonusGrantedTotalCents / 100)} CZK`,
-          bonusGrantedTotalCents: wallet.bonusGrantedTotalCents
-        }
-      });
-    } catch (error) {
-      console.error("Top-up error:", error);
-      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
-    }
-  });
 
   // Transaction history route
   app.get("/api/me/history", authenticateUser, async (req, res) => {
@@ -600,76 +543,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/me/wallet", authenticateUser, async (req, res) => {
-    try {
-      const wallet = await storage.getWalletByUserId(req.user.id);
-      if (!wallet) {
-        return res.status(404).json(createErrorResponse("NotFound", "Wallet not found", "E_NOT_FOUND"));
-      }
-
-      res.json({
-        balanceCZK: formatCZK(wallet.balanceCents),
-        balanceCents: wallet.balanceCents,
-        bonusGrantedTotalCZK: formatCZK(wallet.bonusGrantedTotalCents),
-        bonusGrantedTotalCents: wallet.bonusGrantedTotalCents,
-        lastActivity: wallet.lastActivityAt
-      });
-    } catch (error) {
-      console.error("Get wallet error:", error);
-      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
-    }
-  });
-
+  // Robust Top-up endpoint with atomic transactions and idempotency
   app.post("/api/me/topup", authenticateUser, async (req, res) => {
     try {
       const body = topupSchema.parse(req.body);
       const userId = req.user.id;
+      const ip = getClientIP(req);
+      
+      // Get idempotency key from header or generate one
+      const idempotencyKey = req.headers['idempotency-key'] as string || randomUUID();
 
       const packageData = TOP_UP_PACKAGES[body.packageCode];
       if (!packageData) {
-        return res.status(400).json(createErrorResponse("BadRequest", "Invalid package code", "E_INPUT"));
+        return res.status(400).json(createErrorResponse("BadRequest", "Neplatný packageCode", "E_INPUT"));
       }
 
-      // Create idempotency key
-      const idempotencyKey = randomUUID();
+      // Check if this idempotency key was already processed
+      const existingTransaction = await storage.getTransactionByIdempotencyKey(idempotencyKey);
+      if (existingTransaction) {
+        console.log(`Idempotent topup request detected: ${idempotencyKey}`);
+        
+        // Return the existing wallet state without making changes
+        const wallet = await storage.getWalletByUserId(userId);
+        return res.json({
+          balanceCZK: formatCZK(wallet!.balanceCents),
+          balanceCents: wallet!.balanceCents,
+          bonusGrantedTotalCZK: formatCZK(wallet!.bonusGrantedTotalCents),
+          bonusGrantedTotalCents: wallet!.bonusGrantedTotalCents,
+          idempotent: true
+        });
+      }
 
-      // Create topup transaction
-      await storage.createTransaction({
+      // Execute atomic top-up transaction
+      const updatedWallet = await storage.executeAtomicTopup({
         userId,
-        type: "topup",
-        amountCents: packageData.total, // Credit the full amount (pay + bonus)
-        relatedId: null,
+        packageCode: body.packageCode,
+        packageData,
         idempotencyKey,
-        createdBy: "user",
-        meta: {
-          packageCode: body.packageCode,
-          payCents: packageData.pay,
-          bonusCents: packageData.bonus
-        }
+        createdBy: "user"
       });
-
-      // Update wallet balance and bonus total
-      const wallet = await storage.getWalletByUserId(userId);
-      if (!wallet) {
-        return res.status(404).json(createErrorResponse("NotFound", "Wallet not found", "E_NOT_FOUND"));
-      }
-
-      const newBalance = wallet.balanceCents + packageData.total;
-      await storage.updateWalletBalance(userId, newBalance, packageData.bonus);
 
       // Audit log
       await auditLog("user", userId, "topup", {
         packageCode: body.packageCode,
         amount: packageData.total,
-        bonus: packageData.bonus
-      });
+        bonus: packageData.bonus,
+        idempotencyKey
+      }, getUserAgent(req), ip);
 
-      const updatedWallet = await storage.getWalletByUserId(userId);
+      console.log(`Topup successful for user ${userId}: ${body.packageCode}, amount: ${packageData.total}, bonus: ${packageData.bonus}`);
+
       res.json({
-        balanceCZK: formatCZK(updatedWallet!.balanceCents),
-        balanceCents: updatedWallet!.balanceCents,
-        bonusGrantedTotalCZK: formatCZK(updatedWallet!.bonusGrantedTotalCents),
-        bonusGrantedTotalCents: updatedWallet!.bonusGrantedTotalCents
+        balanceCZK: formatCZK(updatedWallet.balanceCents),
+        balanceCents: updatedWallet.balanceCents,
+        bonusGrantedTotalCZK: formatCZK(updatedWallet.bonusGrantedTotalCents),
+        bonusGrantedTotalCents: updatedWallet.bonusGrantedTotalCents
       });
     } catch (error) {
       console.error("Topup error:", error);

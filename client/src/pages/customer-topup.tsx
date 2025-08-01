@@ -51,11 +51,24 @@ export default function CustomerTopup() {
   const queryClient = useQueryClient();
 
   const topupMutation = useMutation({
-    mutationFn: (packageCode: string) => api.post("/api/me/topup", { packageCode }),
-    onSuccess: () => {
+    mutationFn: (packageCode: string) => {
+      // Generate idempotency key to prevent duplicate submissions
+      const idempotencyKey = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      
+      return api.post("/api/me/topup", { packageCode }, {
+        headers: {
+          'Idempotency-Key': idempotencyKey
+        }
+      });
+    },
+    onSuccess: (data) => {
+      const message = data.idempotent 
+        ? "Top-up already processed - wallet unchanged"
+        : "Top-up successful! Your wallet has been updated.";
+        
       toast({
-        title: "Top-up Successful!",
-        description: "Your wallet has been updated with the new balance and bonus.",
+        title: data.idempotent ? "Already Processed" : "Top-up Successful!",
+        description: message,
         variant: "default"
       });
       queryClient.invalidateQueries({ queryKey: ["/api/me/wallet"] });
@@ -73,7 +86,10 @@ export default function CustomerTopup() {
 
   const handleTopup = (packageCode: string) => {
     if (selectedPackage === packageCode) {
-      topupMutation.mutate(packageCode);
+      // Prevent double-clicks during processing
+      if (!topupMutation.isPending) {
+        topupMutation.mutate(packageCode);
+      }
     } else {
       setSelectedPackage(packageCode);
     }

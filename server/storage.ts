@@ -508,8 +508,65 @@ export class DatabaseStorage implements IStorage {
       .then(results => results.map(r => ({ ...r.transaction, user: r.user! })));
   }
 
+  async getTransactionByIdempotencyKey(idempotencyKey: string): Promise<Transaction | null> {
+    const [result] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.idempotencyKey, idempotencyKey))
+      .limit(1);
+    
+    return result || null;
+  }
 
+  async executeAtomicTopup(params: {
+    userId: string;
+    packageCode: string;
+    packageData: { pay: number; bonus: number; total: number };
+    idempotencyKey: string;
+    createdBy: string;
+  }): Promise<Wallet> {
+    const { userId, packageCode, packageData, idempotencyKey, createdBy } = params;
+    
+    return await db.transaction(async (tx) => {
+      // Create transaction record first (this ensures idempotency)
+      await tx.insert(transactions).values({
+        userId,
+        type: "topup",
+        amountCents: packageData.total,
+        relatedId: null,
+        idempotencyKey,
+        createdBy,
+        meta: {
+          packageCode,
+          payCents: packageData.pay,
+          bonusCents: packageData.bonus
+        }
+      });
 
+      // Update wallet balance and bonus atomically with SQL operations
+      await tx
+        .update(wallets)
+        .set({
+          balanceCents: sql`${wallets.balanceCents} + ${packageData.total}`,
+          bonusGrantedTotalCents: sql`${wallets.bonusGrantedTotalCents} + ${packageData.bonus}`,
+          lastActivityAt: new Date()
+        })
+        .where(eq(wallets.userId, userId));
+
+      // Return updated wallet
+      const [updatedWallet] = await tx
+        .select()
+        .from(wallets)
+        .where(eq(wallets.userId, userId))
+        .limit(1);
+
+      if (!updatedWallet) {
+        throw new Error("Wallet not found after update");
+      }
+
+      return updatedWallet;
+    });
+  }
 
 }
 
