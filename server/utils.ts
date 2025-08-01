@@ -6,8 +6,13 @@ export function generateIdempotencyKey(): string {
 }
 
 export function formatCZK(cents: number): string {
-  const czk = Math.floor(cents / 100);
-  return czk.toLocaleString("cs-CZ").replace(/\s/g, "\u00A0") + "\u00A0CZK";
+  const czk = cents / 100;
+  return new Intl.NumberFormat('cs-CZ', {
+    style: 'currency',
+    currency: 'CZK',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(czk);
 }
 
 export function parseCZK(czkString: string): number {

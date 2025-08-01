@@ -80,7 +80,7 @@ export default function CustomerHome() {
                   <div className="h-12 w-32 bg-white/20 rounded-2xl animate-pulse"></div>
                 ) : (
                   <h2 className="text-4xl font-bold tracking-tight">
-                    {formatCurrency((wallet?.balanceCents || 0) / 100)}
+                    {formatCurrency(wallet?.balanceCents || 0)}
                   </h2>
                 )}
               </div>
@@ -94,13 +94,13 @@ export default function CustomerHome() {
                 <div>
                   <p className="text-white/70 text-sm">Total Bonus Earned</p>
                   <p className="text-lg font-semibold">
-                    {formatCurrency((wallet.bonusGrantedTotalCents || 0) / 100)}
+                    {formatCurrency(wallet.bonusGrantedTotalCents || 0)}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-white/70 text-sm">Available Credit</p>
                   <p className="text-lg font-semibold">
-                    {formatCurrency((wallet.balanceCents || 0) / 100)}
+                    {formatCurrency(wallet.balanceCents || 0)}
                   </p>
                 </div>
               </div>
