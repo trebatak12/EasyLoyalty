@@ -49,6 +49,8 @@ class ApiService {
     if (this._authToken && url.startsWith("/api/") && !url.startsWith("/api/auth/")) {
       headers.Authorization = `Bearer ${this._authToken}`;
       console.log("Adding auth header to:", url, "with token:", this._authToken?.substring(0, 20) + "...");
+    } else if (url.startsWith("/api/") && !url.startsWith("/api/auth/")) {
+      console.warn("No auth token available for protected route:", url);
     }
 
     const config: RequestInit = {
