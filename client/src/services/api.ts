@@ -1,5 +1,5 @@
 class ApiService {
-  private authToken: string | null = null;
+  private _authToken: string | null = null;
   public interceptors: any;
   public defaults: any;
   private responseInterceptors: Array<{id: number, fulfilled: any, rejected: any}> = [];
@@ -33,7 +33,11 @@ class ApiService {
   }
 
   setAuthToken(token: string | null) {
-    this.authToken = token;
+    this._authToken = token;
+  }
+
+  get authToken() {
+    return this._authToken;
   }
 
   async request(method: string, url: string, data?: any): Promise<any> {
@@ -42,9 +46,9 @@ class ApiService {
     };
 
     // Add authorization header for protected routes (customer and admin)
-    if (this.authToken && url.startsWith("/api/") && !url.startsWith("/api/auth/")) {
-      headers.Authorization = `Bearer ${this.authToken}`;
-      console.log("Adding auth header to:", url, "with token:", this.authToken?.substring(0, 20) + "...");
+    if (this._authToken && url.startsWith("/api/") && !url.startsWith("/api/auth/")) {
+      headers.Authorization = `Bearer ${this._authToken}`;
+      console.log("Adding auth header to:", url, "with token:", this._authToken?.substring(0, 20) + "...");
     }
 
     const config: RequestInit = {

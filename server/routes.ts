@@ -486,9 +486,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({
-        balanceCZK: `${Math.floor(wallet.balanceCents / 100)} CZK`,
+        balanceCZK: formatCZK(wallet.balanceCents),
         balanceCents: wallet.balanceCents,
-        bonusGrantedTotalCZK: `${Math.floor(wallet.bonusGrantedTotalCents / 100)} CZK`,
+        bonusGrantedTotalCZK: formatCZK(wallet.bonusGrantedTotalCents),
         bonusGrantedTotalCents: wallet.bonusGrantedTotalCents,
         lastActivity: wallet.lastActivityAt
       });

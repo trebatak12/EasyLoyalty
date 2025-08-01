@@ -99,14 +99,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           try {
             await refreshAuth();
-            // Retry with the updated token
-            return await api.request(originalRequest.method || 'GET', originalRequest.url || '', originalRequest.data);
+            // Retry original request with new token
+            const retryConfig = {
+              ...originalRequest,
+              headers: {
+                ...originalRequest.headers,
+                'Authorization': `Bearer ${api.authToken}`
+              }
+            };
+            return await api.request(retryConfig.method || 'GET', retryConfig.url || '', retryConfig.data);
           } catch (refreshError) {
-            // Refresh failed - clear state but don't redirect during login
+            // Refresh failed - clear state
             clearTokens();
-            if (!window.location.pathname.includes('/auth/')) {
-              window.location.href = "/auth/customer";
-            }
             return Promise.reject(refreshError);
           }
         }
