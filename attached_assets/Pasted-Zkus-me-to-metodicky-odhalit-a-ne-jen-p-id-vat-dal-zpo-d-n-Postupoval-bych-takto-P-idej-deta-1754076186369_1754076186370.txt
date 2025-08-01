@@ -1,0 +1,89 @@
+Zkusíme to metodicky “odhalit” a ne jen přidávat další zpoždění. Postupoval bych takto:
+
+Přidej detailní logování v interceptoru
+
+Do request.use i response.use vlož console.log() s URL, stavem tokenu a flagem _retry.
+
+ts
+Zkopírovat
+Upravit
+axios.interceptors.response.use(
+  res => res,
+  async err => {
+    const { config, response } = err;
+    console.log('✖️ Response error:', response?.status, config.url, 'retry?', config._retry);
+    // …
+V if (status===401 && !config._retry) hned před refresh:
+
+ts
+Zkopírovat
+Upravit
+console.log('→ Starting token refresh, isRefreshing=', isRefreshing);
+Po úspěšném refresh:
+
+ts
+Zkopírovat
+Upravit
+console.log('✅ Refresh ok, new token=', data.accessToken, 'pendingRequests=', pendingRequests.length);
+Díky tomu uvidíš v konzoli, jestli se vůbec dostaneš do refresh bloku a jak se řeší fronta.
+
+Ověř, že getAccessToken/setAccessToken opravdu fungují
+
+Zkus v debug konzoli (nebo krátkým console.log) vypsat před a po volání setAccessToken hodnotu getAccessToken().
+
+Ujisti se, že tokenStore nepoužívá například localStorage bez synchronizace, nebo že hook, který token čte, není zalogován v closure se starou hodnotou.
+
+Zkontroluj, že /api/auth/refresh endpoint vrací platný token okamžitě
+
+Vyvolej ho manuálně (Postman/CURL) a ověř, že dostaneš JSON { accessToken: “…” } a že tento token je pak v dalším requestu skutečně použitý.
+
+Odstraň zpoždění a spolehej se na promise
+
+Místo manuálního await delay(150) důvěřuj tomu, že axios.post('/refresh') se vrátí až bude token nastaven. Zbytečné delayy mohou způsobit nekonzistenci.
+
+Klíčové je, aby se nový token nastavil před tím, než se resolveují post-refresh “pending” requesty:
+
+ts
+Zkopírovat
+Upravit
+const { data } = await axios.post('/api/auth/refresh', …);
+setAccessToken(data.accessToken);
+pendingRequests.forEach(cb => cb(data.accessToken));
+pendingRequests = [];
+isRefreshing = false;
+Ověř frontu pendingRequests
+
+Přidej logging i když do fronty přidáváš nové cb.
+
+Pokud fronta zůstává prázdná nebo se do ní nepřidává víc než jeden callback, pak možná není interceptor _retry flag správně nastavený nebo se config._retry nepřenáší.
+
+Ujisti se, že všechny axios instance sdílí stejný interceptor
+
+Pokud používáš víc axios klientů (jiné baseURL, různá nastavení), zkontroluj, že ten, co volá /api/me/wallet i /api/me/history, má stejný interceptor.
+
+Simuluj race-condition
+
+V konzoli nebo testu udělej rychlý back-to-back request:
+
+js
+Zkopírovat
+Upravit
+Promise.all([
+  api.get('/api/me/wallet'),
+  api.get('/api/me/history'),
+]);
+Podívej se, jak interceptor reaguje na oba najednou – spustí se refresh dvakrát, nebo jeden čeká, až ten druhý skončí?
+
+Nakonec – debug proxy
+
+Zapni proxy (ngrok/mitmproxy) přímo na localhost, sleduj HTTP hlavičky. Zkontroluj, že po „retry“ skutečně odcházejí požadavky s Authorization: Bearer <nový-token>.
+
+🎯 Jakmile uvidíš v logu:
+
+že při 401 volání jdeš do refresh bloku,
+
+že setAccessToken mění token,
+
+a že pendingRequests se zavolají s novým tokenem,
+
+tak bys měl mít jistotu, že další GETy už budou autorizované. Pokud ne, chyba bude v tom, jak ukládáš/token předáváš mezi voláními, nebo v tom, že používáš jinou axios instanci bez interceptoru.

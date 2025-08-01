@@ -30,6 +30,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   // 🔒 SECURITY: Access token stored ONLY in memory (React state)
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  
+  // Track refresh state to prevent multiple simultaneous refreshes
+  let isRefreshing = false;
 
   // Set access token in memory and API headers
   const setTokens = (newAccessToken: string) => {
@@ -46,21 +49,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  // Define refreshAuth function
+  // Define refreshAuth function WITH DEBUG LOGGING
   const refreshAuth = async () => {
+    console.log('🔄 refreshAuth called, isRefreshing:', isRefreshing);
+    
+    if (isRefreshing) {
+      console.log('⏳ Waiting for ongoing refresh...');
+      while (isRefreshing) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      console.log('✅ Ongoing refresh completed');
+      return;
+    }
+
+    isRefreshing = true;
+    console.log('🔄 Starting new token refresh...');
+    
     try {
       // 🔒 Refresh token sent automatically via HTTP-only cookie
       const response = await api.post("/api/auth/refresh", {});
       const { accessToken } = response;
+      console.log('✅ Refresh response received, has accessToken:', !!accessToken);
       
+      console.log('🔧 Setting new tokens via setTokens...');
       setTokens(accessToken);
+      console.log('✅ Tokens set, accessToken state:', !!accessToken, 'api.authToken:', !!api.authToken);
       
       // Get updated user data
       const userData = await api.get("/api/me");
       setUser(userData);
+      console.log('✅ User data updated');
     } catch (error) {
+      console.log('❌ Refresh failed:', error);
       clearTokens();
       throw error;
+    } finally {
+      isRefreshing = false;
+      console.log('🏁 Refresh completed, isRefreshing=false');
     }
   };
 
@@ -84,16 +109,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
   }, []);
 
-  // 🔒 Auto-refresh interceptor setup (CUSTOMER ONLY)
+  // 🔒 Auto-refresh interceptor setup (CUSTOMER ONLY) - WITH DEBUG LOGGING
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (response: any) => response,
       async (error: any) => {
         const originalRequest = error.config;
+        console.log('✖️ Response error:', error.response?.status, originalRequest?.url, 'retry?', originalRequest?._retry, 'has accessToken:', !!accessToken, 'current api token:', !!api.authToken);
         
         // Skip refresh attempts for auth endpoints and ALL admin endpoints
         if (originalRequest?.url?.includes('/api/auth/') || 
             originalRequest?.url?.includes('/api/admin/')) {
+          console.log('🚫 Skipping refresh for auth/admin endpoint');
           return Promise.reject(error);
         }
         
@@ -104,15 +131,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             originalRequest?.url?.startsWith('/api/me')) {
           originalRequest._retry = true;
           
+          console.log('→ Starting customer token refresh, isRefreshing=', isRefreshing);
+          
           try {
             console.log("Customer token expired, refreshing...");
             await refreshAuth();
+            console.log('✅ Customer refresh OK, new accessToken:', !!accessToken, 'api.authToken set:', !!api.authToken);
             console.log("Customer token refreshed, retrying request to:", originalRequest.url);
             
             // Retry original request with new token - API service will add auth header automatically
-            return await api.request(originalRequest.method || 'GET', originalRequest.url || '', originalRequest.data);
+            const retryResult = await api.request(originalRequest.method || 'GET', originalRequest.url || '', originalRequest.data);
+            console.log('🔄 Retry successful for:', originalRequest.url);
+            return retryResult;
           } catch (refreshError) {
-            console.log("Customer refresh failed, clearing tokens");
+            console.log("❌ Customer refresh failed, clearing tokens:", refreshError);
             clearTokens();
             return Promise.reject(refreshError);
           }
