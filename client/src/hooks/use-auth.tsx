@@ -111,11 +111,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 🔒 Auto-refresh interceptor setup (CUSTOMER ONLY) - WITH DEBUG LOGGING
   useEffect(() => {
+    console.log('🔧 Setting up customer interceptor...');
+    
     const interceptor = api.interceptors.response.use(
-      (response: any) => response,
+      (response: any) => {
+        console.log('✅ Response OK:', response.status || 'unknown', response.config?.url || 'unknown url');
+        return response;
+      },
       async (error: any) => {
         const originalRequest = error.config;
-        console.log('✖️ Response error:', error.response?.status, originalRequest?.url, 'retry?', originalRequest?._retry, 'has accessToken:', !!accessToken, 'current api token:', !!api.authToken);
+        console.log('✖️ INTERCEPTOR CALLED - Response error:', error.response?.status, originalRequest?.url, 'retry?', originalRequest?._retry, 'has accessToken:', !!accessToken, 'current api token:', !!api.authToken);
         
         // Skip refresh attempts for auth endpoints and ALL admin endpoints
         if (originalRequest?.url?.includes('/api/auth/') || 
@@ -150,11 +155,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
         
+        console.log('⚠️ 401 error but not handling:', {
+          status: error.response?.status,
+          retry: originalRequest?._retry,
+          hasToken: !!accessToken,
+          url: originalRequest?.url,
+          isCustomerEndpoint: originalRequest?.url?.startsWith('/api/me')
+        });
+        
         return Promise.reject(error);
       }
     );
 
+    console.log('✅ Customer interceptor set up with reference:', interceptor);
+    
     return () => {
+      console.log('🗑️ Cleaning up customer interceptor:', interceptor);
       if (interceptor && typeof interceptor.eject === 'function') {
         interceptor.eject();
       }
