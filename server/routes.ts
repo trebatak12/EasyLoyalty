@@ -47,7 +47,8 @@ const loginSchema = z.object({
 });
 
 const topupSchema = z.object({
-  packageCode: z.enum(["MINI", "STANDARD", "MAXI", "ULTRA"])
+  packageCode: z.enum(["MINI", "STANDARD", "MAXI", "ULTRA"]),
+  idempotencyKey: z.string().uuid().optional()
 });
 
 const chargeInitSchema = z.object({
@@ -627,56 +628,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const packageData = TOP_UP_PACKAGES[body.packageCode];
       if (!packageData) {
-        return res.status(400).json(createErrorResponse("BadRequest", "Invalid package code", "E_INPUT"));
+        return res.status(400).json(createErrorResponse("BadRequest", "Neplatný packageCode", "E_INPUT"));
       }
 
-      // Create idempotency key
-      const idempotencyKey = randomUUID();
+      // Generate or use provided idempotency key
+      const idempotencyKey = req.headers['idempotency-key'] as string || randomUUID();
 
-      // Create topup transaction
-      await storage.createTransaction({
+      // Check idempotency
+      const existingResult = await storage.getTopupByIdempotencyKey(idempotencyKey);
+      if (existingResult) {
+        return res.json(existingResult);
+      }
+
+      // Execute atomic top-up transaction
+      const result = await storage.executeAtomicTopup({
         userId,
-        type: "topup",
-        amountCents: packageData.total, // Credit the full amount (pay + bonus)
-        relatedId: null,
-        idempotencyKey,
-        createdBy: "user",
-        meta: {
-          packageCode: body.packageCode,
-          payCents: packageData.pay,
-          bonusCents: packageData.bonus
-        }
+        packageCode: body.packageCode,
+        packageData,
+        idempotencyKey
       });
-
-      // Update wallet balance and bonus total
-      const wallet = await storage.getWalletByUserId(userId);
-      if (!wallet) {
-        return res.status(404).json(createErrorResponse("NotFound", "Wallet not found", "E_NOT_FOUND"));
-      }
-
-      const newBalance = wallet.balanceCents + packageData.total;
-      await storage.updateWalletBalance(userId, newBalance, packageData.bonus);
 
       // Audit log
       await auditLog("user", userId, "topup", {
         packageCode: body.packageCode,
         amount: packageData.total,
-        bonus: packageData.bonus
+        bonus: packageData.bonus,
+        idempotencyKey
       });
 
-      const updatedWallet = await storage.getWalletByUserId(userId);
-      res.json({
-        balanceCZK: formatCZK(updatedWallet!.balanceCents),
-        balanceCents: updatedWallet!.balanceCents,
-        bonusGrantedTotalCZK: formatCZK(updatedWallet!.bonusGrantedTotalCents),
-        bonusGrantedTotalCents: updatedWallet!.bonusGrantedTotalCents
-      });
+      res.json(result);
     } catch (error) {
       console.error("Topup error:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json(createErrorResponse("BadRequest", "Invalid input", "E_INPUT", error.errors));
+        return res.status(400).json(createErrorResponse("BadRequest", "Neplatné vstupní data", "E_INPUT", error.errors));
       }
-      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+      res.status(500).json(createErrorResponse("InternalServerError", "Chyba serveru", "E_SERVER"));
     }
   });
 

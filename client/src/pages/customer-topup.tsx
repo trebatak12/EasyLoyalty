@@ -51,11 +51,19 @@ export default function CustomerTopup() {
   const queryClient = useQueryClient();
 
   const topupMutation = useMutation({
-    mutationFn: (packageCode: string) => api.post("/api/me/topup", { packageCode }),
+    mutationFn: (packageCode: string) => {
+      // Generate idempotency key for this request
+      const idempotencyKey = crypto.randomUUID();
+      return api.post("/api/me/topup", { packageCode }, {
+        headers: {
+          'Idempotency-Key': idempotencyKey
+        }
+      });
+    },
     onSuccess: () => {
       toast({
-        title: "Top-up Successful!",
-        description: "Your wallet has been updated with the new balance and bonus.",
+        title: "Dobití úspěšné!",
+        description: "Vaše peněženka byla aktualizována s novým zůstatkem a bonusem.",
         variant: "default"
       });
       queryClient.invalidateQueries({ queryKey: ["/api/me/wallet"] });
@@ -63,9 +71,10 @@ export default function CustomerTopup() {
       setLocation("/home");
     },
     onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || "Nepodařilo se zpracovat dobití";
       toast({
-        title: "Top-up Failed",
-        description: error.message || "Failed to process top-up",
+        title: "Dobití selhalo",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -135,11 +144,14 @@ export default function CustomerTopup() {
                       disabled={topupMutation.isPending}
                     >
                       {topupMutation.isPending ? (
-                        "Processing..."
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Zpracovávám...
+                        </div>
                       ) : (
                         <>
                           <Check className="w-4 h-4 mr-2" />
-                          Confirm
+                          Potvrdit
                         </>
                       )}
                     </Button>
@@ -150,8 +162,9 @@ export default function CustomerTopup() {
                           ? "bg-sage hover:bg-sage/90 text-white" 
                           : "btn-secondary hover:bg-primary hover:text-primary-foreground"
                       }`}
+                      disabled={topupMutation.isPending}
                     >
-                      Select
+                      Vybrat
                     </Button>
                   )}
                 </div>
