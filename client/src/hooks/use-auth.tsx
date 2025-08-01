@@ -98,18 +98,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           originalRequest._retry = true;
           
           try {
+            console.log("Token expired, refreshing...");
             await refreshAuth();
-            // Retry original request with new token
-            const retryConfig = {
-              ...originalRequest,
-              headers: {
-                ...originalRequest.headers,
-                'Authorization': `Bearer ${api.authToken}`
-              }
-            };
-            return await api.request(retryConfig.method || 'GET', retryConfig.url || '', retryConfig.data);
+            console.log("Token refreshed, retrying request to:", originalRequest.url);
+            
+            // Retry original request with new token - API service will add auth header automatically
+            return await api.request(originalRequest.method || 'GET', originalRequest.url || '', originalRequest.data);
           } catch (refreshError) {
-            // Refresh failed - clear state
+            console.log("Refresh failed, clearing tokens");
             clearTokens();
             return Promise.reject(refreshError);
           }
