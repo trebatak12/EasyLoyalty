@@ -146,8 +146,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokens(accessToken);
       setUser(userData);
       
-      // Small delay to ensure token is set before queries start
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Ensure token is properly set in API service before proceeding
+      console.log("Verifying token is set in API service:", !!api.authToken);
+      await new Promise(resolve => setTimeout(resolve, 150));
       
     } catch (error: any) {
       console.error("Login failed:", {

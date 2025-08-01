@@ -27,18 +27,18 @@ export default function CustomerHome() {
     lastActivity: string;
   }>({
     queryKey: ["/api/me/wallet"],
-    enabled: isAuthenticated,
-    retry: 2,
-    retryDelay: 1000
+    enabled: isAuthenticated && !!api.authToken, // Wait for token to be set
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
   const { data: recentTransactions, isLoading: historyLoading, refetch: refetchHistory } = useQuery<{
     transactions: any[];
   }>({
     queryKey: ["/api/me/history"], 
-    enabled: isAuthenticated,
-    retry: 2,
-    retryDelay: 1000
+    enabled: isAuthenticated && !!api.authToken, // Wait for token to be set
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
   // Listen for topup completion and refresh data
