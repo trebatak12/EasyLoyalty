@@ -146,6 +146,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokens(accessToken);
       setUser(userData);
       
+      // Small delay to ensure token is set before queries start
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
     } catch (error: any) {
       console.error("Login failed:", {
         message: error?.message || "Unknown error",

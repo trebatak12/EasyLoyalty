@@ -19,7 +19,7 @@ export default function CustomerHome() {
     }
   }, [isAuthenticated, setLocation]);
 
-  const { data: wallet, isLoading: walletLoading } = useQuery<{
+  const { data: wallet, isLoading: walletLoading, refetch: refetchWallet } = useQuery<{
     balanceCZK: string;
     balanceCents: number;
     bonusGrantedTotalCZK: string;
@@ -27,15 +27,31 @@ export default function CustomerHome() {
     lastActivity: string;
   }>({
     queryKey: ["/api/me/wallet"],
-    enabled: isAuthenticated
+    enabled: isAuthenticated,
+    retry: 2,
+    retryDelay: 1000
   });
 
-  const { data: recentTransactions, isLoading: historyLoading } = useQuery<{
+  const { data: recentTransactions, isLoading: historyLoading, refetch: refetchHistory } = useQuery<{
     transactions: any[];
   }>({
-    queryKey: ["/api/me/history"],
-    enabled: isAuthenticated
+    queryKey: ["/api/me/history"], 
+    enabled: isAuthenticated,
+    retry: 2,
+    retryDelay: 1000
   });
+
+  // Listen for topup completion and refresh data
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('refreshData') === 'true') {
+      console.log("Refreshing wallet and history data after topup");
+      refetchWallet();
+      refetchHistory();
+      // Clear the URL parameter
+      window.history.replaceState({}, '', '/home');
+    }
+  }, [refetchWallet, refetchHistory]);
 
   const handleLogout = async () => {
     await logout();

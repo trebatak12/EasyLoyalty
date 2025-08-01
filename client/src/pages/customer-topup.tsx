@@ -77,12 +77,14 @@ export default function CustomerTopup() {
         variant: "default"
       });
       
-      // Navigate home first to avoid race conditions
-      setLocation("/home");
-      
-      // Invalidate queries immediately - the auth interceptor will handle token refresh if needed
+      // Invalidate queries first
       queryClient.invalidateQueries({ queryKey: ["/api/me/wallet"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me/history"] });
+      
+      // Navigate home with refresh parameter after small delay
+      setTimeout(() => {
+        setLocation("/home?refreshData=true");
+      }, 100);
     },
     onError: (error: any) => {
       toast({
