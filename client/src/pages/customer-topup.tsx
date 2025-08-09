@@ -66,7 +66,7 @@ export default function CustomerTopup() {
       });
     },
     onSuccess: (data) => {
-      const message = data.idempotent 
+      const message = data.idempotent
         ? "Top-up already processed - wallet unchanged"
         : "Top-up successful! Your wallet has been updated.";
 
@@ -147,18 +147,18 @@ export default function CustomerTopup() {
         </Card>
 
         {/* Package Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
           {packages.map((pkg) => (
-            <Card 
+            <Card
               key={pkg.code}
               className={`relative cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border-0 shadow-lg ${
-                selectedPackage === pkg.code 
-                  ? "ring-4 ring-orange-300" 
+                selectedPackage === pkg.code
+                  ? "ring-4 ring-orange-300"
                   : ""
               }`}
-              style={{ 
-                background: pkg.popular 
-                  ? 'linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%)' 
+              style={{
+                background: pkg.popular
+                  ? 'linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%)'
                   : 'linear-gradient(135deg, #FEFEFE 0%, #F8F5F0 100%)',
                 border: pkg.popular ? '3px solid #FF9800' : '2px solid #E0D5C7'
               }}
@@ -166,7 +166,7 @@ export default function CustomerTopup() {
             >
               {pkg.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                  <div 
+                  <div
                     className="text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap"
                     style={{ background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' }}
                   >
@@ -200,11 +200,11 @@ export default function CustomerTopup() {
                 </div>
 
                 {selectedPackage === pkg.code ? (
-                  <Button 
+                  <Button
                     className="w-full h-14 text-base font-bold text-white rounded-2xl shadow-lg transition-all duration-200"
-                    style={{ 
-                      background: topupMutation.isPending 
-                        ? 'linear-gradient(135deg, #9E9E9E 0%, #757575 100%)' 
+                    style={{
+                      background: topupMutation.isPending
+                        ? 'linear-gradient(135deg, #9E9E9E 0%, #757575 100%)'
                         : 'linear-gradient(135deg, #4CAF50 0%, #45A049 100%)'
                     }}
                     disabled={topupMutation.isPending}
@@ -222,9 +222,9 @@ export default function CustomerTopup() {
                     )}
                   </Button>
                 ) : (
-                  <Button 
+                  <Button
                     className="w-full h-14 text-base font-bold rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl"
-                    style={pkg.popular ? { 
+                    style={pkg.popular ? {
                       background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
                       color: 'white'
                     } : {
