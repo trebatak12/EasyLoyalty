@@ -41,31 +41,31 @@ export default function CustomerHistory() {
           <Button
             variant="ghost"
             onClick={() => setLocation("/home")}
-            className="mr-4 p-2 hover:bg-surface rounded-full border-0"
+            className="mr-4 p-2 hover:bg-yellow-50 hover:text-orange-700 rounded-2xl border-0"
           >
-            <ArrowLeft className="w-5 h-5 text-text" />
+            <ArrowLeft className="w-6 h-6 text-orange-700" />
           </Button>
-          <h1 className="text-2xl font-semibold text-text">Transaction History</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Transaction History</h1>
         </div>
 
         {/* Filter Tabs */}
         <Tabs value={filter} onValueChange={(value) => setFilter(value as FilterType)} className="mb-8">
-          <TabsList className="grid w-full grid-cols-3 bg-surface border border-border rounded-2xl p-1 h-12 shadow-soft">
+          <TabsList className="grid w-full grid-cols-3 bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-1 h-14 shadow-strong">
             <TabsTrigger 
               value="all" 
-              className="rounded-xl text-muted data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-sm font-medium transition-all"
+              className="rounded-xl text-orange-700 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg font-bold transition-all text-base"
             >
               All
             </TabsTrigger>
             <TabsTrigger 
               value="topups" 
-              className="rounded-xl text-muted data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-sm font-medium transition-all"
+              className="rounded-xl text-orange-700 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg font-bold transition-all text-base"
             >
               Top-ups
             </TabsTrigger>
             <TabsTrigger 
               value="transactions" 
-              className="rounded-xl text-muted data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-sm font-medium transition-all"
+              className="rounded-xl text-orange-700 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg font-bold transition-all text-base"
             >
               Payments
             </TabsTrigger>
@@ -75,10 +75,10 @@ export default function CustomerHistory() {
             {isLoading ? (
               <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="card-easyloyalty animate-pulse">
+                  <div key={i} className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-strong animate-pulse">
                     <div className="flex items-center justify-between">
-                      <div className="h-5 w-32 bg-border rounded"></div>
-                      <div className="h-4 w-4 bg-border rounded"></div>
+                      <div className="h-6 w-32 bg-yellow-200 rounded-xl"></div>
+                      <div className="h-5 w-5 bg-yellow-200 rounded"></div>
                     </div>
                   </div>
                 ))}
@@ -94,7 +94,7 @@ export default function CustomerHistory() {
                       : "Café Payment";
 
                   return (
-                    <Card key={transaction.id} className="card-easyloyalty hover:shadow-lg transition-shadow">
+                    <Card key={transaction.id} className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl shadow-strong hover:shadow-2xl transition-all duration-200">
                       <CardContent className="p-0">
                         {/* Main row - always visible */}
                         <div 
@@ -103,20 +103,20 @@ export default function CustomerHistory() {
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="font-medium text-text text-lg">
+                              <h3 className="font-bold text-xl text-gray-900">
                                 {transactionTitle}
                               </h3>
                             </div>
-                            <div className="flex items-center space-x-3">
-                              <span className={`font-semibold text-lg ${
-                                transaction.amountCents > 0 ? "text-success" : "text-text"
+                            <div className="flex items-center space-x-4">
+                              <span className={`font-bold text-xl ${
+                                transaction.amountCents > 0 ? "text-green-600" : "text-gray-900"
                               }`}>
                                 {transaction.amountCents > 0 ? "+" : ""}{transaction.amountCZK}
                               </span>
                               {isExpanded ? (
-                                <ChevronUp className="w-5 h-5 text-muted" />
+                                <ChevronUp className="w-6 h-6 text-orange-700" />
                               ) : (
-                                <ChevronDown className="w-5 h-5 text-muted" />
+                                <ChevronDown className="w-6 h-6 text-orange-700" />
                               )}
                             </div>
                           </div>
@@ -124,18 +124,18 @@ export default function CustomerHistory() {
 
                         {/* Expanded details */}
                         {isExpanded && (
-                          <div className="px-6 pb-6 pt-0 border-t border-border">
-                            <div className="grid grid-cols-2 gap-6 mt-4">
+                          <div className="px-6 pb-6 pt-0 border-t-2 border-yellow-300">
+                            <div className="grid grid-cols-2 gap-6 mt-6">
                               <div>
-                                <p className="text-sm text-muted mb-1">Date & Time</p>
-                                <p className="text-text font-medium">
+                                <p className="text-sm text-orange-700 font-bold mb-2">Date & Time</p>
+                                <p className="text-gray-900 font-bold text-lg">
                                   {new Date(transaction.createdAt).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "long",
                                     day: "numeric"
                                   })}
                                 </p>
-                                <p className="text-muted text-sm">
+                                <p className="text-orange-700 font-medium">
                                   {new Date(transaction.createdAt).toLocaleTimeString("en-US", {
                                     hour: "2-digit",
                                     minute: "2-digit"
@@ -144,26 +144,26 @@ export default function CustomerHistory() {
                               </div>
                               
                               <div>
-                                <p className="text-sm text-muted mb-1">Type</p>
+                                <p className="text-sm text-orange-700 font-bold mb-2">Type</p>
                                 <div className="flex items-center">
-                                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mr-3 ${
+                                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mr-3 border-2 ${
                                     transaction.type === "topup" 
-                                      ? "bg-success/10" 
+                                      ? "bg-green-200 border-green-400" 
                                       : transaction.type === "void"
-                                        ? "bg-danger/10"
-                                        : "bg-info/10"
+                                        ? "bg-red-200 border-red-400"
+                                        : "bg-blue-200 border-blue-400"
                                   }`}>
                                     {transaction.type === "topup" ? (
-                                      <Plus className={`w-4 h-4 ${
-                                        transaction.type === "topup" ? "text-success" : "text-info"
+                                      <Plus className={`w-5 h-5 ${
+                                        transaction.type === "topup" ? "text-green-700 font-bold" : "text-blue-700 font-bold"
                                       }`} />
                                     ) : (
-                                      <Coffee className={`w-4 h-4 ${
-                                        transaction.type === "void" ? "text-danger" : "text-info"
+                                      <Coffee className={`w-5 h-5 ${
+                                        transaction.type === "void" ? "text-red-700 font-bold" : "text-blue-700 font-bold"
                                       }`} />
                                     )}
                                   </div>
-                                  <span className="text-text font-medium capitalize">
+                                  <span className="text-gray-900 font-bold text-lg capitalize">
                                     {transaction.type === "topup" ? "Top-up" : 
                                      transaction.type === "void" ? "Voided Payment" : "Payment"}
                                   </span>
@@ -172,16 +172,16 @@ export default function CustomerHistory() {
 
                               {transaction.type === "topup" && transaction.meta?.bonusCents && (
                                 <div className="col-span-2">
-                                  <p className="text-sm text-muted mb-1">Bonus Received</p>
-                                  <p className="text-success font-semibold">
+                                  <p className="text-sm text-orange-700 font-bold mb-2">Bonus Received</p>
+                                  <p className="text-green-600 font-bold text-lg">
                                     +{formatCurrency(transaction.meta.bonusCents)}
                                   </p>
                                 </div>
                               )}
 
                               <div className="col-span-2">
-                                <p className="text-sm text-muted mb-1">Transaction ID</p>
-                                <p className="text-muted text-sm font-mono">
+                                <p className="text-sm text-orange-700 font-bold mb-2">Transaction ID</p>
+                                <p className="text-orange-700 font-mono text-sm bg-yellow-100 p-2 rounded-xl border border-yellow-400">
                                   {transaction.id}
                                 </p>
                               </div>
@@ -194,15 +194,15 @@ export default function CustomerHistory() {
                 })}
               </div>
             ) : (
-              <Card className="card-easyloyalty">
+              <Card className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl shadow-strong">
                 <CardContent className="p-12 text-center">
-                  <div className="w-16 h-16 bg-primary/10 rounded-2xl mx-auto mb-6 flex items-center justify-center">
-                    <Coffee className="w-8 h-8 text-primary" />
+                  <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-500 rounded-3xl mx-auto mb-8 flex items-center justify-center shadow-lg">
+                    <Coffee className="w-10 h-10 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold text-text mb-2">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
                     No {filter === "all" ? "transactions" : filter} found
                   </h3>
-                  <p className="text-muted mb-6 max-w-md mx-auto">
+                  <p className="text-orange-700 font-medium text-lg mb-8 max-w-md mx-auto">
                     {filter === "topups" 
                       ? "Start by making your first top-up to see your transaction history"
                       : filter === "transactions"
@@ -213,7 +213,7 @@ export default function CustomerHistory() {
                   {filter !== "transactions" && (
                     <Button 
                       onClick={() => setLocation("/topup")} 
-                      className="btn-primary shadow-soft hover:shadow-lg transition-all duration-200"
+                      className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-bold rounded-2xl px-8 py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-200"
                     >
                       Top Up Now
                     </Button>
