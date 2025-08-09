@@ -148,8 +148,8 @@ export default function CustomerTopup() {
         </Card>
 
         {/* Package Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {packages.slice(0, 3).map((pkg) => (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {packages.map((pkg) => (
             <Card 
               key={pkg.code}
               className={`relative cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border-0 shadow-lg ${
@@ -225,81 +225,13 @@ export default function CustomerTopup() {
                     className={`w-full h-14 text-lg font-bold rounded-2xl transition-all duration-200 ${
                       pkg.popular 
                         ? "text-white shadow-lg" 
-                        : "text-stone-700 border-2 border-stone-300 bg-stone-50 hover:bg-stone-100"
+                        : "text-white shadow-md hover:shadow-lg"
                     }`}
                     style={pkg.popular ? { 
                       background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' 
-                    } : {}}
-                  >
-                    Select Package
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-          
-          {/* ULTRA package - separate row */}
-          {packages.slice(3).map((pkg) => (
-            <Card 
-              key={pkg.code}
-              className={`relative cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border-0 shadow-lg sm:col-span-2 lg:col-span-3 max-w-md mx-auto ${
-                selectedPackage === pkg.code 
-                  ? "ring-4 ring-orange-300" 
-                  : ""
-              }`}
-              style={{ 
-                background: 'linear-gradient(135deg, #FEFEFE 0%, #F8F5F0 100%)',
-                border: '2px solid #E0D5C7'
-              }}
-              onClick={() => handleTopup(pkg.code)}
-            >
-              <CardContent className="p-6 text-center">
-                <div className="text-4xl mb-4">{pkg.icon}</div>
-                <h4 className="font-bold text-2xl text-stone-800 mb-4">{pkg.name}</h4>
-                
-                <div className="mb-6">
-                  <p className="text-4xl font-bold text-stone-800 mb-2">
-                    {formatCurrency(pkg.pay)}
-                  </p>
-                  <div className="flex items-center justify-center gap-1 text-green-600">
-                    <Plus className="w-4 h-4" />
-                    <span className="text-base font-semibold">
-                      {formatCurrency(pkg.bonus)} bonus
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="bg-stone-50 rounded-2xl p-4 mb-6">
-                  <p className="text-sm text-stone-600 mb-2">You get total</p>
-                  <p className="text-2xl font-bold text-stone-800 mb-1">{formatCurrency(pkg.total)}</p>
-                  <p className="text-sm text-green-600 font-medium">{pkg.percentage} bonus</p>
-                </div>
-                
-                {selectedPackage === pkg.code ? (
-                  <Button 
-                    className="w-full h-14 text-lg font-bold text-white rounded-2xl shadow-lg transition-all duration-200"
-                    style={{ 
-                      background: topupMutation.isPending 
-                        ? 'linear-gradient(135deg, #9E9E9E 0%, #757575 100%)' 
-                        : 'linear-gradient(135deg, #4CAF50 0%, #45A049 100%)'
+                    } : {
+                      background: 'linear-gradient(135deg, #FFE0B2 0%, #FFCC80 100%)'
                     }}
-                    disabled={topupMutation.isPending}
-                  >
-                    {topupMutation.isPending ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Processing...
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Check className="w-5 h-5" />
-                        Confirm Purchase
-                      </div>
-                    )}
-                  </Button>
-                ) : (
-                  <Button 
-                    className="w-full h-14 text-lg font-bold rounded-2xl transition-all duration-200 text-stone-700 border-2 border-stone-300 bg-stone-50 hover:bg-stone-100"
                   >
                     Select Package
                   </Button>
