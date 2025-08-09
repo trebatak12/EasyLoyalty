@@ -1,16 +1,17 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Store, ArrowLeft, Mail, Lock } from "lucide-react";
+import { Store, ArrowLeft, Mail, Lock, Coffee, CreditCard, Users, BarChart3, EyeOff, Eye, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAuth() {
-  // Všechny hooks na začátku komponenty
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null); // State for error messages
+
   const [, setLocation] = useLocation();
   const adminAuth = useAdminAuth();
   const { toast } = useToast();
@@ -19,19 +20,16 @@ export default function AdminAuth() {
     password: ""
   });
 
-  // Destructure z adminAuth (může být undefined)
   const login = adminAuth?.login;
   const isLoading = adminAuth?.isLoading || false;
   const isAuthenticated = adminAuth?.isAuthenticated || false;
 
-  // Effect pro přesměrování po přihlášení
   useEffect(() => {
     if (isAuthenticated) {
       setLocation("/admin/dashboard");
     }
   }, [isAuthenticated, setLocation]);
 
-  // Handler pro přihlášení
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -45,8 +43,10 @@ export default function AdminAuth() {
     try {
       await login(loginData.email, loginData.password);
       console.log("Admin login successful, redirecting to dashboard");
+      setError(null); // Clear any previous errors
     } catch (error: any) {
       console.error("Admin login error:", error);
+      setError(error.message || "Nesprávné přihlašovací údaje"); // Set error message
       toast({
         title: "Přihlášení se nezdařilo",
         description: error.message || "Nesprávné přihlašovací údaje",
@@ -55,9 +55,8 @@ export default function AdminAuth() {
     }
   };
 
-  // Loading spinner component
   const LoadingSpinner = () => (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-orange-25" style={{backgroundColor: '#FEF7ED'}}>
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
         <p className="mt-2 text-amber-700">Načítání...</p>
@@ -65,20 +64,22 @@ export default function AdminAuth() {
     </div>
   );
 
-  // Podmíněné renderování bez early returns
   if (!adminAuth || isLoading) {
     return <LoadingSpinner />;
   }
 
   if (isAuthenticated) {
-    return <LoadingSpinner />; // Zobrazí loading během přesměrování
+    return <LoadingSpinner />;
   }
 
-  // Hlavní render formu
+  // Mock handleSubmit and related states for the provided changes to work
+  const handleSubmit = handleLogin;
+  const email = loginData.email;
+  const password = loginData.password;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-orange-25 flex items-center justify-center p-4" style={{backgroundColor: '#FEF7ED'}}>
       <div className="w-full max-w-md">
-        {/* Back Button */}
         <Button
           variant="outline"
           onClick={() => setLocation("/")}
@@ -121,9 +122,9 @@ export default function AdminAuth() {
               </div>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-5">
               <div>
-                <Label htmlFor="email" className="text-base font-semibold text-amber-900 mb-2 block">
+                <Label htmlFor="email" className="block text-sm font-medium text-amber-900 mb-2">
                   Email Address
                 </Label>
                 <div className="relative">
@@ -139,27 +140,44 @@ export default function AdminAuth() {
                   />
                 </div>
               </div>
-              
+
               <div>
-                <Label htmlFor="password" className="text-base font-semibold text-amber-900 mb-2 block">
+                <Label htmlFor="password" className="block text-sm font-medium text-amber-900 mb-2">
                   Password
                 </Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600" size={18} />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={loginData.password}
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                     className="pl-12 h-12 rounded-2xl border border-amber-300 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-600 hover:text-amber-800 transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
                 </div>
               </div>
-              
-              <Button 
-                type="submit" 
+
+              {error && (
+                <div className="text-red-700 text-sm bg-red-50 border border-red-200 rounded-xl p-3">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
                 className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoading || !loginData.email || !loginData.password}
               >
@@ -167,8 +185,10 @@ export default function AdminAuth() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-amber-600">
-              <p>Přístup pouze pro zaměstnance kavárny</p>
+            <div className="mt-6 text-center">
+              <p className="text-xs text-amber-700">
+                Přístup pouze pro zaměstnance kavárny
+              </p>
             </div>
           </CardContent>
         </Card>
