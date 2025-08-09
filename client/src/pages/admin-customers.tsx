@@ -1,8 +1,9 @@
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Store, LogOut, Download, Search, DollarSign, History } from "lucide-react";
+import { Coffee, LogOut, Download, Search, DollarSign, History, ArrowLeft } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
@@ -85,18 +86,18 @@ export default function AdminCustomers() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white text-high-contrast">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
       {/* Header */}
-      <div className="bg-white border-b-2 border-blue-200 sticky top-0 z-10 shadow-lg">
+      <div className="bg-white border-b-2 border-amber-200 sticky top-0 z-10 shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mr-3 shadow-lg">
-                <Store className="text-white" size={20} />
+              <div className="w-12 h-12 bg-amber-600 rounded-2xl flex items-center justify-center mr-3 shadow-lg">
+                <Coffee className="text-white" size={20} />
               </div>
               <div>
-                <p className="font-bold text-xl text-gray-900">{admin?.name}</p>
-                <p className="text-base text-gray-700 font-medium">{admin?.role}</p>
+                <p className="font-bold text-xl text-amber-900">{admin?.name}</p>
+                <p className="text-base text-amber-700 font-medium">{admin?.role}</p>
               </div>
             </div>
             <Button
@@ -112,8 +113,18 @@ export default function AdminCustomers() {
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Navigation and Title */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Customer Management</h1>
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              onClick={() => setLocation("/admin/dashboard")}
+              className="mr-4 p-2 hover:bg-amber-50 hover:text-amber-700 rounded-2xl"
+            >
+              <ArrowLeft className="w-6 h-6 text-amber-700" />
+            </Button>
+            <h1 className="text-3xl font-bold text-amber-900">Customer Management</h1>
+          </div>
           <Button 
             onClick={handleExport}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-2xl px-6 py-3 shadow-lg"
@@ -123,18 +134,18 @@ export default function AdminCustomers() {
           </Button>
         </div>
 
-        <Card className="bg-white border-2 border-blue-300 rounded-3xl shadow-strong">
+        <Card className="bg-white/90 border-2 border-amber-200 rounded-3xl shadow-lg">
           <CardContent className="pt-6">
             {/* Search */}
             <div className="mb-6">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-600" size={20} />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600" size={20} />
                 <Input
                   type="text"
                   placeholder="Search customers by name or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 h-12 rounded-2xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 font-medium transition-colors"
+                  className="pl-12 h-12 rounded-2xl border-2 border-amber-200 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
                 />
               </div>
             </div>
@@ -143,20 +154,20 @@ export default function AdminCustomers() {
             {isLoading ? (
               <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="bg-muted rounded-xl p-4">
+                  <div key={i} className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex-1">
-                        <div className="h-4 w-32 bg-background rounded animate-pulse mb-2" />
-                        <div className="h-3 w-48 bg-background rounded animate-pulse" />
+                        <div className="h-4 w-32 bg-amber-200 rounded animate-pulse mb-2" />
+                        <div className="h-3 w-48 bg-amber-200 rounded animate-pulse" />
                       </div>
                       <div className="text-right">
-                        <div className="h-4 w-24 bg-background rounded animate-pulse mb-1" />
-                        <div className="h-3 w-20 bg-background rounded animate-pulse" />
+                        <div className="h-4 w-24 bg-amber-200 rounded animate-pulse mb-1" />
+                        <div className="h-3 w-20 bg-amber-200 rounded animate-pulse" />
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <div className="h-8 w-20 bg-background rounded animate-pulse" />
-                      <div className="h-8 w-20 bg-background rounded animate-pulse" />
+                      <div className="h-8 w-20 bg-amber-200 rounded animate-pulse" />
+                      <div className="h-8 w-20 bg-amber-200 rounded animate-pulse" />
                     </div>
                   </div>
                 ))}
@@ -164,25 +175,25 @@ export default function AdminCustomers() {
             ) : customers.length > 0 ? (
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {customers.map((customer: any) => (
-                  <div key={customer.id} className="bg-muted rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
+                  <div key={customer.id} className="bg-amber-50/70 rounded-2xl p-4 border border-amber-100 hover:bg-amber-50 transition-colors">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex-1">
-                        <p className="font-medium text-foreground text-sm">{customer.name}</p>
-                        <p className="text-xs text-muted-foreground">{customer.email}</p>
+                        <p className="font-semibold text-amber-900 text-lg">{customer.name}</p>
+                        <p className="text-sm text-amber-700">{customer.email}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-foreground text-sm currency-display">
+                        <p className="font-bold text-amber-900 text-lg">
                           {customer.balanceCZK}
                         </p>
-                        <p className="text-xs text-sage currency-display">
+                        <p className="text-sm text-amber-700">
                           +{customer.bonusGrantedTotalCZK} total bonus
                         </p>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-3">
                       <Button 
                         size="sm"
-                        className="flex-1 h-8 btn-primary text-xs"
+                        className="flex-1 h-10 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-sm shadow-md"
                         onClick={() => {
                           toast({
                             title: "Feature Coming Soon",
@@ -191,13 +202,13 @@ export default function AdminCustomers() {
                           });
                         }}
                       >
-                        <DollarSign className="w-3 h-3 mr-1" />
-                        Adjust
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        Adjust Balance
                       </Button>
                       <Button 
                         size="sm"
                         variant="outline"
-                        className="flex-1 h-8 text-xs"
+                        className="flex-1 h-10 border-2 border-amber-300 text-amber-700 hover:bg-amber-50 font-semibold rounded-xl text-sm"
                         onClick={() => {
                           toast({
                             title: "Feature Coming Soon",
@@ -206,7 +217,7 @@ export default function AdminCustomers() {
                           });
                         }}
                       >
-                        <History className="w-3 h-3 mr-1" />
+                        <History className="w-4 h-4 mr-1" />
                         History
                       </Button>
                     </div>
@@ -214,10 +225,15 @@ export default function AdminCustomers() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-amber-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-amber-600" />
+                </div>
+                <p className="text-amber-700 text-lg font-medium">
                   {searchQuery ? "No customers found matching your search" : "No customers registered yet"}
+                </p>
+                <p className="text-amber-600 text-sm mt-2">
+                  {searchQuery ? "Try adjusting your search terms" : "Customers will appear here once they register"}
                 </p>
               </div>
             )}
