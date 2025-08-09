@@ -63,7 +63,7 @@ export default function CustomerHome() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-yellow-100 to-yellow-50 text-high-contrast">
+    <div className="min-h-screen bg-bg text-high-contrast">
       {/* Modern Header */}
       <div className="bg-yellow-50 border-b-2 border-yellow-200 sticky top-0 z-10 shadow-lg">
         <div className="container mx-auto px-6">

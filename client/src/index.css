@@ -4,7 +4,7 @@
 
 :root {
   /* EasyLoyalty color palette */
-  --bg: hsl(0, 0%, 98%); /* #FAFAFA - Very light gray background */
+  --bg: hsl(42, 25%, 92%); /* #F4F1E8 - Warm cream/beige background */
   --surface: hsl(0, 0%, 100%); /* #FFFFFF - Pure white surface */
   --card: hsl(0, 0%, 100%); /* #FFFFFF - Pure white cards */
   --border: hsl(220, 13%, 91%); /* #E5E7EB - Light gray borders */
