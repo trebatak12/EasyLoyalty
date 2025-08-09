@@ -147,7 +147,7 @@ export default function CustomerTopup() {
         </Card>
 
         {/* Package Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 mb-8">
           {packages.map((pkg) => (
             <Card 
               key={pkg.code}
@@ -177,25 +177,25 @@ export default function CustomerTopup() {
 
               <CardContent className="p-6 text-center min-h-[480px] flex flex-col justify-between">
                 <div className="flex-1 flex flex-col">
-                  <div className="text-3xl sm:text-4xl mb-4 mt-2">{pkg.icon}</div>
-                  <h4 className="font-bold text-xl text-stone-800 mb-6 px-1">{pkg.name}</h4>
+                  <div className="text-4xl mb-4 mt-2">{pkg.icon}</div>
+                  <h4 className="font-bold text-2xl text-stone-800 mb-6 px-1">{pkg.name}</h4>
 
                   <div className="mb-6">
-                    <p className="text-2xl font-bold text-stone-800 mb-3 leading-tight">
+                    <p className="text-3xl font-bold text-stone-800 mb-3 leading-tight">
                       {formatCurrency(pkg.pay)}
                     </p>
                     <div className="flex items-center justify-center gap-1 text-green-600">
-                      <Plus className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-base font-semibold">
+                      <Plus className="w-5 h-5 flex-shrink-0" />
+                      <span className="text-lg font-semibold">
                         {formatCurrency(pkg.bonus)} bonus
                       </span>
                     </div>
                   </div>
 
                   <div className="bg-stone-50 rounded-2xl p-4 mb-8 flex-1 flex flex-col justify-center">
-                    <p className="text-sm text-stone-600 mb-2">You get total</p>
-                    <p className="text-xl font-bold text-stone-800 mb-2 leading-tight">{formatCurrency(pkg.total)}</p>
-                    <p className="text-sm text-green-600 font-medium">{pkg.percentage} bonus</p>
+                    <p className="text-base text-stone-600 mb-2">You get total</p>
+                    <p className="text-2xl font-bold text-stone-800 mb-2 leading-tight">{formatCurrency(pkg.total)}</p>
+                    <p className="text-base text-green-600 font-medium">{pkg.percentage} bonus</p>
                   </div>
                 </div>
 
