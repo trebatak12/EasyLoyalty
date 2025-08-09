@@ -175,33 +175,33 @@ export default function CustomerTopup() {
                 </div>
               )}
 
-              <CardContent className="p-5 sm:p-6 lg:p-7 text-center min-h-[420px] sm:min-h-[480px] flex flex-col justify-between">
+              <CardContent className="p-6 text-center min-h-[480px] flex flex-col justify-between">
                 <div className="flex-1 flex flex-col">
                   <div className="text-3xl sm:text-4xl mb-4 mt-2">{pkg.icon}</div>
-                  <h4 className="font-bold text-lg sm:text-xl lg:text-2xl text-stone-800 mb-4 sm:mb-6 px-1">{pkg.name}</h4>
+                  <h4 className="font-bold text-xl text-stone-800 mb-6 px-1">{pkg.name}</h4>
 
-                  <div className="mb-4 sm:mb-6">
-                    <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-stone-800 mb-2 sm:mb-3 leading-tight">
+                  <div className="mb-6">
+                    <p className="text-2xl font-bold text-stone-800 mb-3 leading-tight">
                       {formatCurrency(pkg.pay)}
                     </p>
                     <div className="flex items-center justify-center gap-1 text-green-600">
                       <Plus className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm sm:text-base font-semibold">
+                      <span className="text-base font-semibold">
                         {formatCurrency(pkg.bonus)} bonus
                       </span>
                     </div>
                   </div>
 
-                  <div className="bg-stone-50 rounded-2xl p-3 sm:p-4 lg:p-5 mb-6 sm:mb-8 flex-1 flex flex-col justify-center">
-                    <p className="text-xs sm:text-sm text-stone-600 mb-2">You get total</p>
-                    <p className="text-lg sm:text-xl lg:text-2xl font-bold text-stone-800 mb-2 leading-tight">{formatCurrency(pkg.total)}</p>
-                    <p className="text-xs sm:text-sm text-green-600 font-medium">{pkg.percentage} bonus</p>
+                  <div className="bg-stone-50 rounded-2xl p-4 mb-8 flex-1 flex flex-col justify-center">
+                    <p className="text-sm text-stone-600 mb-2">You get total</p>
+                    <p className="text-xl font-bold text-stone-800 mb-2 leading-tight">{formatCurrency(pkg.total)}</p>
+                    <p className="text-sm text-green-600 font-medium">{pkg.percentage} bonus</p>
                   </div>
                 </div>
 
                 {selectedPackage === pkg.code ? (
                   <Button 
-                    className="w-full h-12 sm:h-14 text-sm sm:text-base font-bold text-white rounded-2xl shadow-lg transition-all duration-200"
+                    className="w-full h-14 text-base font-bold text-white rounded-2xl shadow-lg transition-all duration-200"
                     style={{ 
                       background: topupMutation.isPending 
                         ? 'linear-gradient(135deg, #9E9E9E 0%, #757575 100%)' 
@@ -223,7 +223,7 @@ export default function CustomerTopup() {
                   </Button>
                 ) : (
                   <Button 
-                    className="w-full h-12 sm:h-14 text-sm sm:text-base font-bold rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full h-14 text-base font-bold rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl"
                     style={pkg.popular ? { 
                       background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
                       color: 'white'
