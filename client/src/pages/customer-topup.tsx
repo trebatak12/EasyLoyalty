@@ -107,96 +107,110 @@ export default function CustomerTopup() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-green-50/30 to-amber-50/20">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #F5F0E8 0%, #F8F5EE 50%, #FDF9F0 100%)' }}>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="flex items-center mb-8">
           <Button
             variant="ghost"
             onClick={() => setLocation("/home")}
-            className="mr-4 text-gray-600 hover:text-gray-900 hover:bg-white/50 rounded-xl"
+            className="mr-4 text-stone-700 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">Top Up Your Wallet</h1>
-            <p className="text-gray-600">Choose a package and get bonus credits</p>
+            <h1 className="text-4xl font-bold text-stone-800 mb-2">Top Up Your Wallet</h1>
+            <p className="text-stone-600 text-lg">Choose a package and get bonus credits</p>
           </div>
         </div>
 
         {/* Benefits Banner */}
-        <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white mb-8 border-0 shadow-xl">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                  <Sparkles className="w-6 h-6" />
+        <Card className="mb-8 border-0 shadow-lg overflow-hidden">
+          <CardContent className="p-0">
+            <div style={{ background: 'linear-gradient(135deg, #4CAF50 0%, #45A049 100%)' }} className="text-white p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold mb-1">Get Bonus Credits!</h3>
+                    <p className="text-green-100 text-base">The more you top up, the bigger bonus you get</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-1">Get Bonus Credits!</h3>
-                  <p className="text-green-100">The more you top up, the bigger bonus you get</p>
+                <div className="text-right">
+                  <p className="text-green-100 text-sm">Up to</p>
+                  <p className="text-3xl font-bold">19% bonus</p>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-green-100 text-sm">Up to</p>
-                <p className="text-2xl font-bold">19% bonus</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Package Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {packages.map((pkg) => (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {packages.slice(0, 3).map((pkg) => (
             <Card 
               key={pkg.code}
-              className={`relative cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl border-2 ${
+              className={`relative cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border-0 shadow-lg ${
                 selectedPackage === pkg.code 
-                  ? "border-green-500 bg-white shadow-2xl ring-4 ring-green-100" 
-                  : pkg.popular 
-                    ? "border-amber-300 bg-gradient-to-br from-white to-amber-50/50 shadow-xl" 
-                    : "border-gray-200 bg-white hover:border-green-300 shadow-lg"
+                  ? "ring-4 ring-orange-300" 
+                  : ""
               }`}
+              style={{ 
+                background: pkg.popular 
+                  ? 'linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%)' 
+                  : 'linear-gradient(135deg, #FEFEFE 0%, #F8F5F0 100%)',
+                border: pkg.popular ? '3px solid #FF9800' : '2px solid #E0D5C7'
+              }}
               onClick={() => handleTopup(pkg.code)}
             >
               {pkg.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                  <div 
+                    className="text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg"
+                    style={{ background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' }}
+                  >
                     Most Popular
                   </div>
                 </div>
               )}
               
               <CardContent className="p-6 text-center">
-                <div className="text-4xl mb-3">{pkg.icon}</div>
-                <h4 className="font-bold text-lg text-gray-900 mb-2">{pkg.name}</h4>
+                <div className="text-4xl mb-4">{pkg.icon}</div>
+                <h4 className="font-bold text-2xl text-stone-800 mb-4">{pkg.name}</h4>
                 
-                <div className="mb-4">
-                  <p className="text-3xl font-bold text-gray-900 mb-1">
+                <div className="mb-6">
+                  <p className="text-4xl font-bold text-stone-800 mb-2">
                     {formatCurrency(pkg.pay)}
                   </p>
                   <div className="flex items-center justify-center gap-1 text-green-600">
-                    <Plus className="w-3 h-3" />
-                    <span className="text-sm font-semibold">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-base font-semibold">
                       {formatCurrency(pkg.bonus)} bonus
                     </span>
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 rounded-xl p-3 mb-4">
-                  <p className="text-sm text-gray-600 mb-1">You get total</p>
-                  <p className="text-xl font-bold text-gray-900">{formatCurrency(pkg.total)}</p>
-                  <p className="text-xs text-green-600 font-medium">{pkg.percentage} bonus</p>
+                <div className="bg-stone-50 rounded-2xl p-4 mb-6">
+                  <p className="text-sm text-stone-600 mb-2">You get total</p>
+                  <p className="text-2xl font-bold text-stone-800 mb-1">{formatCurrency(pkg.total)}</p>
+                  <p className="text-sm text-green-600 font-medium">{pkg.percentage} bonus</p>
                 </div>
                 
                 {selectedPackage === pkg.code ? (
                   <Button 
-                    className="w-full h-12 text-base font-semibold bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg transition-all duration-200"
+                    className="w-full h-14 text-lg font-bold text-white rounded-2xl shadow-lg transition-all duration-200"
+                    style={{ 
+                      background: topupMutation.isPending 
+                        ? 'linear-gradient(135deg, #9E9E9E 0%, #757575 100%)' 
+                        : 'linear-gradient(135deg, #4CAF50 0%, #45A049 100%)'
+                    }}
                     disabled={topupMutation.isPending}
                   >
                     {topupMutation.isPending ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         Processing...
                       </div>
                     ) : (
@@ -208,11 +222,84 @@ export default function CustomerTopup() {
                   </Button>
                 ) : (
                   <Button 
-                    className={`w-full h-12 text-base font-semibold rounded-xl transition-all duration-200 ${
+                    className={`w-full h-14 text-lg font-bold rounded-2xl transition-all duration-200 ${
                       pkg.popular 
-                        ? "bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white shadow-lg" 
-                        : "bg-gray-100 hover:bg-green-50 text-gray-700 hover:text-green-700 border border-gray-200 hover:border-green-300"
+                        ? "text-white shadow-lg" 
+                        : "text-stone-700 border-2 border-stone-300 bg-stone-50 hover:bg-stone-100"
                     }`}
+                    style={pkg.popular ? { 
+                      background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)' 
+                    } : {}}
+                  >
+                    Select Package
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+          
+          {/* ULTRA package - separate row */}
+          {packages.slice(3).map((pkg) => (
+            <Card 
+              key={pkg.code}
+              className={`relative cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border-0 shadow-lg sm:col-span-2 lg:col-span-3 max-w-md mx-auto ${
+                selectedPackage === pkg.code 
+                  ? "ring-4 ring-orange-300" 
+                  : ""
+              }`}
+              style={{ 
+                background: 'linear-gradient(135deg, #FEFEFE 0%, #F8F5F0 100%)',
+                border: '2px solid #E0D5C7'
+              }}
+              onClick={() => handleTopup(pkg.code)}
+            >
+              <CardContent className="p-6 text-center">
+                <div className="text-4xl mb-4">{pkg.icon}</div>
+                <h4 className="font-bold text-2xl text-stone-800 mb-4">{pkg.name}</h4>
+                
+                <div className="mb-6">
+                  <p className="text-4xl font-bold text-stone-800 mb-2">
+                    {formatCurrency(pkg.pay)}
+                  </p>
+                  <div className="flex items-center justify-center gap-1 text-green-600">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-base font-semibold">
+                      {formatCurrency(pkg.bonus)} bonus
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="bg-stone-50 rounded-2xl p-4 mb-6">
+                  <p className="text-sm text-stone-600 mb-2">You get total</p>
+                  <p className="text-2xl font-bold text-stone-800 mb-1">{formatCurrency(pkg.total)}</p>
+                  <p className="text-sm text-green-600 font-medium">{pkg.percentage} bonus</p>
+                </div>
+                
+                {selectedPackage === pkg.code ? (
+                  <Button 
+                    className="w-full h-14 text-lg font-bold text-white rounded-2xl shadow-lg transition-all duration-200"
+                    style={{ 
+                      background: topupMutation.isPending 
+                        ? 'linear-gradient(135deg, #9E9E9E 0%, #757575 100%)' 
+                        : 'linear-gradient(135deg, #4CAF50 0%, #45A049 100%)'
+                    }}
+                    disabled={topupMutation.isPending}
+                  >
+                    {topupMutation.isPending ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Processing...
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Check className="w-5 h-5" />
+                        Confirm Purchase
+                      </div>
+                    )}
+                  </Button>
+                ) : (
+                  <Button 
+                    className="w-full h-14 text-lg font-bold rounded-2xl transition-all duration-200 text-stone-700 border-2 border-stone-300 bg-stone-50 hover:bg-stone-100"
                   >
                     Select Package
                   </Button>
@@ -224,21 +311,20 @@ export default function CustomerTopup() {
 
         {/* Confirmation Card */}
         {selectedPackage && (
-          <Card className="bg-white border-2 border-green-200 shadow-xl">
+          <Card className="border-0 shadow-xl max-w-md mx-auto" style={{ background: 'linear-gradient(135deg, #FEFEFE 0%, #F8F5F0 100%)', border: '3px solid #4CAF50' }}>
             <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <Check className="w-8 h-8 text-green-600" />
+              <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #4CAF50 0%, #45A049 100%)' }}>
+                <Check className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              <h3 className="text-2xl font-bold text-stone-800 mb-2">
                 Ready to Confirm?
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-stone-600 mb-6">
                 Click the selected package above to complete your top-up, or cancel to choose a different option.
               </p>
               <Button
-                variant="outline"
                 onClick={() => setSelectedPackage(null)}
-                className="border-2 border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 rounded-xl px-8 py-3"
+                className="border-2 border-stone-300 text-stone-700 hover:border-stone-400 hover:bg-stone-50 rounded-2xl px-8 py-3 bg-white"
               >
                 Cancel Selection
               </Button>
