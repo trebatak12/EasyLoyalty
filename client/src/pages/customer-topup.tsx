@@ -147,7 +147,7 @@ export default function CustomerTopup() {
         </Card>
 
         {/* Package Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8"></div>
           {packages.map((pkg) => (
             <Card 
               key={pkg.code}
@@ -186,22 +186,22 @@ export default function CustomerTopup() {
                     </p>
                     <div className="flex items-center justify-center gap-1 text-green-600">
                       <Plus className="w-5 h-5 flex-shrink-0" />
-                      <span className="text-lg font-semibold">
+                      <span className="text-xl font-semibold">
                         {formatCurrency(pkg.bonus)} bonus
                       </span>
                     </div>
                   </div>
 
                   <div className="bg-stone-50 rounded-2xl p-4 mb-8 flex-1 flex flex-col justify-center">
-                    <p className="text-base text-stone-600 mb-2">You get total</p>
+                    <p className="text-lg text-stone-600 mb-2">You get total</p>
                     <p className="text-2xl font-bold text-stone-800 mb-2 leading-tight">{formatCurrency(pkg.total)}</p>
-                    <p className="text-base text-green-600 font-medium">{pkg.percentage} bonus</p>
+                    <p className="text-lg text-green-600 font-medium">{pkg.percentage} bonus</p>
                   </div>
                 </div>
 
                 {selectedPackage === pkg.code ? (
                   <Button 
-                    className="w-full h-14 text-base font-bold text-white rounded-2xl shadow-lg transition-all duration-200"
+                    className="w-full h-14 text-lg font-bold text-white rounded-2xl shadow-lg transition-all duration-200"
                     style={{ 
                       background: topupMutation.isPending 
                         ? 'linear-gradient(135deg, #9E9E9E 0%, #757575 100%)' 
@@ -223,7 +223,7 @@ export default function CustomerTopup() {
                   </Button>
                 ) : (
                   <Button 
-                    className="w-full h-14 text-base font-bold rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full h-14 text-lg font-bold rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl"
                     style={pkg.popular ? { 
                       background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
                       color: 'white'
