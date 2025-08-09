@@ -92,7 +92,7 @@ export default function CustomerHome() {
 
       <div className="container mx-auto px-6 py-8 max-w-4xl">
         {/* Wallet Card */}
-        <Card className="bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 text-white rounded-3xl p-8 mb-8 shadow-2xl border-0">
+        <Card className="bg-gradient-to-br from-yellow-400 via-orange-500 to-orange-600 text-white rounded-3xl p-8 mb-8 shadow-2xl border-0">
           <CardContent className="p-0">
             <div className="flex items-start justify-between mb-8">
               <div>
