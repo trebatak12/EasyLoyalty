@@ -135,7 +135,7 @@ export default function CustomerHome() {
         {/* Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card 
-            className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-yellow-50 border-2 border-green-400 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/topup")}
           >
             <CardContent className="p-0 text-center">
@@ -148,7 +148,7 @@ export default function CustomerHome() {
           </Card>
 
           <Card 
-            className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-yellow-50 border-2 border-yellow-400 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/qr")}
           >
             <CardContent className="p-0 text-center">
@@ -161,7 +161,7 @@ export default function CustomerHome() {
           </Card>
 
           <Card 
-            className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+            className="bg-yellow-50 border-2 border-yellow-500 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/history")}
           >
             <CardContent className="p-0 text-center">
