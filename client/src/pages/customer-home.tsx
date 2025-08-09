@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ export default function CustomerHome() {
     lastActivity: string;
   }>({
     queryKey: ["/api/me/wallet"],
-    enabled: isAuthenticated && !!api.authToken,
+    enabled: isAuthenticated && !!api.authToken, // Wait for token to be set
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
@@ -37,7 +36,7 @@ export default function CustomerHome() {
     transactions: any[];
   }>({
     queryKey: ["/api/me/history"], 
-    enabled: isAuthenticated && !!api.authToken,
+    enabled: isAuthenticated && !!api.authToken, // Wait for token to be set
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
@@ -49,6 +48,7 @@ export default function CustomerHome() {
       console.log("Refreshing wallet and history data after topup");
       refetchWallet();
       refetchHistory();
+      // Clear the URL parameter
       window.history.replaceState({}, '', '/home');
     }
   }, [refetchWallet, refetchHistory]);
@@ -63,62 +63,67 @@ export default function CustomerHome() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'hsl(35, 40%, 88%)' }}>
-      {/* Header */}
-      <div className="px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center">
-              <Coffee className="text-on-secondary" size={20} />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white text-high-contrast">
+      {/* Modern Header */}
+      <div className="bg-white border-b-2 border-blue-200 sticky top-0 z-10 shadow-lg">
+        <div className="container mx-auto px-6">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Coffee className="text-white" size={20} />
+              </div>
+              <div>
+                <h1 className="font-bold text-xl text-gray-900">{user?.name}</h1>
+                <p className="text-base text-gray-700 font-medium">{user?.email}</p>
+              </div>
             </div>
-            <h1 className="text-xl font-semibold text-text">{user?.name}</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 font-semibold rounded-xl px-4 py-2"
+            >
+              <LogOut size={18} />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLogout}
-            className="bg-surface border border-primary text-primary hover:bg-primary hover:text-on-primary rounded-xl px-4 py-2 font-medium"
-          >
-            <LogOut size={16} className="mr-2" />
-            Sign Out
-          </Button>
         </div>
       </div>
 
-      <div className="px-6 pb-8">
+      <div className="container mx-auto px-6 py-8 max-w-4xl">
         {/* Wallet Card */}
-        <Card className="bg-primary rounded-3xl p-6 mb-6 shadow-soft border-0">
+        <Card className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white rounded-3xl p-8 mb-8 shadow-2xl border-0">
           <CardContent className="p-0">
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex items-start justify-between mb-8">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Wallet size={18} className="text-on-primary/90" />
-                  <p className="text-on-primary/90 text-sm font-medium tracking-wide">WALLET BALANCE</p>
+                  <Wallet size={20} className="text-white/90" />
+                  <p className="text-white/90 text-sm font-medium">WALLET BALANCE</p>
                 </div>
                 {walletLoading ? (
-                  <div className="h-12 w-48 bg-on-primary/20 rounded-xl animate-pulse"></div>
+                  <div className="h-12 w-32 bg-white/20 rounded-2xl animate-pulse"></div>
                 ) : (
-                  <h2 className="text-4xl font-bold text-on-primary tracking-tight currency-display">
+                  <h2 className="text-4xl font-bold tracking-tight">
                     {formatCurrency(wallet?.balanceCents || 0)}
                   </h2>
                 )}
               </div>
-              <div className="w-12 h-12 bg-on-primary/20 rounded-xl flex items-center justify-center">
-                <CreditCard size={20} className="text-on-primary/90" />
+              <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center">
+                <CreditCard size={24} className="text-white/90" />
               </div>
             </div>
             
             {!walletLoading && wallet && (
-              <div className="flex items-center justify-between pt-4 border-t border-on-primary/20">
+              <div className="flex items-center justify-between pt-4 border-t border-white/20">
                 <div>
-                  <p className="text-on-primary/80 text-sm mb-1">Total Bonus Earned</p>
-                  <p className="text-lg font-semibold text-on-primary currency-display">
+                  <p className="text-white/70 text-sm">Total Bonus Earned</p>
+                  <p className="text-lg font-semibold">
                     {formatCurrency(wallet.bonusGrantedTotalCents || 0)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-on-primary/80 text-sm mb-1">Available Credit</p>
-                  <p className="text-lg font-semibold text-on-primary currency-display">
+                  <p className="text-white/70 text-sm">Available Credit</p>
+                  <p className="text-lg font-semibold">
                     {formatCurrency(wallet.balanceCents || 0)}
                   </p>
                 </div>
@@ -128,57 +133,57 @@ export default function CustomerHome() {
         </Card>
 
         {/* Action Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card 
-            className="bg-surface border border-success/30 rounded-2xl p-4 shadow-soft cursor-pointer hover:scale-[1.02] transition-transform"
+            className="bg-white border-2 border-green-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/topup")}
           >
             <CardContent className="p-0 text-center">
-              <div className="w-12 h-12 bg-success/20 rounded-xl mx-auto mb-3 flex items-center justify-center">
-                <Plus size={20} className="text-success font-bold" />
+              <div className="w-16 h-16 bg-green-100 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-green-300">
+                <Plus size={24} className="text-green-700 font-bold" />
               </div>
-              <h3 className="font-semibold text-text mb-1">Top Up</h3>
-              <p className="text-xs text-muted leading-tight">Add money and get bonus credits</p>
+              <h3 className="font-bold text-xl text-gray-900 mb-2">Top Up</h3>
+              <p className="text-base text-gray-700 font-medium">Add money and get bonus credits</p>
             </CardContent>
           </Card>
 
           <Card 
-            className="bg-surface border border-text/20 rounded-2xl p-4 shadow-soft cursor-pointer hover:scale-[1.02] transition-transform"
+            className="bg-white border-2 border-blue-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/qr")}
           >
             <CardContent className="p-0 text-center">
-              <div className="w-12 h-12 bg-text/10 rounded-xl mx-auto mb-3 flex items-center justify-center">
-                <QrCode size={20} className="text-text font-bold" />
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-blue-300">
+                <QrCode size={24} className="text-blue-700 font-bold" />
               </div>
-              <h3 className="font-semibold text-text mb-1">Pay with QR</h3>
-              <p className="text-xs text-muted leading-tight">Generate payment code</p>
+              <h3 className="font-bold text-xl text-gray-900 mb-2">Pay with QR</h3>
+              <p className="text-base text-gray-700 font-medium">Generate payment code</p>
             </CardContent>
           </Card>
 
           <Card 
-            className="bg-surface border border-accent/30 rounded-2xl p-4 shadow-soft cursor-pointer hover:scale-[1.02] transition-transform"
+            className="bg-white border-2 border-purple-300 rounded-2xl p-6 shadow-strong hover:shadow-2xl transition-all duration-200 cursor-pointer hover:scale-[1.02]"
             onClick={() => setLocation("/history")}
           >
             <CardContent className="p-0 text-center">
-              <div className="w-12 h-12 bg-accent/20 rounded-xl mx-auto mb-3 flex items-center justify-center">
-                <History size={20} className="text-accent font-bold" />
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-purple-300">
+                <History size={24} className="text-purple-700 font-bold" />
               </div>
-              <h3 className="font-semibold text-text mb-1">History</h3>
-              <p className="text-xs text-muted leading-tight">View all transactions</p>
+              <h3 className="font-bold text-xl text-gray-900 mb-2">History</h3>
+              <p className="text-base text-gray-700 font-medium">View all transactions</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Recent Activity */}
-        <Card className="bg-surface rounded-2xl shadow-soft border border-border">
+        <Card className="bg-white border-2 border-gray-300 rounded-2xl shadow-strong">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-text">Recent Activity</h3>
+              <h3 className="text-2xl font-bold text-gray-900">Recent Activity</h3>
               <Button 
-                variant="ghost" 
+                variant="outline" 
                 size="sm"
                 onClick={() => setLocation("/history")}
-                className="text-text hover:bg-text/5 font-medium"
+                className="text-blue-600 border-blue-300 hover:bg-blue-50 font-semibold rounded-xl"
               >
                 View All
               </Button>
@@ -187,11 +192,11 @@ export default function CustomerHome() {
             {historyLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-surface/50 rounded-xl">
+                  <div key={i} className="flex items-center justify-between p-4 bg-surface/50 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-border rounded-lg animate-pulse"></div>
+                      <div className="w-10 h-10 bg-border rounded-xl animate-pulse"></div>
                       <div className="space-y-2">
-                        <div className="h-4 w-20 bg-border rounded animate-pulse"></div>
+                        <div className="h-4 w-24 bg-border rounded animate-pulse"></div>
                         <div className="h-3 w-16 bg-border rounded animate-pulse"></div>
                       </div>
                     </div>
@@ -202,44 +207,52 @@ export default function CustomerHome() {
             ) : recentTransactions?.transactions && recentTransactions.transactions.length > 0 ? (
               <div className="space-y-3">
                 {recentTransactions.transactions.slice(0, 5).map((transaction: any) => (
-                  <div key={transaction.id} className="flex items-center justify-between py-3">
+                  <div key={transaction.id} className="flex items-center justify-between p-4 bg-surface/30 rounded-xl hover:bg-surface/40 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-success/20 rounded-lg flex items-center justify-center">
-                        <Plus size={14} className="text-success" />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        transaction.type === 'topup' ? 'bg-sage/10' :
+                        transaction.type === 'charge' ? 'bg-primary/10' :
+                        'bg-dusty/10'
+                      }`}>
+                        {transaction.type === 'topup' ? (
+                          <Plus size={16} className="text-sage" />
+                        ) : transaction.type === 'charge' ? (
+                          <QrCode size={16} className="text-primary" />
+                        ) : (
+                          <History size={16} className="text-dusty" />
+                        )}
                       </div>
                       <div>
-                        <p className="font-medium text-text">
+                        <p className="font-medium text-foreground text-sm">
                           {transaction.type === 'topup' ? 'Top Up' :
                            transaction.type === 'charge' ? 'Payment' :
                            transaction.type}
                         </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(transaction.createdAt).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
-                    <span className="font-semibold text-success currency-display">
-                      +{formatCurrency(Math.abs(transaction.amountCents))}
+                    <span className={`font-semibold text-sm ${
+                      transaction.amountCents > 0 ? 'text-sage' : 'text-foreground'
+                    }`}>
+                      {transaction.amountCents > 0 ? '+' : ''}
+                      {formatCurrency(Math.abs(transaction.amountCents) / 100)}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8">
-                <div className="w-12 h-12 bg-muted/20 rounded-xl mx-auto mb-4 flex items-center justify-center">
-                  <History size={20} className="text-muted" />
+                <div className="w-16 h-16 bg-muted/20 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                  <History size={24} className="text-muted" />
                 </div>
-                <p className="text-muted">No transactions yet</p>
-                <p className="text-sm text-muted mt-1">Start by topping up your wallet</p>
+                <p className="text-muted-foreground">No transactions yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Start by topping up your wallet</p>
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Footer Logo */}
-        <div className="text-center mt-8 pt-4">
-          <div className="flex items-center justify-center gap-2 text-secondary">
-            <Coffee size={20} />
-            <span className="font-semibold">easyloyalty</span>
-          </div>
-        </div>
       </div>
     </div>
   );
