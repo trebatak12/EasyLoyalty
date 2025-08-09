@@ -101,26 +101,7 @@ export default function AdminAuth() {
               </p>
             </div>
 
-            <div className="space-y-6 mb-8">
-              <div className="flex items-center gap-3 text-amber-800">
-                <div className="w-6 h-6 bg-amber-200 rounded-lg flex items-center justify-center">
-                  <Store className="w-4 h-4 text-amber-700" />
-                </div>
-                <span className="font-medium">Příjem plateb</span>
-              </div>
-              <div className="flex items-center gap-3 text-amber-800">
-                <div className="w-6 h-6 bg-amber-200 rounded-lg flex items-center justify-center">
-                  <Mail className="w-4 h-4 text-amber-700" />
-                </div>
-                <span className="font-medium">Správa zákazníků</span>
-              </div>
-              <div className="flex items-center gap-3 text-amber-800">
-                <div className="w-6 h-6 bg-amber-200 rounded-lg flex items-center justify-center">
-                  <Lock className="w-4 h-4 text-amber-700" />
-                </div>
-                <span className="font-medium">Obchodní analytics</span>
-              </div>
-            </div>
+            
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
