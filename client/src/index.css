@@ -3,25 +3,25 @@
 @tailwind utilities;
 
 :root {
-  /* EasyLoyalty color palette */
-  --bg: hsl(42, 25%, 92%); /* #F4F1E8 - Warm cream/beige background */
+  /* EasyLoyalty color palette - matching brown image colors */
+  --bg: hsl(45, 35%, 94%); /* #F8F6F0 - Very light warm cream background */
   --surface: hsl(0, 0%, 100%); /* #FFFFFF - Pure white surface */
   --card: hsl(0, 0%, 100%); /* #FFFFFF - Pure white cards */
-  --border: hsl(220, 13%, 91%); /* #E5E7EB - Light gray borders */
+  --border: hsl(25, 15%, 85%); /* #DDD5CC - Warm light brown borders */
 
-  --text: hsl(0, 0%, 13%); /* #212121 - Dark text */
-  --muted: hsl(0, 0%, 45%); /* #737373 - Medium gray for secondary text */
+  --text: hsl(20, 25%, 25%); /* #463B32 - Rich dark brown text */
+  --muted: hsl(20, 15%, 55%); /* #8B7F73 - Medium warm brown for secondary text */
 
-  --primary: hsl(35, 45%, 65%); /* #D4A373 - Golden brown primary */
-  --primary-hover: hsl(35, 45%, 60%);
+  --primary: hsl(20, 65%, 45%); /* #B8632A - Rich orange-brown primary (matching button) */
+  --primary-hover: hsl(20, 70%, 40%); /* #A55425 - Darker on hover */
   --on-primary: hsl(0, 0%, 100%); /* #FFFFFF */
 
-  --secondary: hsl(25, 50%, 35%); /* #8B5A2B - Dark brown secondary */
-  --secondary-hover: hsl(25, 50%, 30%);
+  --secondary: hsl(20, 50%, 35%); /* #8B5A2B - Dark brown secondary */
+  --secondary-hover: hsl(20, 55%, 30%); /* #7A4E24 - Darker on hover */
   --on-secondary: hsl(0, 0%, 100%); /* #FFFFFF */
 
-  --accent: hsl(35, 45%, 65%); /* #D4A373 - Golden accent */
-  --ring: hsl(35, 45%, 65%); /* #D4A373 */
+  --accent: hsl(20, 65%, 45%); /* #B8632A - Rich orange-brown accent */
+  --ring: hsl(20, 65%, 45%); /* #B8632A */
 
   --success: hsl(142, 76%, 36%); /* #16A34A */
   --warning: hsl(38, 92%, 50%); /* #EAB308 */
