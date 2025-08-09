@@ -190,65 +190,83 @@ export default function CustomerHome() {
             </div>
             
             {historyLoading ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center justify-between p-4 bg-surface/50 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-border rounded-xl animate-pulse"></div>
+                  <div key={i} className="flex items-center justify-between p-4 bg-yellow-100 rounded-2xl border border-yellow-300 animate-pulse">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-yellow-200 rounded-2xl"></div>
                       <div className="space-y-2">
-                        <div className="h-4 w-24 bg-border rounded animate-pulse"></div>
-                        <div className="h-3 w-16 bg-border rounded animate-pulse"></div>
+                        <div className="h-4 w-24 bg-yellow-200 rounded-xl"></div>
+                        <div className="h-3 w-20 bg-yellow-200 rounded-xl"></div>
                       </div>
                     </div>
-                    <div className="h-4 w-16 bg-border rounded animate-pulse"></div>
+                    <div className="h-5 w-16 bg-yellow-200 rounded-xl"></div>
                   </div>
                 ))}
               </div>
             ) : recentTransactions?.transactions && recentTransactions.transactions.length > 0 ? (
               <div className="space-y-3">
                 {recentTransactions.transactions.slice(0, 5).map((transaction: any) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-4 bg-surface/30 rounded-xl hover:bg-surface/40 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        transaction.type === 'topup' ? 'bg-sage/10' :
-                        transaction.type === 'charge' ? 'bg-primary/10' :
-                        'bg-dusty/10'
+                  <div key={transaction.id} className="flex items-center justify-between p-4 bg-yellow-100 rounded-2xl border border-yellow-300 hover:bg-yellow-150 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 ${
+                        transaction.type === 'topup' ? 'bg-green-200 border-green-400' :
+                        transaction.type === 'charge' ? 'bg-blue-200 border-blue-400' :
+                        transaction.type === 'void' ? 'bg-red-200 border-red-400' :
+                        'bg-orange-200 border-orange-400'
                       }`}>
                         {transaction.type === 'topup' ? (
-                          <Plus size={16} className="text-sage" />
+                          <Plus size={18} className="text-green-700 font-bold" />
                         ) : transaction.type === 'charge' ? (
-                          <QrCode size={16} className="text-primary" />
+                          <Coffee size={18} className="text-blue-700 font-bold" />
+                        ) : transaction.type === 'void' ? (
+                          <QrCode size={18} className="text-red-700 font-bold" />
                         ) : (
-                          <History size={16} className="text-dusty" />
+                          <History size={18} className="text-orange-700 font-bold" />
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-foreground text-sm">
-                          {transaction.type === 'topup' ? 'Top Up' :
-                           transaction.type === 'charge' ? 'Payment' :
-                           transaction.type}
+                        <p className="font-bold text-gray-900 text-base">
+                          {transaction.type === 'topup' ? 
+                            `Top-up ${transaction.meta?.packageCode || ''}` :
+                           transaction.type === 'charge' ? 'Café Payment' :
+                           transaction.type === 'void' ? 'Payment Voided' :
+                           'Transaction'}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(transaction.createdAt).toLocaleDateString()}
+                        <p className="text-sm text-orange-700 font-medium">
+                          {new Date(transaction.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric"
+                          })} • {new Date(transaction.createdAt).toLocaleTimeString("en-US", {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
                         </p>
                       </div>
                     </div>
-                    <span className={`font-semibold text-sm ${
-                      transaction.amountCents > 0 ? 'text-sage' : 'text-foreground'
+                    <span className={`font-bold text-lg ${
+                      transaction.amountCents > 0 ? 'text-green-600' : 'text-gray-900'
                     }`}>
                       {transaction.amountCents > 0 ? '+' : ''}
-                      {formatCurrency(Math.abs(transaction.amountCents) / 100)}
+                      {transaction.amountCZK}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-muted/20 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                  <History size={24} className="text-muted" />
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-500 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                  <History size={28} className="text-white" />
                 </div>
-                <p className="text-muted-foreground">No transactions yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Start by topping up your wallet</p>
+                <h4 className="text-xl font-bold text-gray-900 mb-2">No activity yet</h4>
+                <p className="text-orange-700 font-medium mb-6">Start by topping up your wallet to see your transaction history</p>
+                <Button 
+                  onClick={() => setLocation("/topup")} 
+                  className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-bold rounded-2xl px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Top Up Now
+                </Button>
               </div>
             )}
           </CardContent>
