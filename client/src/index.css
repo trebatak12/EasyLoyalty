@@ -149,7 +149,15 @@
   }
 
   .btn-primary {
-    @apply h-11 px-5 rounded-xl bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 font-medium transition-colors;
+    @apply h-11 px-5 rounded-xl text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 font-medium transition-all;
+    background: linear-gradient(135deg, #B8632A 0%, #8B4513 100%);
+    box-shadow: 0 4px 12px rgba(184, 99, 42, 0.3);
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #A55425 0%, #7A3F10 100%);
+    box-shadow: 0 6px 16px rgba(184, 99, 42, 0.4);
+    transform: translateY(-1px);
   }
 
   .btn-secondary {
