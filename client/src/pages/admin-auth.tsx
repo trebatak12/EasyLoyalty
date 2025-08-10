@@ -101,7 +101,7 @@ export default function AdminAuth() {
               </p>
             </div>
 
-            
+
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
