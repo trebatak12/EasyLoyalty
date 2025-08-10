@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -113,7 +114,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-stone-600">{admin.email}</p>
               </div>
             </div>
-            <Button
+            <Button 
               variant="outline"
               onClick={handleLogout}
               className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl px-4 py-2"
@@ -136,7 +137,7 @@ export default function AdminDashboard() {
         ) : dashboardQuery.error ? (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
             <p className="text-red-800 font-semibold">Chyba při načítání dat dashboardu</p>
-            <Button
+            <Button 
               onClick={() => dashboardQuery.refetch()}
               className="mt-4 bg-red-600 hover:bg-red-700"
             >
@@ -162,7 +163,7 @@ export default function AdminDashboard() {
                     <CreditCard className="w-6 h-6" />
                   </div>
                 </div>
-
+                
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <div className="text-amber-100 text-sm font-medium mb-1">Total Balance</div>
@@ -178,7 +179,7 @@ export default function AdminDashboard() {
 
             {/* Action Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Card
+              <Card 
                 className="border-2 border-green-200 bg-green-50/50 hover:bg-green-50 transition-all duration-200 cursor-pointer rounded-3xl shadow-lg hover:shadow-xl group"
                 onClick={() => setLocation("/admin/customers")}
               >
@@ -191,7 +192,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card
+              <Card 
                 className="border-2 border-blue-200 bg-blue-50/50 hover:bg-blue-50 transition-all duration-200 cursor-pointer rounded-3xl shadow-lg hover:shadow-xl group"
                 onClick={() => setLocation("/pos/charge")}
               >
@@ -204,7 +205,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card
+              <Card 
                 className="border-2 border-yellow-200 bg-yellow-50/50 hover:bg-yellow-50 transition-all duration-200 cursor-pointer rounded-3xl shadow-lg hover:shadow-xl group sm:col-span-2 lg:col-span-1"
                 onClick={() => setLocation("/admin/summaries")}
               >
@@ -223,7 +224,7 @@ export default function AdminDashboard() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-bold text-stone-800">Recent Activity</CardTitle>
-                  <Button
+                  <Button 
                     variant="outline"
                     className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl text-sm"
                     onClick={() => setLocation("/admin/summaries")}

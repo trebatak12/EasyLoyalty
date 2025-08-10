@@ -105,27 +105,6 @@
 }
 
 @layer components {
-  /* Dashboard stat card gradients */
-  .gradient-customers {
-    background: linear-gradient(135deg, #FFE0B2 0%, #FFCC80 30%, #FFB74D 100%);
-    border: 1px solid #FFB74D;
-  }
-
-  .gradient-revenue {
-    background: linear-gradient(135deg, #E8F5E8 0%, #C8E6C9 30%, #A5D6A7 100%);
-    border: 1px solid #81C784;
-  }
-
-  .gradient-balance {
-    background: linear-gradient(135deg, #FFF3E0 0%, #FFCC80 30%, #FF8A65 100%);
-    border: 1px solid #FF7043;
-  }
-
-  .gradient-income {
-    background: linear-gradient(135deg, #F3E5F5 0%, #CE93D8 30%, #BA68C8 100%);
-    border: 1px solid #AB47BC;
-  }
-
   /* High contrast utility classes */
   .text-high-contrast {
     color: hsl(220, 100%, 5%); /* Almost black for maximum contrast */
