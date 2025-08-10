@@ -148,10 +148,10 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {/* Main Stats Card */}
             <Card className="border-0 shadow-xl rounded-3xl overflow-hidden">
-              <div className="bg-gradient-to-r from-orange-400 to-orange-500 text-white p-6 sm:p-8">
+              <div className="bg-gradient-to-r from-amber-700 to-amber-800 text-white p-6 sm:p-8">
                 <div className="flex items-start justify-between mb-6">
                   <div>
-                    <div className="flex items-center gap-2 text-orange-100 text-sm font-medium mb-2">
+                    <div className="flex items-center gap-2 text-amber-100 text-sm font-medium mb-2">
                       <Wallet className="w-4 h-4" />
                       ADMIN OVERVIEW
                     </div>
@@ -166,11 +166,11 @@ export default function AdminDashboard() {
                 
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <div className="text-orange-100 text-sm font-medium mb-1">Total Balance</div>
+                    <div className="text-amber-100 text-sm font-medium mb-1">Total Balance</div>
                     <div className="text-xl sm:text-2xl font-bold">{dashboardQuery.data?.totalBalance || 0} Kč</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-orange-100 text-sm font-medium mb-1">Transactions</div>
+                    <div className="text-amber-100 text-sm font-medium mb-1">Transactions</div>
                     <div className="text-xl sm:text-2xl font-bold">{dashboardQuery.data?.totalTransactions || 0}</div>
                   </div>
                 </div>
