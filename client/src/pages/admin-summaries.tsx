@@ -93,30 +93,13 @@ export default function AdminSummaries() {
                 <p className="text-sm text-stone-600">Statistiky a přehledy • {admin?.name}</p>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center">
               <Button 
                 variant="outline"
                 onClick={handleBackToDashboard}
-                className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl px-4 py-2"
+                className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl p-2"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Dashboard
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleRefresh}
-                className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl px-4 py-2"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleLogout}
-                className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl px-4 py-2"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Odhlásit
+                <ArrowLeft className="w-4 h-4" />
               </Button>
             </div>
           </div>
