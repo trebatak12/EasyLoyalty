@@ -148,7 +148,10 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {/* Main Stats Card */}
             <Card className="border-0 shadow-xl rounded-3xl overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-700 to-amber-800 text-white p-6 sm:p-8">
+              <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-white p-6 sm:p-8 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-30"></div>
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/10 to-transparent"></div>
+                <div className="relative z-10"></div>
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <div className="flex items-center gap-2 text-amber-100 text-sm font-medium mb-2">
@@ -173,6 +176,7 @@ export default function AdminDashboard() {
                     <div className="text-amber-100 text-sm font-medium mb-1">Transactions</div>
                     <div className="text-xl sm:text-2xl font-bold">{dashboardQuery.data?.totalTransactions || 0}</div>
                   </div>
+                </div>
                 </div>
               </div>
             </Card>
