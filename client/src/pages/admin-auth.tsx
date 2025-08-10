@@ -78,12 +78,12 @@ export default function AdminAuth() {
   const password = loginData.password;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Button
           variant="outline"
           onClick={() => setLocation("/")}
-          className="mb-6 border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold flex items-center gap-2 rounded-xl"
+          className="mb-6 border-orange-200 text-orange-600 hover:bg-orange-50 font-semibold flex items-center gap-2 rounded-xl"
         >
           <ArrowLeft size={18} />
           Back to Mode Selection
@@ -92,55 +92,55 @@ export default function AdminAuth() {
         <Card className="bg-white border-0 rounded-3xl shadow-xl">
           <CardContent className="pt-6">
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-r from-amber-700 to-amber-800 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+              <div className="w-20 h-20 bg-orange-500 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
                 <Store className="text-white" size={28} />
               </div>
-              <h1 className="text-3xl font-bold text-amber-900 mb-2">Personál kavárny</h1>
-              <p className="text-lg text-amber-700 font-medium">
+              <h1 className="text-3xl font-bold text-stone-800 mb-2">Personál kavárny</h1>
+              <p className="text-lg text-stone-600 font-medium">
                 Příjem plateb, správa zákazníků a obchodní analytics
               </p>
-            </div></CardContent></div>
+            </div>
 
 
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
-                <Label htmlFor="email" className="block text-sm font-medium text-amber-800 mb-2">
+                <Label htmlFor="email" className="block text-sm font-medium text-stone-800 mb-2">
                   Email Address
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-700" size={18} />
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-orange-600" size={18} />
                   <Input
                     id="email"
                     type="email"
                     placeholder="admin@cafe.com"
                     value={loginData.email}
                     onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    className="pl-12 h-12 rounded-xl border border-amber-200 bg-amber-50/30 focus:border-amber-600 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
+                    className="pl-12 h-12 rounded-xl border border-stone-200 bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-200 text-stone-800 font-medium transition-colors"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="password" className="block text-sm font-medium text-amber-800 mb-2">
+                <Label htmlFor="password" className="block text-sm font-medium text-stone-800 mb-2">
                   Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-700" size={18} />
+                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-orange-600" size={18} />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={loginData.password}
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    className="pl-12 h-12 rounded-xl border border-amber-200 bg-amber-50/30 focus:border-amber-600 focus:ring-2 focus:ring-amber-200 text-amber-900 font-medium transition-colors"
+                    className="pl-12 h-12 rounded-xl border border-stone-200 bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-200 text-stone-800 font-medium transition-colors"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-700 hover:text-amber-800 transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-600 hover:text-orange-800 transition-colors"
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -159,7 +159,7 @@ export default function AdminAuth() {
 
               <Button
                 type="submit"
-                className="w-full h-14 rounded-xl bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-800 hover:to-amber-900 text-white font-bold text-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-14 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoading || !loginData.email || !loginData.password}
               >
                 {isLoading ? "Přihlašování..." : "Přihlásit se jako personál"}
@@ -167,7 +167,7 @@ export default function AdminAuth() {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-stone-600">
                 Přístup pouze pro zaměstnance kavárny
               </p>
             </div>
