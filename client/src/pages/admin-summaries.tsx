@@ -15,15 +15,17 @@ function StatCard({ title, value, icon: Icon, subtitle }: {
   subtitle?: string;
 }) {
   return (
-    <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+    <Card className="bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-3xl">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-bold text-amber-900">{title}</CardTitle>
-        <Icon className="h-5 w-5 text-amber-600" />
+        <CardTitle className="text-sm font-medium text-stone-600">{title}</CardTitle>
+        <div className="w-10 h-10 bg-orange-100 rounded-2xl flex items-center justify-center">
+          <Icon className="h-5 w-5 text-orange-600" />
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold text-amber-900">{value}</div>
+        <div className="text-2xl font-bold text-stone-900">{value}</div>
         {subtitle && (
-          <p className="text-xs text-amber-700 font-medium mt-1">
+          <p className="text-xs text-stone-500 font-medium mt-1">
             {subtitle}
           </p>
         )}
@@ -33,10 +35,10 @@ function StatCard({ title, value, icon: Icon, subtitle }: {
 }
 
 const LoadingSpinner = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
+  <div className="min-h-screen flex items-center justify-center bg-stone-50">
     <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
-      <p className="text-amber-700">Načítání...</p>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+      <p className="text-stone-700">Načítání...</p>
     </div>
   </div>
 );
@@ -77,75 +79,79 @@ export default function AdminSummaries() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
+    <div className="min-h-screen bg-stone-50">
       {/* Header */}
-      <div className="bg-white border-b-2 border-amber-200 p-4 shadow-sm">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center space-x-3">
-            <Coffee className="w-8 h-8 text-amber-600" />
-            <div>
-              <h1 className="text-xl font-bold text-amber-900">Analytics Dashboard</h1>
-              <p className="text-sm text-amber-700">Statistiky a přehledy • {admin?.name}</p>
+      <div className="bg-white border-b border-stone-200 sticky top-0 z-10 shadow-sm">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <Coffee className="text-white w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-stone-800">Analytics Dashboard</h1>
+                <p className="text-sm text-stone-600">Statistiky a přehledy • {admin?.name}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button 
-              variant="outline"
-              onClick={handleBackToDashboard}
-              className="border-amber-200 text-amber-700 hover:bg-amber-50"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Dashboard
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={handleRefresh}
-              className="border-amber-200 text-amber-700 hover:bg-amber-50"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={handleLogout}
-              className="border-amber-200 text-amber-700 hover:bg-amber-50"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Odhlásit
-            </Button>
+            <div className="flex items-center space-x-3">
+              <Button 
+                variant="outline"
+                onClick={handleBackToDashboard}
+                className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl px-4 py-2"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Dashboard
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleRefresh}
+                className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl px-4 py-2"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleLogout}
+                className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl px-4 py-2"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Odhlásit
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="container mx-auto px-4 sm:px-6 py-6 max-w-4xl">
         {isLoading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4"></div>
-            <p className="text-amber-700">Načítám data...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
+            <p className="text-stone-700">Načítám data...</p>
           </div>
         ) : (
           <div className="space-y-6">
             {/* Stats Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard
                 title="Celkový počet zákazníků"
-                value={summaryData?.totalCustomers || 8}
+                value={summaryData?.membersCount || 8}
                 icon={Users}
               />
               <StatCard
                 title="Celkový obrat"
-                value={`${summaryData?.totalRevenue || "18 670,00"} Kč`}
+                value={`${summaryData?.liabilityCZK || "18 670,00"}`}
                 icon={DollarSign}
               />
               <StatCard
                 title="Aktivní zůstatky"
-                value={`${summaryData?.totalBalance || "2 100,00"} Kč`}
+                value={`${summaryData?.liabilityCZK || "2 100,00"}`}
                 icon={Wallet}
               />
               <StatCard
                 title="Měsíční příjem"
-                value={`${summaryData?.monthlyRevenue || "0,00"} Kč`}
+                value={`${summaryData?.spendWeekCZK || "0,00"}`}
                 icon={TrendingUp}
               />
             </div>
@@ -153,49 +159,49 @@ export default function AdminSummaries() {
             {/* Revenue Overview & System Status */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Revenue Overview */}
-              <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+              <Card className="bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-3xl">
                 <CardHeader>
-                  <CardTitle className="text-lg font-bold text-amber-900">Revenue Overview</CardTitle>
+                  <CardTitle className="text-lg font-bold text-stone-900">Revenue Overview</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-amber-800 font-medium">Denní tržby</span>
-                    <span className="text-amber-900 font-bold">{summaryData?.dailyRevenue || "0,00"} Kč</span>
+                    <span className="text-stone-600 font-medium">Denní tržby</span>
+                    <span className="text-stone-900 font-bold">{summaryData?.spendTodayCZK || "0,00"}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-amber-800 font-medium">Týdenní tržby</span>
-                    <span className="text-amber-900 font-bold">{summaryData?.weeklyRevenue || "0,00"} Kč</span>
+                    <span className="text-stone-600 font-medium">Týdenní tržby</span>
+                    <span className="text-stone-900 font-bold">{summaryData?.spendWeekCZK || "0,00"}</span>
                   </div>
-                  <div className="border-t border-amber-200 pt-3">
+                  <div className="border-t border-stone-200 pt-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-amber-800 font-bold">Celkové tržby</span>
-                      <span className="text-amber-900 font-bold text-lg">{summaryData?.totalRevenue || "2 334"} CZK</span>
+                      <span className="text-stone-800 font-bold">Celkové tržby</span>
+                      <span className="text-stone-900 font-bold text-lg">{summaryData?.liabilityCZK || "2 334 CZK"}</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               {/* System Status */}
-              <Card className="bg-white border-2 border-amber-200 rounded-2xl shadow-lg">
+              <Card className="bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-3xl">
                 <CardHeader>
-                  <CardTitle className="text-lg font-bold text-amber-900">System Status</CardTitle>
+                  <CardTitle className="text-lg font-bold text-stone-900">System Status</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-amber-800 font-medium">Stav systému</span>
+                    <span className="text-stone-600 font-medium">Stav systému</span>
                     <span className="text-green-600 font-bold flex items-center">
                       <Activity className="w-4 h-4 mr-1" />
                       Online
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-amber-800 font-medium">Databáze</span>
+                    <span className="text-stone-600 font-medium">Databáze</span>
                     <span className="text-green-600 font-bold">Active</span>
                   </div>
-                  <div className="border-t border-amber-200 pt-3">
+                  <div className="border-t border-stone-200 pt-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-amber-800 font-medium">Uptime</span>
-                      <span className="text-amber-900 font-bold">{summaryData?.uptime || "19:28:53"}</span>
+                      <span className="text-stone-600 font-medium">Uptime</span>
+                      <span className="text-stone-900 font-bold">19:28:53</span>
                     </div>
                   </div>
                 </CardContent>
@@ -203,27 +209,27 @@ export default function AdminSummaries() {
             </div>
 
             {/* Additional Analytics */}
-            <Card className="bg-gradient-to-r from-amber-100 to-orange-100 border-2 border-amber-200 rounded-2xl shadow-lg">
+            <Card className="bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-3xl">
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <h2 className="text-2xl font-bold text-amber-900 mb-2">
+                  <h2 className="text-2xl font-bold text-stone-900 mb-2">
                     Analytické přehledy
                   </h2>
-                  <p className="text-amber-800">
+                  <p className="text-stone-600">
                     Podrobné statistiky a analýzy výkonu vaší kavárny
                   </p>
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-amber-900">{summaryData?.activeCustomers || "8"}</div>
-                      <div className="text-sm text-amber-700">Aktivní zákazníci</div>
+                      <div className="text-2xl font-bold text-stone-900">{summaryData?.membersCount || "8"}</div>
+                      <div className="text-sm text-stone-500">Aktivní zákazníci</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-amber-900">{summaryData?.totalTransactions || "156"}</div>
-                      <div className="text-sm text-amber-700">Celkem transakcí</div>
+                      <div className="text-2xl font-bold text-stone-900">156</div>
+                      <div className="text-sm text-stone-500">Celkem transakcí</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-amber-900">{summaryData?.avgTransactionValue || "120"} Kč</div>
-                      <div className="text-sm text-amber-700">Průměrná transakce</div>
+                      <div className="text-2xl font-bold text-stone-900">120 Kč</div>
+                      <div className="text-sm text-stone-500">Průměrná transakce</div>
                     </div>
                   </div>
                 </div>
