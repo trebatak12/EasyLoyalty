@@ -7,9 +7,30 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 
 // FIX: CORS configuration for cross-origin requests with credentials
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5000";
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: (origin, callback) => {
+    // Allow Replit domains and localhost for development
+    const allowedOrigins = [
+      'http://localhost:5000',
+      'http://localhost:3000',
+      /^https:\/\/.*\.replit\.dev$/,
+      /^https:\/\/.*\.replit\.app$/,
+    ];
+    
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(pattern => {
+      if (typeof pattern === 'string') {
+        return pattern === origin;
+      } else {
+        return pattern.test(origin);
+      }
+    });
+    
+    callback(null, isAllowed);
+  },
   credentials: true
 }));
 
