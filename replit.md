@@ -43,6 +43,8 @@ shared/   # Zod typy & schémata
 - **Race condition fix:** Frontend refresh now uses useRef to prevent multiple simultaneous refreshes
 - **Logout improvement:** Always calls API to clear refresh cookie, even without access token
 - **HTTP-only cookies:** All auth routes now properly set refresh tokens as secure cookies
+- **CORS configuration:** Added proper CORS middleware with credentials support for cross-origin requests
+- **Cookie security:** Updated SameSite mode to "lax" for better cross-origin compatibility while maintaining security
 
 ## Current Sprint (2025-W31)
 1. Dokončit 120 s void logiku `/server/src/void.ts`

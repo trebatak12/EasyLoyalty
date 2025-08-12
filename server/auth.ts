@@ -330,15 +330,15 @@ export async function verifyGoogleToken(idToken: string): Promise<{
 // FIX: Wider cookie path for consistent deletion
 export const REFRESH_COOKIE_PATH = "/api/auth"; // wider than just /api/auth/refresh
 
-// FIX: SameSite strategy configuration
-const SAME_SITE_MODE = process.env.COOKIE_SAMESITE || "strict"; // "strict" | "lax" | "none"
+// FIX: SameSite strategy configuration  
+const SAME_SITE_MODE = process.env.COOKIE_SAMESITE || "lax"; // "strict" | "lax" | "none"
 
 // Secure cookie configuration
 export function getSecureCookieOptions(path: string = REFRESH_COOKIE_PATH) {
   return {
     httpOnly: true,
-    secure: isProd,
-    sameSite: SAME_SITE_MODE as "strict" | "lax" | "none",
+    secure: isProd, // false in dev mode so cookies work on localhost
+    sameSite: "lax" as const, // for cross-site cookie sending during tests
     path,
     maxAge: REFRESH_TOKEN_TTL // 30 days
   };
