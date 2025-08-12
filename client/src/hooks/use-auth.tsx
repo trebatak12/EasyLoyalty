@@ -36,10 +36,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Set access token in memory and API headers
   const setTokens = (newAccessToken: string) => {
-    console.log("Setting new access token:", newAccessToken?.substring(0, 20) + "...");
+    console.log("🔧 setTokens called with:", newAccessToken?.substring(0, 20) + "...");
     setAccessToken(newAccessToken);
     api.setAuthToken(newAccessToken);
-    console.log("Token set in API service, current token:", api.authToken?.substring(0, 20) + "...");
+    console.log("✅ Tokens set - state updated, api.authToken:", !!api.authToken);
   };
 
   // Clear tokens (refresh token cleared via cookie)
