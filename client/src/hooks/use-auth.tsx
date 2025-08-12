@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { api } from "@/services/api";
 
 interface User {
@@ -31,8 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 🔒 SECURITY: Access token stored ONLY in memory (React state)
   const [accessToken, setAccessToken] = useState<string | null>(null);
   
-  // Track refresh state to prevent multiple simultaneous refreshes
-  let isRefreshing = false;
+  // FIX: Prevent refresh race conditions with useRef (survives re-renders)
+  const isRefreshingRef = useRef(false);
 
   // Set access token in memory and API headers
   const setTokens = (newAccessToken: string) => {
@@ -51,18 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Define refreshAuth function WITH DEBUG LOGGING
   const refreshAuth = async () => {
-    console.log('🔄 refreshAuth called, isRefreshing:', isRefreshing);
+    console.log('🔄 refreshAuth called, isRefreshing:', isRefreshingRef.current);
     
-    if (isRefreshing) {
+    if (isRefreshingRef.current) {
       console.log('⏳ Waiting for ongoing refresh...');
-      while (isRefreshing) {
+      while (isRefreshingRef.current) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       console.log('✅ Ongoing refresh completed');
       return;
     }
 
-    isRefreshing = true;
+    isRefreshingRef.current = true;
     console.log('🔄 Starting new token refresh...');
     
     try {
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTokens();
       throw error;
     } finally {
-      isRefreshing = false;
+      isRefreshingRef.current = false;
       console.log('🏁 Refresh completed, isRefreshing=false');
     }
   };
@@ -246,13 +246,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // FIX: Always call logout API (even without access token) to clear refresh cookie
   const logout = async () => {
     try {
       // 🔒 Server will handle refresh token cookie clearing
-      // Make sure we have the token available for the logout call
-      if (accessToken) {
-        await api.post("/api/auth/logout");
-      }
+      // Call logout API even if access token is missing to ensure refresh cookie is cleared
+      await api.post("/api/auth/logout");
     } catch (error) {
       // Ignore logout errors - clear local state anyway
       console.warn("Logout API call failed:", error);

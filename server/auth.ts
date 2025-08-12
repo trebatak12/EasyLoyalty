@@ -5,6 +5,14 @@ import { OAuth2Client } from "google-auth-library";
 import type { Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
 
+// Security flags
+const isProd = process.env.NODE_ENV === "production";
+
+// FIX: Prevent default secrets in production
+if (isProd && (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET)) {
+  throw new Error("Missing JWT secrets in production");
+}
+
 // Enhanced JWT configuration
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "change_me_access";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "change_me_refresh";
@@ -15,10 +23,8 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const ACCESS_TOKEN_TTL = "2h"; // Extended for better UX during development 
 const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 hours
-const SESSION_IDLE_TTL = 30 * 60 * 60 * 1000; // 30 minutes
-
-// Security flags
-const isProd = process.env.NODE_ENV === "production";
+// FIX: TTL - "30 minutes" should be 30 minutes, not 30 hours
+const SESSION_IDLE_TTL = 30 * 60 * 1000; // 30 minutes
 
 // Initialize Google OAuth client
 const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
@@ -321,12 +327,18 @@ export async function verifyGoogleToken(idToken: string): Promise<{
   }
 }
 
+// FIX: Wider cookie path for consistent deletion
+export const REFRESH_COOKIE_PATH = "/api/auth"; // wider than just /api/auth/refresh
+
+// FIX: SameSite strategy configuration
+const SAME_SITE_MODE = process.env.COOKIE_SAMESITE || "strict"; // "strict" | "lax" | "none"
+
 // Secure cookie configuration
-export function getSecureCookieOptions(path: string = "/api/auth/refresh") {
+export function getSecureCookieOptions(path: string = REFRESH_COOKIE_PATH) {
   return {
     httpOnly: true,
     secure: isProd,
-    sameSite: "strict" as const,
+    sameSite: SAME_SITE_MODE as "strict" | "lax" | "none",
     path,
     maxAge: REFRESH_TOKEN_TTL // 30 days
   };
@@ -339,7 +351,8 @@ export function getCSRFCookieOptions() {
     secure: isProd,
     sameSite: "lax" as const,
     path: "/",
-    maxAge: ACCESS_TOKEN_TTL
+    // FIX: CSRF cookie maxAge must be number in ms, not string
+    maxAge: 2 * 60 * 60 * 1000 // 2h in ms
   };
 }
 

@@ -33,6 +33,17 @@ shared/   # Zod typy & schémata
 - **Plan:** (kroky) → **Changes:** (shrnutí diffu)
 - Piš česky, běžným jazykem
 
+## Recent Changes (2025-01-12)
+### Security & Stability Fixes ✅
+- **Fixed production secrets check:** App now throws error on startup if JWT secrets missing in production
+- **Fixed TTL calculation:** SESSION_IDLE_TTL corrected from 30 hours to 30 minutes
+- **Unified cookie paths:** All refresh tokens use consistent `/api/auth` path for proper deletion
+- **SameSite strategy:** Configurable via COOKIE_SAMESITE env var (strict/lax/none)
+- **Fixed CSRF maxAge:** Changed from string to number in milliseconds
+- **Race condition fix:** Frontend refresh now uses useRef to prevent multiple simultaneous refreshes
+- **Logout improvement:** Always calls API to clear refresh cookie, even without access token
+- **HTTP-only cookies:** All auth routes now properly set refresh tokens as secure cookies
+
 ## Current Sprint (2025-W31)
 1. Dokončit 120 s void logiku `/server/src/void.ts`
 2. Přidat unit testy na edge-case zůstatku peněženky

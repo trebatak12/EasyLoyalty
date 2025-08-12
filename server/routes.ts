@@ -20,7 +20,8 @@ import {
   blacklistToken,
   logoutEverywhere,
   logAuthEvent,
-  getSecureCookieOptions
+  getSecureCookieOptions,
+  REFRESH_COOKIE_PATH
 } from "./auth";
 import { auditLog, createErrorResponse, validateEmail, validatePassword, formatCZK, parseCZK, addRequestId, getClientIP, getUserAgent } from "./utils";
 
@@ -152,6 +153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
       });
 
+      // Set secure refresh token cookie
+      res.cookie("refresh_token", refreshToken, getSecureCookieOptions());
+
       // Audit log
       await auditLog("user", user.id, "signup", { email: body.email }, getUserAgent(req), ip);
 
@@ -161,8 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: user.email,
           name: user.name
         },
-        accessToken,
-        refreshToken
+        accessToken
       });
     } catch (error) {
       console.error("Signup error:", error);
@@ -227,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Set secure refresh token cookie
-      res.cookie("refresh_token", refreshToken, getSecureCookieOptions("/api/auth/refresh"));
+      res.cookie("refresh_token", refreshToken, getSecureCookieOptions());
 
       // Audit log
       await logAuthEvent("login_success", user.id, ip, userAgent, { email: body.email });
@@ -296,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Set new refresh token cookie
-      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions("/api/auth/refresh"));
+      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions());
 
       // Audit log
       await logAuthEvent("token_refresh", payload.sub, getClientIP(req), getUserAgent(req), {});
@@ -328,7 +331,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Clear refresh token cookie
+      // FIX: Clear refresh token cookie with consistent path
+      res.clearCookie("refresh_token", { 
+        path: REFRESH_COOKIE_PATH,
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "strict"
+      });
+      
+      // Also clear old path cookies for backward compatibility
       res.clearCookie("refresh_token", { 
         path: "/api/auth/refresh",
         httpOnly: true,
@@ -355,6 +366,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await logoutEverywhere(userId);
 
       // Clear current refresh token cookie
+      res.clearCookie("refresh_token", { 
+        path: REFRESH_COOKIE_PATH,
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "strict"
+      });
+      
+      // Also clear old path cookies for backward compatibility
       res.clearCookie("refresh_token", { 
         path: "/api/auth/refresh",
         httpOnly: true,
@@ -438,6 +457,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
       });
 
+      // Set secure refresh token cookie
+      res.cookie("refresh_token", refreshToken, getSecureCookieOptions());
+
       // Audit log
       await auditLog("user", user.id, "google_login", { email: user.email }, getUserAgent(req), ip);
 
@@ -448,8 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: user.name,
           profileImageUrl: user.profileImageUrl
         },
-        accessToken,
-        refreshToken
+        accessToken
       });
     } catch (error) {
       console.error("Google auth error:", error);
@@ -721,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Set secure refresh token cookie
-      res.cookie("refresh_token", refreshToken, getSecureCookieOptions("/api/admin/refresh"));
+      res.cookie("refresh_token", refreshToken, getSecureCookieOptions());
 
       // Audit log
       await logAuthEvent("admin_login_success", admin.id, ip, userAgent, { email: body.email });
@@ -790,7 +811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Set new refresh token cookie
-      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions("/api/admin/refresh"));
+      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions());
 
       // Audit log
       await logAuthEvent("admin_token_refresh", payload.sub, getClientIP(req), getUserAgent(req), {});
@@ -822,7 +843,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Clear refresh token cookie
+      // FIX: Clear refresh token cookie with consistent path
+      res.clearCookie("refresh_token", { 
+        path: REFRESH_COOKIE_PATH,
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "strict"
+      });
+      
+      // Also clear old path cookies for backward compatibility
       res.clearCookie("refresh_token", { 
         path: "/api/admin/refresh",
         httpOnly: true,
