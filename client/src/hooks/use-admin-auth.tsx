@@ -72,7 +72,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         // Try to refresh token first (if cookie exists)
         const refreshResponse = await api.post("/api/admin/refresh");
         if (refreshResponse?.accessToken) {
+          console.log("Admin refresh successful, setting token");
           setAccessToken(refreshResponse.accessToken);
+          api.setAuthToken(refreshResponse.accessToken);
           setupTokenRefresh(refreshResponse.accessToken);
 
           // Get admin data (token is now set globally via setAuthToken)
@@ -165,7 +167,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       // Try to call logout API - server will handle invalid sessions gracefully
       await api.post("/api/admin/logout");
       console.log("Admin logout API call successful");
-    } catch (error) {
+    } catch (error: any) {
       // Don't log 401 errors as they're expected when already logged out
       if (error?.response?.status !== 401) {
         console.error("Logout error:", error);

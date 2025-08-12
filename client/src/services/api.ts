@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 
 class ApiService {
   public instance: AxiosInstance;
+  private activeInterceptors: number[] = [];
 
   constructor() {
     this.instance = axios.create({
@@ -15,6 +16,23 @@ class ApiService {
 
   get interceptors() {
     return this.instance.interceptors;
+  }
+
+  // Clear all active interceptors
+  clearAllInterceptors() {
+    console.log('🧹 Clearing all axios interceptors:', this.activeInterceptors.length);
+    this.activeInterceptors.forEach(id => {
+      this.instance.interceptors.response.eject(id);
+    });
+    this.activeInterceptors = [];
+  }
+
+  // Register new interceptor and track it
+  registerInterceptor(fulfilled: any, rejected: any) {
+    const id = this.instance.interceptors.response.use(fulfilled, rejected);
+    this.activeInterceptors.push(id);
+    console.log('📝 Registered new interceptor with ID:', id, 'Total active:', this.activeInterceptors.length);
+    return id;
   }
 
   setAuthToken(token: string | null) {

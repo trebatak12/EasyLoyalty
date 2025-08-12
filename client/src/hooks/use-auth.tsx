@@ -111,9 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 🔒 Auto-refresh interceptor setup (CUSTOMER ONLY) - WITH DEBUG LOGGING
   useEffect(() => {
-    console.log('🔧 Setting up customer interceptor...');
+    // Clear any existing interceptors first to prevent conflicts
+    api.clearAllInterceptors();
+    console.log('🔧 Setting up CUSTOMER interceptor...');
     
-    const interceptor = api.interceptors.response.use(
+    const interceptor = api.registerInterceptor(
       (response: any) => {
         console.log('✅ Response OK:', response.status, response.config?.url);
         return response;
@@ -165,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('✅ Customer interceptor set up with reference:', interceptor);
     
     return () => {
-      console.log('🗑️ Cleaning up customer interceptor:', interceptor);
+      console.log('🗑️ Cleaning up CUSTOMER interceptor:', interceptor);
       api.interceptors.response.eject(interceptor);
     };
   }, [accessToken]);
