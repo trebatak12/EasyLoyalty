@@ -1,0 +1,185 @@
+Cíl: Opravit bezpečnostní a stabilitní chyby v auth logice (cookies, TTL, refresh závod, CSRF maxAge, default secrets atd.).
+Stack: Node/Express (TypeScript), React (AuthProvider), Axios API service.
+
+1) Najdi soubor(y)
+Server auth utils/middleware (obsahuje JWT_ACCESS_SECRET, generateAccessToken, getSecureCookieOptions, getCSRFCookieOptions, logoutEverywhere, atd.).
+
+Pravděpodobná cesta: server/auth.ts nebo src/server/auth.ts
+
+Frontend AuthProvider s refreshAuth, logout, axios interceptory.
+
+Pravděpodobná cesta: src/context/AuthProvider.tsx (nebo podobně)
+
+Logout endpoint (Express route) – použije se pro mazání refresh cookie.
+
+Pravděpodobná cesta: server/routes/auth.ts
+
+Pokud jsou názvy jiné, vyhledej podle symbolů getSecureCookieOptions, refreshAuth, logout.
+
+2) Úpravy na serveru
+2.1 Zakaž defaultní secrets v produkci
+Pokud běží NODE_ENV=production a nejsou ENV proměnné, shoď aplikaci.
+
+ts
+Zkopírovat
+Upravit
+// hned po načtení env proměnných
+const isProd = process.env.NODE_ENV === "production";
+
+if (isProd && (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET)) {
+  throw new Error("Missing JWT secrets in production");
+}
+
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "change_me_access";
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "change_me_refresh";
+2.2 Oprav TTL – „30 minut“ je skutečně 30 minut
+ts
+Zkopírovat
+Upravit
+// bylo špatně: 30 * 60 * 60 * 1000 (30 hodin)
+// má být:
+const SESSION_IDLE_TTL = 30 * 60 * 1000; // 30 minutes
+2.3 Rozšiř path refresh cookie a sjednoť ho pro mazání
+Přidej konstantu a používej ji všude (nastavení i mazání cookie).
+
+ts
+Zkopírovat
+Upravit
+export const REFRESH_COOKIE_PATH = "/api/auth"; // širší než jen /api/auth/refresh
+
+export function getSecureCookieOptions(path: string = REFRESH_COOKIE_PATH) {
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "strict" as const, // viz 2.4
+    path,
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30d v ms
+  };
+}
+V logout route použij stejné path:
+
+ts
+Zkopírovat
+Upravit
+// v /api/auth/logout handleru:
+res.clearCookie("refreshToken", { path: REFRESH_COOKIE_PATH, httpOnly: true, secure: isProd, sameSite: "strict" });
+2.4 SameSite strategie
+Pokud frontend a API nejsou na stejné doméně, SameSite:"strict" rozbije tiché přihlášení.
+
+Přidej podmínku: use lax pro cross-subdomain, strict pro stejnou doménu. Použij ENV flag:
+
+ts
+Zkopírovat
+Upravit
+const SAME_SITE_MODE = process.env.COOKIE_SAMESITE ?? "strict"; // "strict" | "lax" | "none"
+
+export function getSecureCookieOptions(path: string = REFRESH_COOKIE_PATH) {
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: SAME_SITE_MODE as "strict" | "lax" | "none",
+    path,
+    maxAge: 30 * 24 * 60 * 60 * 1000
+  };
+}
+Pozn.: Pokud někdy nastavíme "none", vyžaduje secure:true + CSRF ochranu.
+
+2.5 Oprav CSRF cookie maxAge (musí být číslo v ms)
+ts
+Zkopírovat
+Upravit
+export function getCSRFCookieOptions() {
+  return {
+    httpOnly: false, // čte se z JS pro X-CSRF-Token hlavičku
+    secure: isProd,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 2 * 60 * 60 * 1000 // 2h v ms; ne string
+  };
+}
+3) Úpravy na frontendu (AuthProvider)
+3.1 Zabraň závodu při refreshi (přežije re-render)
+Nahraď let isRefreshing = false; za useRef.
+
+ts
+Zkopírovat
+Upravit
+import React, { useRef } from "react";
+// ...
+const isRefreshingRef = useRef(false);
+
+const refreshAuth = async () => {
+  console.log("refreshAuth called, isRefreshing:", isRefreshingRef.current);
+  if (isRefreshingRef.current) {
+    while (isRefreshingRef.current) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return;
+  }
+  isRefreshingRef.current = true;
+  try {
+    const response = await api.post("/api/auth/refresh", {});
+    const { accessToken } = response;
+    setTokens(accessToken);
+    const userData = await api.get("/api/me");
+    setUser(userData);
+  } catch (e) {
+    clearTokens();
+    throw e;
+  } finally {
+    isRefreshingRef.current = false;
+  }
+};
+3.2 logout() volej API vždy, i když access token chybí
+Server tak vždy smaže refresh cookie.
+
+ts
+Zkopírovat
+Upravit
+const logout = async () => {
+  try {
+    await api.post("/api/auth/logout"); // i bez bearer tokenu
+  } catch {}
+  clearTokens();
+};
+3.3 Interceptor nevytvářej opakovaně
+Už máš clearAllInterceptors() – zkontroluj, že se registruje jen jednou při mountu (ne při každé změně accessToken).
+
+Pokud musí záviset na tokenu, minimalizuj re-registrace a logy.
+
+4) Konfigurační doporučení (neměň kód, jen přidej ENV)
+COOKIE_SAMESITE=strict pokud FE a API jsou stejná doména; jinak lax.
+
+AUTH_PEPPER musí být neprázdné v produkci.
+
+ACCESS_TOKEN_TTL pro prod raději 15m (teď může zůstat 2h pro dev).
+
+5) Testovací scénáře (musí projít)
+Silent login
+
+Přihlas se, reloadni app → bez klikání jsi přihlášen (refresh z cookie).
+
+Logout
+
+Po POST /api/auth/logout se refresh cookie smaže (ověř v devtools → Application → Cookies).
+
+401 → refresh → retry
+
+Uměle expiruj access token, první chráněný request vrátí 401, proběhne refresh jen jednou, request se retryne a uspěje.
+
+Cross-subdomain (pokud používáme)
+
+Nastav COOKIE_SAMESITE=lax a ověř, že silent login funguje.
+
+Bez secrets v PROD
+
+Nastav NODE_ENV=production bez JWT secrets → app se nespustí s jasnou chybou.
+
+6) Dodej diff (shrnutí změn)
+Server: auth.ts – constants (REFRESH_COOKIE_PATH), getSecureCookieOptions, getCSRFCookieOptions, TTL fix, prod secrets check.
+
+Frontend: AuthProvider.tsx – useRef pro refresh, upravený logout, kontrola registrace interceptoru.
+
+Logout route: res.clearCookie("refreshToken", { path: REFRESH_COOKIE_PATH, ... }).
+
+Poznámka pro agenta: Uprav kód bezpečně, zachovej API rozhraní, přidej stručné komentáře // FIX: nad místy, kde byla chyba. Nezaváděj nové knihovny. Po úpravách spusť lokální testy scénářů z bodu 5 a do výstupu napiš, co jsi ověřil.
