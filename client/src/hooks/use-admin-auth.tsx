@@ -68,29 +68,36 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      try {
-        // Try to refresh token first (if cookie exists)
-        const refreshResponse = await api.post("/api/admin/refresh");
-        if (refreshResponse?.accessToken) {
-          console.log("Admin refresh successful, setting token");
-          setAccessToken(refreshResponse.accessToken);
-          api.setAuthToken(refreshResponse.accessToken);
-          setupTokenRefresh(refreshResponse.accessToken);
+      // Only try refresh if not already authenticated
+      if (!admin && !accessToken) {
+        try {
+          // Try to refresh token first (if cookie exists)
+          const refreshResponse = await api.post("/api/admin/refresh");
+          if (refreshResponse?.accessToken) {
+            console.log("Admin refresh successful, setting token");
+            setAccessToken(refreshResponse.accessToken);
+            api.setAuthToken(refreshResponse.accessToken);
+            setupTokenRefresh(refreshResponse.accessToken);
 
-          // Get admin data (token is now set globally via setAuthToken)
-          const adminData = await api.get("/api/admin/me");
-          if (adminData) {
-            setAdmin(adminData);
+            // Get admin data (token is now set globally via setAuthToken)
+            const adminData = await api.get("/api/admin/me");
+            if (adminData) {
+              setAdmin(adminData);
+            }
           }
+        } catch (error: any) {
+          // 401 is expected when no valid session exists
+          if (error?.response?.status === 401) {
+            console.log("No valid admin session found, user needs to login");
+          } else {
+            console.error("Admin auth initialization error:", error);
+          }
+          setAdmin(null);
+          setAccessToken(null);
         }
-      } catch (error) {
-        // No valid refresh token or session - this is expected on first load
-        console.log("No valid admin session found, user needs to login");
-        setAdmin(null);
-        setAccessToken(null);
-      } finally {
-        setIsInitialized(true);
       }
+      
+      setIsInitialized(true);
     };
 
     initAdminAuth();
