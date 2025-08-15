@@ -54,13 +54,13 @@ export default function ResetPassword() {
     try {
       const response = await api.get(`/api/auth/reset-password/validate?token=${encodeURIComponent(tokenToValidate)}`);
       
-      if (response.data.valid) {
+      if (response.valid) {
         setIsTokenValid(true);
       } else {
         setIsTokenValid(false);
         toast({
           title: "Neplatný token",
-          description: response.data.error || "Token pro reset hesla je neplatný nebo vypršel.",
+          description: response.error || "Token pro reset hesla je neplatný nebo vypršel.",
           variant: "destructive",
         });
       }
@@ -146,11 +146,11 @@ export default function ResetPassword() {
       
       toast({
         title: "Heslo úspěšně změněno",
-        description: response.data.silentLogin ? "Byli jste automaticky přihlášeni." : "Nyní se můžete přihlásit s novým heslem.",
+        description: response.silentLogin ? "Byli jste automaticky přihlášeni." : "Nyní se můžete přihlásit s novým heslem.",
       });
 
       // If silent login, redirect to home after a short delay
-      if (response.data.silentLogin) {
+      if (response.silentLogin) {
         setTimeout(() => {
           setLocation("/home");
         }, 2000);
