@@ -1,22 +1,24 @@
 import nodemailer from 'nodemailer';
 
-// Email configuration
-const SMTP_HOST = process.env.SMTP_HOST || 'localhost';
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
-const SMTP_USER = process.env.SMTP_USER || '';
-const SMTP_PASS = process.env.SMTP_PASS || '';
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@easyloyalty.example';
+// Gmail SMTP configuration
+const GMAIL_USER = process.env.GMAIL_USER || '';
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || '';
+const FROM_EMAIL = GMAIL_USER || 'noreply@easyloyalty.example';
 const FROM_NAME = process.env.FROM_NAME || 'EasyLoyalty';
 
-// Create transporter
+// Create Gmail transporter
 const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: SMTP_PORT === 465, // true for 465, false for other ports
-  auth: SMTP_USER && SMTP_PASS ? {
-    user: SMTP_USER,
-    pass: SMTP_PASS,
+  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false, // Use STARTTLS
+  auth: GMAIL_USER && GMAIL_APP_PASSWORD ? {
+    user: GMAIL_USER,
+    pass: GMAIL_APP_PASSWORD,
   } : undefined,
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 export interface EmailOptions {
