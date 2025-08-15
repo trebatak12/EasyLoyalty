@@ -179,7 +179,7 @@ export default function ResetPassword() {
                   <Shield className="h-6 w-6 text-white" />
                 </div>
                 <p className="text-lg font-medium text-amber-900">Ověřování tokenu...</p>
-                <p className="text-sm text-amber-600 mt-2">
+                <p className="text-sm text-amber-700 mt-2">
                   Prosím čekejte, ověřujeme platnost odkazu pro reset hesla.
                 </p>
               </div>
@@ -200,7 +200,7 @@ export default function ResetPassword() {
                 <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
               <CardTitle className="text-xl text-amber-900">Neplatný odkaz</CardTitle>
-              <CardDescription>
+              <CardDescription className="text-amber-700">
                 Odkaz pro reset hesla je neplatný, poškozený nebo vypršel.
               </CardDescription>
             </CardHeader>
@@ -245,7 +245,7 @@ export default function ResetPassword() {
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <CardTitle className="text-xl text-amber-900">Heslo změněno</CardTitle>
-              <CardDescription>
+              <CardDescription className="text-amber-700">
                 Vaše heslo bylo úspěšně změněno. Nyní se můžete přihlásit s novým heslem.
               </CardDescription>
             </CardHeader>
@@ -273,7 +273,7 @@ export default function ResetPassword() {
               <Lock className="h-6 w-6 text-white" />
             </div>
             <CardTitle className="text-xl text-amber-900">Nové heslo</CardTitle>
-            <CardDescription>
+            <CardDescription className="text-amber-700">
               Zadejte nové bezpečné heslo pro svůj účet.
             </CardDescription>
           </CardHeader>

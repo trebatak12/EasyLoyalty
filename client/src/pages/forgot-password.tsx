@@ -65,7 +65,7 @@ export default function ForgotPassword() {
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <CardTitle className="text-xl text-amber-900">E-mail odeslán</CardTitle>
-              <CardDescription>
+              <CardDescription className="text-amber-700">
                 Pokud existuje účet s adresou <strong>{email}</strong>, obdržíte instrukce pro reset hesla.
               </CardDescription>
             </CardHeader>
@@ -123,7 +123,7 @@ export default function ForgotPassword() {
               <Mail className="h-6 w-6 text-white" />
             </div>
             <CardTitle className="text-xl text-amber-900">Zapomenuté heslo</CardTitle>
-            <CardDescription>
+            <CardDescription className="text-amber-700">
               Zadejte svou e-mailovou adresu a pošleme vám odkaz pro reset hesla.
             </CardDescription>
           </CardHeader>
