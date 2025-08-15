@@ -1,0 +1,86 @@
+TASK: Reset hesla přes e-mail + JWT integrace + refresh hardening
+1) Reset hesla – hlavní funkce
+Přidat tabulku PasswordResetTokens:
+id (UUID), user_id, token_hash (SHA-256), expires_at (UTC), used_at (NULL dokud nevyužito), status (active|used|revoked|expired), ip_request, ua_request, ip_consume, ua_consume.
+Indexy: user_id, expires_at, status.
+
+Token generovat kryptonáhodně (min. 32B), ukládat jen hash.
+
+Expirace 30 min, jednorázové použití, nová žádost revokuje staré tokeny.
+
+Endpointy:
+
+POST /auth/forgot-password: input email, normalizace, neutrální odpověď, pokud existuje aktivní uživatel → revoke staré tokeny, vytvořit nový, uložit hash, poslat e-mail. Rate-limit IP + e-mail.
+
+(Volitelné) GET /auth/reset-password/validate?token=…: ověření platnosti.
+
+POST /auth/reset-password: input token, new_password (validace délky/složitosti/zákaz top hesel), ověřit token, změnit password_hash, označit token jako used, revoke ostatní tokeny, invalidovat relace, volitelně silent login.
+
+2) JWT integrace po resetu
+Do Users přidat:
+
+password_changed_at (UTC)
+
+token_version (int, default 0)
+
+Do všech JWT (access i refresh) přidávat claims:
+
+token_version
+
+pwd_ts = unix čas password_changed_at
+
+Při ověřování JWT porovnávat:
+
+jwt.token_version === users.token_version
+
+jwt.pwd_ts >= users.password_changed_at
+
+Po úspěšném resetu:
+
+Nastavit nové password_hash
+
+password_changed_at = NOW()
+
+token_version = token_version + 1
+
+Revokovat všechny refresh tokeny uživatele
+
+Smazat refresh cookie (expirace v minulosti)
+
+Silent login (pokud zvoleno) → vydat nové access (2h) + refresh (30d) JWT v HTTP-only cookies; jinak přesměrovat na login.
+
+3) E-mail
+Odesílat přes stávající SMTP/provider s DKIM/SPF/DMARC.
+
+Předmět: „Reset hesla – EasyLoyalty“
+
+Obsah: krátké vysvětlení, CTA tlačítko → https://app.easyloyalty.example/reset?token=<rawToken>
+
+Bezpečnostní věta: „Pokud jste nežádali, ignorujte.“
+
+4) Frontend
+„Forgot Password“: e-mail, neutrální hláška, honeypot, rate-limit.
+
+„Reset Password“: načtení tokenu, validace, nové heslo + potvrzení, hlášky pro úspěch/expiraci/invalid.
+
+UX: indikátor síly hesla, mobilní optimalizace, MVP česky.
+
+5) Refresh hardening (Admin/Staff)
+Aktivovat refresh-token rotation: při každém refresh vydat nový refresh a starý ihned revokovat.
+
+Detekce reuse (pokus o použití starého refresh) → revoke všechny refresh tokeny uživatele, force logout, log incident.
+
+Stejné token_version/password_changed_at kontroly jako u Customer.
+
+U cookies sjednotit nastavení: HttpOnly, Secure, SameSite (Lax/Strict), Path = /, expirace 30 dní.
+
+6) Bezpečnost
+Neposkytovat informaci, zda e-mail existuje.
+
+Neukládat tokeny v plaintextu.
+
+Rate-limit + logy (bez raw tokenů).
+
+CSRF ochrana u POST resetu, XSS ochrana, X-Frame-Options: DENY.
+
+Po resetu vždy zneplatnit všechny relace.
