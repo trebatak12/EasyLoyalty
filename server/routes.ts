@@ -443,10 +443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Password reset email sent to ${email}`);
         } catch (emailError) {
           console.error(`Failed to send reset email to ${email}:`, emailError);
-          // Log for development only
-          if (process.env.NODE_ENV !== 'production') {
-            console.log(`Reset URL for ${email}: ${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset?token=${token}`);
-          }
+          // Don't log reset URLs even in development for security
         }
         
         await logAuthEvent("forgot_password_requested", user.id, ip, userAgent, { email });
@@ -683,12 +680,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/me", authenticateUser, async (req, res) => {
     try {
       const user = req.user;
+      const wallet = await storage.getWalletByUserId(user.id);
+      
       res.json({
         id: user.id,
         email: user.email,
         name: user.name,
         status: user.status,
-        lastLoginAt: user.lastLoginAt
+        lastLoginAt: user.lastLoginAt,
+        wallet: wallet ? {
+          balanceCZK: formatCZK(wallet.balanceCents),
+          balanceCents: wallet.balanceCents,
+          bonusGrantedTotalCZK: formatCZK(wallet.bonusGrantedTotalCents),
+          bonusGrantedTotalCents: wallet.bonusGrantedTotalCents
+        } : null
       });
     } catch (error) {
       console.error("Get me error:", error);

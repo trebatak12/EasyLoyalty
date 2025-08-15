@@ -37,7 +37,7 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
       html: options.html,
       text: options.text,
     });
-    
+
     console.log(`Email sent successfully to ${options.to}: ${result.messageId}`);
   } catch (error) {
     console.error('Email sending failed:', error);
@@ -51,7 +51,7 @@ export function generatePasswordResetEmailHtml(resetToken: string, userEmail: st
     ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
     : (process.env.FRONTEND_URL || 'http://localhost:5000');
   const resetUrl = `${baseUrl}/reset?token=${resetToken}`;
-  
+
   const html = `
 <!DOCTYPE html>
 <html lang="cs">
@@ -161,20 +161,20 @@ export function generatePasswordResetEmailHtml(resetToken: string, userEmail: st
       <h2>Reset hesla</h2>
       <p>Dobrý den,</p>
       <p>obdrželi jsme žádost o reset hesla pro Váš účet s e-mailovou adresou <strong>${userEmail}</strong>.</p>
-      
+
       <p>Pro nastavení nového hesla klikněte na tlačítko níže:</p>
-      
+
       <div style="text-align: center;">
         <a href="${resetUrl}" class="reset-button">Resetovat heslo</a>
       </div>
-      
+
       <div class="expiry-notice">
         <strong>Pozor:</strong> Tento odkaz je platný pouze 30 minut od odeslání tohoto e-mailu.
       </div>
-      
+
       <p>Pokud nefunguje tlačítko výše, zkopírujte a vložte následující odkaz do prohlížeče:</p>
       <p style="word-break: break-all; color: #667eea;">${resetUrl}</p>
-      
+
       <div class="security-notice">
         <strong>Bezpečnostní upozornění:</strong><br>
         Pokud jste o reset hesla nežádali, tento e-mail ignorujte. Vaše heslo zůstane beze změny.
@@ -213,7 +213,7 @@ Tento e-mail byl odeslán automaticky. Neodpovídejte na něj.
 
 export async function sendPasswordResetEmail(userEmail: string, resetToken: string): Promise<void> {
   const { html, text } = generatePasswordResetEmailHtml(resetToken, userEmail);
-  
+
   await sendEmail({
     to: userEmail,
     subject: 'Reset hesla – EasyLoyalty',
