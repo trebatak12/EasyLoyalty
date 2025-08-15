@@ -17,6 +17,8 @@ import AdminDashboard from "./pages/admin-dashboard";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminSummaries from "@/pages/admin-summaries";
 import POSCharge from "@/pages/pos-charge";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
               {/* Public routes */}
               <Route path="/" component={ModeSelection} />
               <Route path="/auth/customer" component={CustomerAuth} />
+              <Route path="/forgot-password" component={ForgotPassword} />
+              <Route path="/reset" component={ResetPassword} />
 
               {/* Customer routes (JWT protected) */}
               <Route path="/home" component={CustomerHome} />

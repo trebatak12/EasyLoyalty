@@ -1,6 +1,6 @@
-import { users, wallets, adminUsers, refreshTokens, adminSessions, transactions, auditLogs, idempotencyKeys, type User, type InsertUser, type Wallet, type AdminUser, type InsertAdminUser, type Transaction, type InsertTransaction, type AuditLog, type InsertAuditLog, type RefreshToken, type AdminSession } from "@shared/schema";
+import { users, wallets, adminUsers, refreshTokens, adminSessions, transactions, auditLogs, idempotencyKeys, passwordResetTokens, type User, type InsertUser, type Wallet, type AdminUser, type InsertAdminUser, type Transaction, type InsertTransaction, type AuditLog, type InsertAuditLog, type RefreshToken, type AdminSession, type PasswordResetToken, type InsertPasswordResetToken } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, count, sum, gte, lt, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lt, isNull, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -49,6 +49,16 @@ export interface IStorage {
   // Idempotency operations
   checkIdempotency(key: string, requestHash: string): Promise<boolean>;
   setIdempotency(key: string, requestHash: string): Promise<void>;
+
+  // Password reset operations
+  createPasswordResetToken(token: InsertPasswordResetToken): Promise<PasswordResetToken>;
+  getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined>;
+  markPasswordResetTokenUsed(tokenId: string, ip: string, userAgent: string): Promise<void>;
+  revokeUserPasswordResetTokens(userId: string): Promise<void>;
+  updateUserPassword(userId: string, passwordHash: string): Promise<void>;
+  incrementUserTokenVersion(userId: string): Promise<void>;
+  updateAdminPassword(adminId: string, passwordHash: string): Promise<void>;
+  incrementAdminTokenVersion(adminId: string): Promise<void>;
 
   // Admin queries
   getCustomersList(search?: string, limit?: number, offset?: number): Promise<{ users: (User & { wallet: Wallet })[], total: number }>;
@@ -566,6 +576,85 @@ export class DatabaseStorage implements IStorage {
 
       return updatedWallet;
     });
+  }
+
+  // Password reset token operations
+  async createPasswordResetToken(token: InsertPasswordResetToken): Promise<PasswordResetToken> {
+    const [newToken] = await db
+      .insert(passwordResetTokens)
+      .values(token)
+      .returning();
+    return newToken;
+  }
+
+  async getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined> {
+    const [token] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.tokenHash, tokenHash));
+    return token || undefined;
+  }
+
+  async markPasswordResetTokenUsed(tokenId: string, ip: string, userAgent: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ 
+        status: "used",
+        usedAt: new Date(),
+        ipConsume: ip,
+        uaConsume: userAgent
+      })
+      .where(eq(passwordResetTokens.id, tokenId));
+  }
+
+  async revokeUserPasswordResetTokens(userId: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ 
+        status: "revoked"
+      })
+      .where(and(
+        eq(passwordResetTokens.userId, userId),
+        eq(passwordResetTokens.status, "active")
+      ));
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        passwordHash,
+        passwordChangedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async incrementUserTokenVersion(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        tokenVersion: sql`${users.tokenVersion} + 1`
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async updateAdminPassword(adminId: string, passwordHash: string): Promise<void> {
+    await db
+      .update(adminUsers)
+      .set({ 
+        passwordHash,
+        passwordChangedAt: new Date()
+      })
+      .where(eq(adminUsers.id, adminId));
+  }
+
+  async incrementAdminTokenVersion(adminId: string): Promise<void> {
+    await db
+      .update(adminUsers)
+      .set({ 
+        tokenVersion: sql`${adminUsers.tokenVersion} + 1`
+      })
+      .where(eq(adminUsers.id, adminId));
   }
 
 }

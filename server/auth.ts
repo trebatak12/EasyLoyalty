@@ -39,42 +39,63 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return await bcrypt.compare(saltedPassword, hash);
 }
 
-export function generateAccessToken(userId: string, roles: string[] = ["user"]): string {
+export function generateAccessToken(userId: string, roles: string[] = ["user"], tokenVersion: number = 0, passwordChangedAt?: Date): string {
   const jti = randomBytes(16).toString("hex"); // Unique token ID for blacklisting
-  return jwt.sign({ 
+  const payload: any = { 
     sub: userId, 
     type: "access",
     roles,
-    jti
-  }, JWT_ACCESS_SECRET, { 
+    jti,
+    token_version: tokenVersion
+  };
+  
+  if (passwordChangedAt) {
+    payload.pwd_ts = Math.floor(passwordChangedAt.getTime() / 1000);
+  }
+  
+  return jwt.sign(payload, JWT_ACCESS_SECRET, { 
     expiresIn: ACCESS_TOKEN_TTL,
     issuer: "easyloyalty-api",
     audience: "easyloyalty-client"
   });
 }
 
-export function generateAdminAccessToken(adminId: string): string {
+export function generateAdminAccessToken(adminId: string, tokenVersion: number = 0, passwordChangedAt?: Date): string {
   const jti = randomBytes(16).toString("hex");
-  return jwt.sign({ 
+  const payload: any = { 
     sub: adminId, 
     type: "access",
     roles: ["admin"],
-    jti
-  }, JWT_ACCESS_SECRET, { 
+    jti,
+    token_version: tokenVersion
+  };
+  
+  if (passwordChangedAt) {
+    payload.pwd_ts = Math.floor(passwordChangedAt.getTime() / 1000);
+  }
+  
+  return jwt.sign(payload, JWT_ACCESS_SECRET, { 
     expiresIn: ACCESS_TOKEN_TTL,
     issuer: "easyloyalty-api",
     audience: "easyloyalty-client"
   });
 }
 
-export function generateRefreshToken(userId: string, deviceId?: string): string {
+export function generateRefreshToken(userId: string, deviceId?: string, tokenVersion: number = 0, passwordChangedAt?: Date): string {
   const jti = randomBytes(16).toString("hex");
-  return jwt.sign({
+  const payload: any = {
     sub: userId,
     type: "refresh", 
     jti,
-    deviceId: deviceId || "unknown"
-  }, JWT_REFRESH_SECRET, {
+    deviceId: deviceId || "unknown",
+    token_version: tokenVersion
+  };
+  
+  if (passwordChangedAt) {
+    payload.pwd_ts = Math.floor(passwordChangedAt.getTime() / 1000);
+  }
+  
+  return jwt.sign(payload, JWT_REFRESH_SECRET, {
     expiresIn: "30d",
     issuer: "easyloyalty-api",
     audience: "easyloyalty-client"
@@ -100,12 +121,26 @@ export function generateShortCode(): string {
   return code.match(/.{1,4}/g)?.join("-") || code;
 }
 
-export function verifyAccessToken(token: string): { sub: string; type: string; roles: string[]; jti: string } | null {
+export function generatePasswordResetToken(): { token: string; hash: string } {
+  // Generate cryptographically random token (32 bytes minimum)
+  const token = randomBytes(32).toString("base64url");
+  
+  // Create SHA-256 hash for storage
+  const hash = createHash("sha256").update(token).digest("hex");
+  
+  return { token, hash };
+}
+
+export function hashPasswordResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export function verifyAccessToken(token: string): { sub: string; type: string; roles: string[]; jti: string; token_version: number; pwd_ts?: number } | null {
   try {
     const payload = jwt.verify(token, JWT_ACCESS_SECRET, {
       issuer: "easyloyalty-api",
       audience: "easyloyalty-client"
-    }) as { sub: string; type: string; roles: string[]; jti: string };
+    }) as { sub: string; type: string; roles: string[]; jti: string; token_version: number; pwd_ts?: number };
     
     if (payload.type !== "access") return null;
     return payload;
@@ -114,12 +149,12 @@ export function verifyAccessToken(token: string): { sub: string; type: string; r
   }
 }
 
-export function verifyRefreshToken(token: string): { sub: string; type: string; jti: string; deviceId: string } | null {
+export function verifyRefreshToken(token: string): { sub: string; type: string; jti: string; deviceId: string; token_version: number; pwd_ts?: number } | null {
   try {
     const payload = jwt.verify(token, JWT_REFRESH_SECRET, {
       issuer: "easyloyalty-api", 
       audience: "easyloyalty-client"
-    }) as { sub: string; type: string; jti: string; deviceId: string };
+    }) as { sub: string; type: string; jti: string; deviceId: string; token_version: number; pwd_ts?: number };
     
     if (payload.type !== "refresh") return null;
     return payload;
@@ -182,6 +217,27 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       message: "User account is blocked or not found",
       code: "E_FORBIDDEN"
     });
+  }
+
+  // Validate token version
+  if (payload.token_version !== user.tokenVersion) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Token version mismatch - please re-authenticate",
+      code: "E_AUTH_TOKEN_VERSION_MISMATCH"
+    });
+  }
+
+  // Validate password change timestamp
+  if (payload.pwd_ts && user.passwordChangedAt) {
+    const userPwdTs = Math.floor(user.passwordChangedAt.getTime() / 1000);
+    if (payload.pwd_ts < userPwdTs) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Token issued before password change - please re-authenticate",
+        code: "E_AUTH_PASSWORD_CHANGED"
+      });
+    }
   }
 
   req.user = user;
@@ -261,6 +317,27 @@ export async function authenticateAdmin(req: Request, res: Response, next: NextF
       message: "Admin account is blocked or not found",
       code: "E_FORBIDDEN"
     });
+  }
+
+  // Validate token version
+  if (payload.token_version !== admin.tokenVersion) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Token version mismatch - please re-authenticate",
+      code: "E_AUTH_TOKEN_VERSION_MISMATCH"
+    });
+  }
+
+  // Validate password change timestamp
+  if (payload.pwd_ts && admin.passwordChangedAt) {
+    const adminPwdTs = Math.floor(admin.passwordChangedAt.getTime() / 1000);
+    if (payload.pwd_ts < adminPwdTs) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Token issued before password change - please re-authenticate",
+        code: "E_AUTH_PASSWORD_CHANGED"
+      });
+    }
   }
 
   req.admin = admin;
@@ -396,6 +473,8 @@ declare global {
         type: string;
         roles: string[];
         jti: string;
+        token_version: number;
+        pwd_ts?: number;
       };
     }
   }

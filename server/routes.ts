@@ -21,13 +21,16 @@ import {
   logoutEverywhere,
   logAuthEvent,
   getSecureCookieOptions,
-  REFRESH_COOKIE_PATH
+  REFRESH_COOKIE_PATH,
+  generatePasswordResetToken,
+  hashPasswordResetToken
 } from "./auth";
 import { auditLog, createErrorResponse, validateEmail, validatePassword, formatCZK, parseCZK, addRequestId, getClientIP, getUserAgent } from "./utils";
+import { sendPasswordResetEmail } from "./email";
 
 // Production flag for cookie security
 const isProd = process.env.NODE_ENV === "production";
-import { TOP_UP_PACKAGES, type PackageCode } from "@shared/schema";
+import { TOP_UP_PACKAGES, type PackageCode, forgotPasswordSchema, resetPasswordSchema } from "@shared/schema";
 import { z } from "zod";
 import cookieParser from "cookie-parser";
 import { randomUUID } from "crypto";
@@ -391,6 +394,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Password reset endpoints
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const body = forgotPasswordSchema.parse(req.body);
+      const ip = getClientIP(req);
+      const userAgent = getUserAgent(req);
+      
+      // Normalize email
+      const email = body.email.toLowerCase().trim();
+      
+      // Rate limiting - IP and email based
+      const ipLimit = checkRateLimit(`forgot-password:ip:${ip}`, 5, 15 * 60 * 1000); // 5 attempts per 15 min per IP
+      const emailLimit = checkRateLimit(`forgot-password:email:${email}`, 3, 60 * 60 * 1000); // 3 attempts per hour per email
+      
+      if (!ipLimit.allowed || !emailLimit.allowed) {
+        await logAuthEvent("forgot_password_rate_limited", null, ip, userAgent, { email });
+        // Always return same neutral response for security
+        return res.json({ message: "If this email exists, you will receive password reset instructions." });
+      }
+      
+      // Find user - neutral response regardless of existence
+      const user = await storage.getUserByEmail(email);
+      
+      if (user && user.status === "active" && user.passwordHash) {
+        // User exists and has password auth (not OAuth-only)
+        
+        // Revoke any existing active reset tokens
+        await storage.revokeUserPasswordResetTokens(user.id);
+        
+        // Generate new reset token
+        const { token, hash } = generatePasswordResetToken();
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+        
+        // Store token hash
+        await storage.createPasswordResetToken({
+          userId: user.id,
+          tokenHash: hash,
+          expiresAt,
+          status: "active",
+          ipRequest: ip,
+          uaRequest: userAgent
+        });
+        
+        // Send password reset email
+        try {
+          await sendPasswordResetEmail(email, token);
+          console.log(`Password reset email sent to ${email}`);
+        } catch (emailError) {
+          console.error(`Failed to send reset email to ${email}:`, emailError);
+          // Log for development - remove in production
+          console.log(`Reset URL for ${email}: ${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset?token=${token}`);
+        }
+        
+        await logAuthEvent("forgot_password_requested", user.id, ip, userAgent, { email });
+      } else {
+        // Log attempt for non-existent user or OAuth-only user
+        await logAuthEvent("forgot_password_invalid_user", null, ip, userAgent, { email });
+      }
+      
+      // Always return neutral response
+      res.json({ message: "If this email exists, you will receive password reset instructions." });
+      
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid email address", "E_INPUT", error.errors));
+      }
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+  
+  // Optional token validation endpoint
+  app.get("/api/auth/reset-password/validate", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      
+      if (!token) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Token is required", "E_INPUT"));
+      }
+      
+      const tokenHash = hashPasswordResetToken(token);
+      const resetToken = await storage.getPasswordResetToken(tokenHash);
+      
+      if (!resetToken || 
+          resetToken.status !== "active" || 
+          resetToken.expiresAt < new Date()) {
+        return res.status(400).json({
+          valid: false,
+          error: "Token is invalid or expired"
+        });
+      }
+      
+      res.json({ valid: true });
+      
+    } catch (error) {
+      console.error("Token validation error:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+  
+  // Reset password endpoint
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const body = resetPasswordSchema.parse(req.body);
+      const ip = getClientIP(req);
+      const userAgent = getUserAgent(req);
+      
+      // Rate limiting
+      const ipLimit = checkRateLimit(`reset-password:ip:${ip}`, 5, 15 * 60 * 1000);
+      if (!ipLimit.allowed) {
+        return res.status(429).json(createErrorResponse("TooManyRequests", "Too many reset attempts", "E_RATE_LIMIT"));
+      }
+      
+      // Validate password strength
+      const passwordValidation = validatePassword(body.newPassword);
+      if (!passwordValidation.valid) {
+        return res.status(400).json(createErrorResponse("BadRequest", passwordValidation.message!, "E_INPUT"));
+      }
+      
+      // Find and validate token
+      const tokenHash = hashPasswordResetToken(body.token);
+      const resetToken = await storage.getPasswordResetToken(tokenHash);
+      
+      if (!resetToken || 
+          resetToken.status !== "active" || 
+          resetToken.expiresAt < new Date()) {
+        await logAuthEvent("password_reset_invalid_token", null, ip, userAgent, { tokenHash: tokenHash.substring(0, 8) });
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid or expired reset token", "E_AUTH_INVALID_TOKEN"));
+      }
+      
+      // Get user
+      const user = await storage.getUser(resetToken.userId);
+      if (!user || user.status !== "active") {
+        return res.status(400).json(createErrorResponse("BadRequest", "User account not found or blocked", "E_AUTH_USER_BLOCKED"));
+      }
+      
+      // Update password and security fields
+      const newPasswordHash = await hashPassword(body.newPassword);
+      
+      // Execute atomically
+      await Promise.all([
+        storage.updateUserPassword(user.id, newPasswordHash),
+        storage.incrementUserTokenVersion(user.id),
+        storage.markPasswordResetTokenUsed(resetToken.id, ip, userAgent),
+        storage.revokeUserPasswordResetTokens(user.id), // Revoke other tokens
+        storage.revokeAllUserRefreshTokens(user.id) // Invalidate all sessions
+      ]);
+      
+      await logAuthEvent("password_reset_success", user.id, ip, userAgent, { email: user.email });
+      
+      // Optional silent login - generate new tokens
+      const updatedUser = await storage.getUser(user.id);
+      if (updatedUser) {
+        const accessToken = generateAccessToken(user.id, ["user"], updatedUser.tokenVersion, updatedUser.passwordChangedAt || undefined);
+        const deviceId = `${ip}_${userAgent.substring(0, 50)}`;
+        const refreshToken = generateRefreshToken(user.id, deviceId, updatedUser.tokenVersion, updatedUser.passwordChangedAt || undefined);
+        
+        // Store new refresh token
+        await storage.storeRefreshToken({
+          userId: user.id,
+          tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
+          deviceId,
+          ip,
+          userAgent,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        });
+        
+        // Set secure refresh token cookie
+        res.cookie("refresh_token", refreshToken, getSecureCookieOptions());
+        
+        return res.json({
+          message: "Password reset successful",
+          silentLogin: true,
+          accessToken,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name
+          }
+        });
+      }
+      
+      res.json({ message: "Password reset successful" });
+      
+    } catch (error) {
+      console.error("Reset password error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json(createErrorResponse("BadRequest", "Invalid input", "E_INPUT", error.errors));
+      }
+      res.status(500).json(createErrorResponse("InternalServerError", "Server error", "E_SERVER"));
+    }
+  });
+
   // Google OAuth login/signup
   app.post("/api/auth/google", async (req, res) => {
     try {
@@ -721,10 +917,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update last login
       await storage.updateAdminLastLogin(admin.id);
 
-      // Generate secure tokens
+      // Generate secure tokens with version info
       const deviceId = `admin_${ip}_${userAgent.substring(0, 50)}`;
-      const accessToken = generateAdminAccessToken(admin.id);
-      const refreshToken = generateRefreshToken(admin.id, deviceId);
+      const accessToken = generateAdminAccessToken(admin.id, admin.tokenVersion, admin.passwordChangedAt || undefined);
+      const refreshToken = generateRefreshToken(admin.id, deviceId, admin.tokenVersion, admin.passwordChangedAt || undefined);
 
       // Store refresh token in database for rotation detection
       try {
@@ -782,6 +978,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH_INVALID_REFRESH_TOKEN"));
       }
 
+      // Check if token was already used (rotation detection)
+      const storedToken = await storage.getRefreshToken(payload.jti);
+      if (!storedToken || storedToken.revokedAt) {
+        // Token reuse detected - security breach!
+        await logAuthEvent("admin_token_reuse_detected", payload.sub, getClientIP(req), getUserAgent(req), { 
+          tokenId: payload.jti 
+        });
+
+        // Revoke all tokens for this admin
+        await storage.revokeAllUserRefreshTokens(payload.sub);
+
+        return res.status(401).json(createErrorResponse("Unauthorized", "Token reuse detected - all sessions revoked", "E_AUTH_TOKEN_REUSE"));
+      }
+
+      // Mark old token as used
+      await storage.markRefreshTokenUsed(payload.jti);
+
       // Verify this is for an admin user  
       const admin = await storage.getAdminUser(payload.sub);
       if (!admin || admin.status !== "active") {
@@ -789,29 +1002,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json(createErrorResponse("Forbidden", "Admin account not found or blocked", "E_FORBIDDEN"));
       }
 
-      // Generate new access token
-      const newAccessToken = generateAdminAccessToken(admin.id);
-
-      // Rotate refresh token  
-      const newRefreshToken = generateRefreshToken(admin.email, "admin");
-      
-      // Try to store the new refresh token (will be skipped for admin users)
-      try {
-        await storage.storeRefreshToken({
-          userId: payload.sub,
-          tokenId: (jwt.decode(newRefreshToken) as any)?.jti || 'unknown',
-          deviceId: payload.deviceId,
-          ip: getClientIP(req),
-          userAgent: getUserAgent(req),
-          expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)
+      // Validate token version and password change timestamp
+      if (payload.token_version !== admin.tokenVersion) {
+        await logAuthEvent("admin_token_version_mismatch", admin.id, getClientIP(req), getUserAgent(req), {
+          tokenVersion: payload.token_version,
+          currentVersion: admin.tokenVersion
         });
-      } catch (tokenError) {
-        // Continue even if token storage fails
-        console.log("Admin refresh token storage skipped");
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Token version mismatch - please re-authenticate",
+          code: "E_AUTH_TOKEN_VERSION_MISMATCH"
+        });
       }
 
-      // Set new refresh token cookie
-      res.cookie("refresh_token", newRefreshToken, getSecureCookieOptions());
+      if (payload.pwd_ts && admin.passwordChangedAt) {
+        const adminPwdTs = Math.floor(admin.passwordChangedAt.getTime() / 1000);
+        if (payload.pwd_ts < adminPwdTs) {
+          await logAuthEvent("admin_password_changed_during_session", admin.id, getClientIP(req), getUserAgent(req), {
+            tokenPwdTs: payload.pwd_ts,
+            currentPwdTs: adminPwdTs
+          });
+          return res.status(401).json({
+            error: "Unauthorized",
+            message: "Token issued before password change - please re-authenticate",
+            code: "E_AUTH_PASSWORD_CHANGED"
+          });
+        }
+      }
+
+      // Generate new access token with version info
+      const newAccessToken = generateAdminAccessToken(admin.id, admin.tokenVersion, admin.passwordChangedAt || undefined);
+
+      // Rotate refresh token with version info
+      const newRefreshToken = generateRefreshToken(admin.id, payload.deviceId, admin.tokenVersion, admin.passwordChangedAt || undefined);
+      
+      // Store the new refresh token
+      await storage.storeRefreshToken({
+        userId: payload.sub,
+        tokenId: (jwt.decode(newRefreshToken) as any)?.jti || 'unknown',
+        deviceId: payload.deviceId,
+        ip: getClientIP(req),
+        userAgent: getUserAgent(req),
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)
+      });
+
+      // Set new refresh token cookie with consistent settings
+      res.cookie("refresh_token", newRefreshToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "lax" as const,
+        path: "/",
+        maxAge: REFRESH_TOKEN_TTL // 30 days
+      });
 
       // Audit log
       await logAuthEvent("admin_token_refresh", payload.sub, getClientIP(req), getUserAgent(req), {});

@@ -9,6 +9,7 @@ export const txnTypeEnum = pgEnum("txn_type", ["topup", "charge", "void", "adjus
 export const userStatusEnum = pgEnum("user_status", ["active", "blocked"]);
 export const adminRoleEnum = pgEnum("admin_role", ["manager", "staff"]);
 export const actorTypeEnum = pgEnum("actor_type", ["user", "admin", "system"]);
+export const resetTokenStatusEnum = pgEnum("reset_token_status", ["active", "used", "revoked", "expired"]);
 
 // Users table
 export const users = pgTable("users", {
@@ -19,6 +20,8 @@ export const users = pgTable("users", {
   googleId: text("google_id").unique(), // For Google OAuth
   profileImageUrl: text("profile_image_url"), // From Google profile
   status: userStatusEnum("status").default("active").notNull(),
+  passwordChangedAt: timestamp("password_changed_at"),
+  tokenVersion: integer("token_version").default(0).notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   lastLoginAt: timestamp("last_login_at")
 });
@@ -42,6 +45,8 @@ export const adminUsers = pgTable("admin_users", {
   profileImageUrl: text("profile_image_url"), // From Google profile
   role: adminRoleEnum("role").default("manager").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
+  passwordChangedAt: timestamp("password_changed_at"),
+  tokenVersion: integer("token_version").default(0).notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   lastLoginAt: timestamp("last_login_at")
 });
@@ -57,6 +62,25 @@ export const refreshTokens = pgTable("refresh_tokens", {
   expiresAt: timestamp("expires_at").notNull(),
   revokedAt: timestamp("revoked_at")
 });
+
+// Password reset tokens table
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  status: resetTokenStatusEnum("status").default("active").notNull(),
+  ipRequest: inet("ip_request"),
+  uaRequest: text("ua_request"),
+  ipConsume: inet("ip_consume"),
+  uaConsume: text("ua_consume"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull()
+}, (table) => ({
+  userIdIdx: index("idx_password_reset_user_id").on(table.userId),
+  expiresAtIdx: index("idx_password_reset_expires_at").on(table.expiresAt),
+  statusIdx: index("idx_password_reset_status").on(table.status)
+}));
 
 // Admin sessions table
 export const adminSessions = pgTable("admin_sessions", {
@@ -115,7 +139,15 @@ export const metricsDaily = pgTable("metrics_daily", {
 export const usersRelations = relations(users, ({ one, many }) => ({
   wallet: one(wallets),
   refreshTokens: many(refreshTokens),
-  transactions: many(transactions)
+  transactions: many(transactions),
+  passwordResetTokens: many(passwordResetTokens)
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id]
+  })
 }));
 
 export const walletsRelations = relations(wallets, ({ one }) => ({
@@ -176,7 +208,23 @@ export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
   id: true,
   createdAt: true,
   lastLoginAt: true,
-  passwordHash: true
+  passwordHash: true,
+  passwordChangedAt: true,
+  tokenVersion: true
+});
+
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({
+  id: true,
+  createdAt: true
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address")
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  newPassword: z.string().min(8, "Password must be at least 8 characters")
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
@@ -204,6 +252,10 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type AdminSession = typeof adminSessions.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type ForgotPasswordRequest = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordRequest = z.infer<typeof resetPasswordSchema>;
 
 // Top-up package constants
 export const TOP_UP_PACKAGES = {

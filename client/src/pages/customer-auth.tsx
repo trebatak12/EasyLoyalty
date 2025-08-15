@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, ArrowLeft, Mail, Lock, Gift, Smartphone, BarChart3 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -239,6 +239,18 @@ export default function CustomerAuth() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Link href="/forgot-password">
+                      <button
+                        type="button"
+                        className="text-sm text-amber-600 hover:text-amber-700 hover:underline font-medium transition-colors"
+                        data-testid="link-forgot-password"
+                      >
+                        Zapomněli jste heslo?
+                      </button>
+                    </Link>
                   </div>
 
                   <Button
