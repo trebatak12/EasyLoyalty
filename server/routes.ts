@@ -443,8 +443,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Password reset email sent to ${email}`);
         } catch (emailError) {
           console.error(`Failed to send reset email to ${email}:`, emailError);
-          // Log for development - remove in production
-          console.log(`Reset URL for ${email}: ${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset?token=${token}`);
+          // Log for development only
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`Reset URL for ${email}: ${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset?token=${token}`);
+          }
         }
         
         await logAuthEvent("forgot_password_requested", user.id, ip, userAgent, { email });
