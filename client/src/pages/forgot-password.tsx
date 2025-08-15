@@ -57,27 +57,27 @@ export default function ForgotPassword() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-4">
         <div className="max-w-md mx-auto pt-20">
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-sm border border-amber-200 rounded-3xl shadow-xl">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
-                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg">
+                <CheckCircle className="h-6 w-6 text-white" />
               </div>
-              <CardTitle className="text-xl">E-mail odeslán</CardTitle>
+              <CardTitle className="text-xl text-amber-900">E-mail odeslán</CardTitle>
               <CardDescription>
                 Pokud existuje účet s adresou <strong>{email}</strong>, obdržíte instrukce pro reset hesla.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4">
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
                 <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-blue-400 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    <h3 className="text-sm font-medium text-amber-800">
                       Důležité informace
                     </h3>
-                    <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+                    <div className="mt-2 text-sm text-amber-700">
                       <ul className="list-disc list-inside space-y-1">
                         <li>Odkaz pro reset je platný pouze 30 minut</li>
                         <li>Zkontrolujte složku se spamem</li>
@@ -92,7 +92,7 @@ export default function ForgotPassword() {
               <Button 
                 onClick={() => setLocation("/auth/customer")}
                 variant="outline" 
-                className="w-full"
+                className="w-full text-amber-700 border-amber-300 hover:bg-amber-50 font-semibold"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Zpět na přihlášení
@@ -103,7 +103,7 @@ export default function ForgotPassword() {
                   setEmail("");
                 }}
                 variant="ghost" 
-                className="w-full"
+                className="w-full text-amber-600 hover:bg-amber-50 font-medium"
               >
                 Odeslat znovu
               </Button>
@@ -115,14 +115,14 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-4">
       <div className="max-w-md mx-auto pt-20">
-        <Card>
+        <Card className="bg-white/90 backdrop-blur-sm border border-amber-200 rounded-3xl shadow-xl">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
-              <Mail className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg">
+              <Mail className="h-6 w-6 text-white" />
             </div>
-            <CardTitle className="text-xl">Zapomenuté heslo</CardTitle>
+            <CardTitle className="text-xl text-amber-900">Zapomenuté heslo</CardTitle>
             <CardDescription>
               Zadejte svou e-mailovou adresu a pošleme vám odkaz pro reset hesla.
             </CardDescription>
@@ -143,11 +143,11 @@ export default function ForgotPassword() {
                 />
               </div>
               
-              <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 p-4">
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
                 <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-amber-400 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
                   <div className="ml-3">
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                    <p className="text-sm text-amber-700">
                       Odkaz pro reset hesla bude platný pouze 30 minut.
                     </p>
                   </div>
@@ -157,14 +157,14 @@ export default function ForgotPassword() {
             <CardFooter className="flex flex-col space-y-2">
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full h-12 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200" 
                 disabled={isLoading}
                 data-testid="button-send-reset"
               >
                 {isLoading ? "Odesílání..." : "Odeslat odkaz pro reset"}
               </Button>
               <Link href="/auth/customer">
-                <Button variant="outline" className="w-full" data-testid="link-back-login">
+                <Button variant="outline" className="w-full text-amber-700 border-amber-300 hover:bg-amber-50 font-semibold" data-testid="link-back-login">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Zpět na přihlášení
                 </Button>

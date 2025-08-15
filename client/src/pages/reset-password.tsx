@@ -170,14 +170,16 @@ export default function ResetPassword() {
 
   if (isValidatingToken) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-4">
         <div className="max-w-md mx-auto pt-20">
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-sm border border-amber-200 rounded-3xl shadow-xl">
             <CardContent className="pt-6">
               <div className="text-center">
-                <Shield className="mx-auto h-12 w-12 text-blue-600 animate-pulse mb-4" />
-                <p className="text-lg font-medium">Ověřování tokenu...</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg animate-pulse">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+                <p className="text-lg font-medium text-amber-900">Ověřování tokenu...</p>
+                <p className="text-sm text-amber-600 mt-2">
                   Prosím čekejte, ověřujeme platnost odkazu pro reset hesla.
                 </p>
               </div>
@@ -190,24 +192,24 @@ export default function ResetPassword() {
 
   if (!isTokenValid) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-4">
         <div className="max-w-md mx-auto pt-20">
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-sm border border-amber-200 rounded-3xl shadow-xl">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
-                <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
-              <CardTitle className="text-xl">Neplatný odkaz</CardTitle>
+              <CardTitle className="text-xl text-amber-900">Neplatný odkaz</CardTitle>
               <CardDescription>
                 Odkaz pro reset hesla je neplatný, poškozený nebo vypršel.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
-                <p className="text-sm text-red-700 dark:text-red-300">
+              <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+                <p className="text-sm text-red-700">
                   Možné příčiny:
                 </p>
-                <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-300 mt-2 space-y-1">
+                <ul className="list-disc list-inside text-sm text-red-700 mt-2 space-y-1">
                   <li>Odkaz byl použit více než jednou</li>
                   <li>Odkaz je starší než 30 minut</li>
                   <li>Odkaz byl zkopírován neúplně</li>
@@ -216,12 +218,12 @@ export default function ResetPassword() {
             </CardContent>
             <CardFooter className="flex flex-col space-y-2">
               <Link href="/forgot-password">
-                <Button className="w-full" data-testid="button-request-new">
+                <Button className="w-full h-12 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200" data-testid="button-request-new">
                   Požádat o nový odkaz
                 </Button>
               </Link>
               <Link href="/auth/customer">
-                <Button variant="outline" className="w-full" data-testid="link-back-login">
+                <Button variant="outline" className="w-full text-amber-700 border-amber-300 hover:bg-amber-50 font-semibold" data-testid="link-back-login">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Zpět na přihlášení
                 </Button>
@@ -235,21 +237,21 @@ export default function ResetPassword() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-4">
         <div className="max-w-md mx-auto pt-20">
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-sm border border-amber-200 rounded-3xl shadow-xl">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
-                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
-              <CardTitle className="text-xl">Heslo změněno</CardTitle>
+              <CardTitle className="text-xl text-amber-900">Heslo změněno</CardTitle>
               <CardDescription>
                 Vaše heslo bylo úspěšně změněno. Nyní se můžete přihlásit s novým heslem.
               </CardDescription>
             </CardHeader>
             <CardFooter>
               <Link href="/auth/customer">
-                <Button className="w-full" data-testid="button-goto-login">
+                <Button className="w-full h-12 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200" data-testid="button-goto-login">
                   Přejít na přihlášení
                 </Button>
               </Link>
@@ -263,14 +265,14 @@ export default function ResetPassword() {
   const passwordStrength = getPasswordStrength(password);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-4">
       <div className="max-w-md mx-auto pt-20">
-        <Card>
+        <Card className="bg-white/90 backdrop-blur-sm border border-amber-200 rounded-3xl shadow-xl">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
-              <Lock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg">
+              <Lock className="h-6 w-6 text-white" />
             </div>
-            <CardTitle className="text-xl">Nové heslo</CardTitle>
+            <CardTitle className="text-xl text-amber-900">Nové heslo</CardTitle>
             <CardDescription>
               Zadejte nové bezpečné heslo pro svůj účet.
             </CardDescription>
@@ -356,11 +358,11 @@ export default function ResetPassword() {
                 )}
               </div>
 
-              <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4">
-                <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
+                <p className="text-sm font-medium text-amber-800 mb-2">
                   Požadavky na heslo:
                 </p>
-                <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                <ul className="text-sm text-amber-700 space-y-1">
                   <li className={`flex items-center ${password.length >= 8 ? 'text-green-600 dark:text-green-400' : ''}`}>
                     <span className="mr-2">{password.length >= 8 ? '✓' : '•'}</span>
                     Alespoň 8 znaků
@@ -379,14 +381,14 @@ export default function ResetPassword() {
             <CardFooter className="flex flex-col space-y-2">
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full h-12 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" 
                 disabled={isLoading || password !== confirmPassword || password.length < 8}
                 data-testid="button-reset-password"
               >
                 {isLoading ? "Měním heslo..." : "Změnit heslo"}
               </Button>
               <Link href="/auth/customer">
-                <Button variant="outline" className="w-full" data-testid="link-back-login">
+                <Button variant="outline" className="w-full text-amber-700 border-amber-300 hover:bg-amber-50 font-semibold" data-testid="link-back-login">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Zpět na přihlášení
                 </Button>
