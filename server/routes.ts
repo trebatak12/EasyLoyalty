@@ -142,10 +142,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
-      // Generate tokens
-      const accessToken = generateAccessToken(user.id);
+      // Generate tokens with current token version
+      const accessToken = generateAccessToken(user.id, ["user"], user.tokenVersion || 0, user.passwordChangedAt || undefined);
       const deviceId = `${ip}_${getUserAgent(req).substring(0, 50)}`;
-      const refreshToken = generateRefreshToken(user.id, deviceId);
+      const refreshToken = generateRefreshToken(user.id, deviceId, user.tokenVersion || 0, user.passwordChangedAt || undefined);
 
       await storage.storeRefreshToken({
         userId: user.id,
@@ -217,10 +217,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
-      // Generate secure tokens
+      // Generate secure tokens with current token version
       const deviceId = `${ip}_${userAgent.substring(0, 50)}`;
-      const accessToken = generateAccessToken(user.id, ["user"]);
-      const refreshToken = generateRefreshToken(user.id, deviceId);
+      const accessToken = generateAccessToken(user.id, ["user"], user.tokenVersion || 0, user.passwordChangedAt || undefined);
+      const refreshToken = generateRefreshToken(user.id, deviceId, user.tokenVersion || 0, user.passwordChangedAt || undefined);
 
       // Store refresh token in database for rotation detection
       await storage.storeRefreshToken({
@@ -638,10 +638,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
-      // Generate tokens
-      const accessToken = generateAccessToken(user.id);
+      // Generate tokens with current token version
+      const accessToken = generateAccessToken(user.id, ["user"], user.tokenVersion || 0, user.passwordChangedAt || undefined);
       const deviceId = `${ip}_${getUserAgent(req).substring(0, 50)}`;
-      const refreshToken = generateRefreshToken(user.id, deviceId);
+      const refreshToken = generateRefreshToken(user.id, deviceId, user.tokenVersion || 0, user.passwordChangedAt || undefined);
 
       // Store refresh token
       await storage.storeRefreshToken({
