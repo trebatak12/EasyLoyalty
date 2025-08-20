@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Coffee, LogOut, Scan, CreditCard, RotateCcw, CheckCircle, AlertCircle } from "lucide-react";
+import { Coffee, LogOut, Scan, CreditCard, RotateCcw, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 
@@ -27,6 +28,15 @@ interface ChargeResult {
   newBalanceCents: number;
 }
 
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+      <p className="text-orange-700">Načítání...</p>
+    </div>
+  </div>
+);
+
 export default function POSCharge() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -39,7 +49,7 @@ export default function POSCharge() {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Admin authentication hook
-  const { isAuthenticated, isLoading, logout } = useAdminAuth();
+  const { isAuthenticated, isLoading, admin } = useAdminAuth();
 
   // Sound effects
   useEffect(() => {
@@ -238,51 +248,48 @@ export default function POSCharge() {
   };
 
   if (isLoading || !isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 flex items-center justify-center">
-        <div className="text-center">
-          <Coffee className="w-16 h-16 text-amber-600 mx-auto mb-4" />
-          <p className="text-amber-700">Načítání...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
-      {/* Header */}
-      <div className="bg-white border-b-2 border-amber-200 p-4 shadow-sm">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <div className="flex items-center space-x-3">
-            <Coffee className="w-8 h-8 text-amber-600" />
-            <div>
-              <h1 className="text-xl font-bold text-amber-900">EasyLoyalty POS</h1>
-              <p className="text-sm text-amber-700">Pokladna</p>
+    <div className="min-h-screen bg-stone-50">
+      {/* Header - stejný styl jako admin dashboard */}
+      <div className="bg-white border-b border-stone-200 sticky top-0 z-10 shadow-sm">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <Coffee className="text-white w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-stone-800">POS System</h1>
+                <p className="text-sm text-stone-600">Pokladna • {admin?.name}</p>
+              </div>
             </div>
+            <Button 
+              variant="outline"
+              onClick={handleBackToDashboard}
+              className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl p-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleBackToDashboard}
-            className="border-amber-200 text-amber-700 hover:bg-amber-50"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Zpět na dashboard
-          </Button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-6">
+      {/* Main Content */}
+      <div className="container mx-auto px-4 sm:px-6 py-6 max-w-4xl">
         {step === "scan" && (
-          <Card className="border-2 border-amber-200">
-            <CardHeader>
-              <CardTitle className="flex items-center text-amber-900">
-                <Scan className="w-6 h-6 mr-2" />
+          <Card className="border-0 shadow-lg rounded-3xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center text-xl font-bold text-stone-800">
+                <Scan className="w-6 h-6 mr-3" />
                 Načtení zákazníka
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div>
-                <Label htmlFor="tokenOrCode" className="text-amber-800 font-medium">
+                <Label htmlFor="tokenOrCode" className="text-stone-700 font-medium mb-2 block">
                   QR kód nebo krátký kód
                 </Label>
                 <Input
@@ -290,7 +297,7 @@ export default function POSCharge() {
                   value={tokenOrCode}
                   onChange={(e) => setTokenOrCode(e.target.value)}
                   placeholder="Naskenujte QR kód nebo zadejte krátký kód"
-                  className="border-amber-200 focus:border-amber-500 focus:ring-amber-500"
+                  className="h-12 text-lg rounded-xl border-stone-300 focus:border-orange-500 focus:ring-orange-500"
                   onKeyDown={(e) => e.key === "Enter" && handleScan()}
                   disabled={initChargeMutation.isPending}
                 />
@@ -298,7 +305,7 @@ export default function POSCharge() {
               <Button
                 onClick={handleScan}
                 disabled={initChargeMutation.isPending || !tokenOrCode.trim()}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
+                className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-xl"
               >
                 {initChargeMutation.isPending ? "Načítání..." : "Načíst zákazníka"}
               </Button>
@@ -308,41 +315,41 @@ export default function POSCharge() {
 
         {step === "confirm" && customerInfo && (
           <div className="space-y-6">
-            <Card className="border-2 border-green-200 bg-green-50">
-              <CardHeader>
-                <CardTitle className="flex items-center text-green-800">
-                  <CheckCircle className="w-6 h-6 mr-2" />
+            <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-green-50 to-green-100">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-xl font-bold text-green-800">
+                  <CheckCircle className="w-6 h-6 mr-3" />
                   Informace o zákazníkovi
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label className="text-green-700">Jméno</Label>
-                    <p className="text-lg font-semibold text-green-900">{customerInfo.customerName}</p>
+                    <Label className="text-green-700 font-medium">Jméno</Label>
+                    <p className="text-lg font-semibold text-green-900 mt-1">{customerInfo.customerName}</p>
                   </div>
                   <div>
-                    <Label className="text-green-700">Email</Label>
-                    <p className="text-sm text-green-800">{customerInfo.customerEmail}</p>
+                    <Label className="text-green-700 font-medium">Email</Label>
+                    <p className="text-sm text-green-800 mt-1">{customerInfo.customerEmail}</p>
                   </div>
-                  <div className="col-span-2">
-                    <Label className="text-green-700">Aktuální zůstatek</Label>
-                    <p className="text-2xl font-bold text-green-900">{customerInfo.balanceCZK}</p>
+                  <div className="md:col-span-2">
+                    <Label className="text-green-700 font-medium">Aktuální zůstatek</Label>
+                    <p className="text-3xl font-bold text-green-900 mt-1">{customerInfo.balanceCZK}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-amber-200">
-              <CardHeader>
-                <CardTitle className="flex items-center text-amber-900">
-                  <CreditCard className="w-6 h-6 mr-2" />
+            <Card className="border-0 shadow-lg rounded-3xl">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-xl font-bold text-stone-800">
+                  <CreditCard className="w-6 h-6 mr-3" />
                   Účtování platby
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div>
-                  <Label htmlFor="amount" className="text-amber-800 font-medium">
+                  <Label htmlFor="amount" className="text-stone-700 font-medium mb-2 block">
                     Částka k účtování (Kč)
                   </Label>
                   <Input
@@ -353,22 +360,22 @@ export default function POSCharge() {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
-                    className="border-amber-200 focus:border-amber-500 focus:ring-amber-500 text-lg"
+                    className="h-12 text-xl rounded-xl border-stone-300 focus:border-orange-500 focus:ring-orange-500"
                     disabled={confirmChargeMutation.isPending}
                   />
                 </div>
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     onClick={handleCharge}
                     disabled={confirmChargeMutation.isPending || !amount}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3"
+                    className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl"
                   >
                     {confirmChargeMutation.isPending ? "Zpracovávání..." : "Potvrdit platbu"}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={resetFlow}
-                    className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                    className="h-12 border-orange-200 text-orange-600 hover:bg-orange-50 font-medium rounded-xl px-8"
                   >
                     Zrušit
                   </Button>
@@ -380,51 +387,50 @@ export default function POSCharge() {
 
         {step === "success" && chargeResult && (
           <div className="space-y-6">
-            <Card className="border-2 border-green-200 bg-green-50">
-              <CardHeader>
-                <CardTitle className="flex items-center text-green-800">
-                  <CheckCircle className="w-6 h-6 mr-2" />
+            <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-green-50 to-green-100">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-xl font-bold text-green-800">
+                  <CheckCircle className="w-6 h-6 mr-3" />
                   Platba úspěšná
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label className="text-green-700">Účtovaná částka</Label>
-                    <p className="text-2xl font-bold text-green-900">{amount} Kč</p>
+                    <Label className="text-green-700 font-medium">Účtovaná částka</Label>
+                    <p className="text-3xl font-bold text-green-900 mt-1">{amount} Kč</p>
                   </div>
                   <div>
-                    <Label className="text-green-700">Nový zůstatek</Label>
-                    <p className="text-xl font-semibold text-green-800">{chargeResult.newBalanceCZK}</p>
+                    <Label className="text-green-700 font-medium">Nový zůstatek</Label>
+                    <p className="text-xl font-semibold text-green-800 mt-1">{chargeResult.newBalanceCZK}</p>
                   </div>
-                  <div className="col-span-2">
-                    <Label className="text-green-700">ID transakce</Label>
-                    <p className="text-sm font-mono text-green-800">{chargeResult.transactionId}</p>
+                  <div className="md:col-span-2">
+                    <Label className="text-green-700 font-medium">ID transakce</Label>
+                    <p className="text-sm font-mono text-green-800 mt-1 break-all">{chargeResult.transactionId}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {voidCountdown > 0 && (
-              <Card className="border-2 border-orange-200 bg-orange-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-orange-800">
-                    <AlertCircle className="w-6 h-6 mr-2" />
+              <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-orange-50 to-orange-100">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center text-xl font-bold text-orange-800">
+                    <AlertCircle className="w-6 h-6 mr-3" />
                     Možnost storna
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                      <p className="text-orange-800">
-                        Platbu lze stornovat ještě <span className="font-bold">{voidCountdown}s</span>
+                      <p className="text-orange-800 text-lg">
+                        Platbu lze stornovat ještě <span className="font-bold text-xl">{voidCountdown}s</span>
                       </p>
                     </div>
                     <Button
                       onClick={handleVoid}
                       disabled={voidChargeMutation.isPending}
-                      variant="destructive"
-                      className="bg-red-600 hover:bg-red-700"
+                      className="bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl h-12 px-6"
                     >
                       <RotateCcw className="w-4 h-4 mr-2" />
                       {voidChargeMutation.isPending ? "Stornování..." : "Stornovat"}
@@ -434,10 +440,10 @@ export default function POSCharge() {
               </Card>
             )}
 
-            <div className="flex justify-center">
+            <div className="text-center">
               <Button
                 onClick={resetFlow}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3"
+                className="h-12 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-xl px-8"
               >
                 Nová platba
               </Button>
