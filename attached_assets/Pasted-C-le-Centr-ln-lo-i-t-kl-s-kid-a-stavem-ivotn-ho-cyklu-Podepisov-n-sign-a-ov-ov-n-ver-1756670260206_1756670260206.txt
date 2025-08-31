@@ -1,0 +1,246 @@
+Cíle
+
+Centrální úložiště klíčů s kid a stavem životního cyklu.
+
+Podepisování (sign) a ověřování (verify) JWS ES256 s kid v headeru.
+
+JWKS endpoint /.well-known/jwks.json (jen public klíče se stavem active|retiring).
+
+Oddělení klíčů podle účelu: access_jwt, refresh_jwt, qr_jwt (JWS/ES256), webhook_hmac (HMAC – zatím jen placeholder v keystore).
+
+Zpětná kompatibilita: verifikátory umí více kid + fallback na dosavadní statický klíč z ENV (pouze dočasně).
+
+Bezpečná práce s privátními klíči: envelope šifrování v DB; žádná tajemství v repozitáři.
+
+Invarianta: max jeden active klíč per purpose (věz ještě „retiring“ pro overlap).
+
+Základ metrik a audit logu (počty sign/verify podle kid a purpose, bez PII).
+
+Konfig & feature-flags skeleton (bez UI): bezpečné čtení z ENV, validace.
+
+Mimo scope (pro tento sprint)
+
+Plná rotace (CLI runbooky, emergency revoke), správní UI, role-based správa.
+
+GDPR, DR apod. (řeší jiné MUST).
+
+Webhook HMAC implementace – zatím jen evidence v keystore.
+
+Architektura & kontrakty
+1) Datový model (Drizzle ORM – popiš typy, žádná tajemství v plain)
+
+Tabulka keys (keystore):
+
+id (uuid, PK)
+
+kid (string, UNIQUE, ne-null)
+
+purpose (enum: access_jwt | refresh_jwt | qr_jwt | webhook_hmac)
+
+alg (string, např. ES256 pro JWS; HMAC pro webhook)
+
+status (enum: active | retiring | retired | revoked)
+
+created_at (timestamptz)
+
+not_after (timestamptz, nullable – plán pro vyřazení)
+
+public_material (text; u ES256 public JWK; u HMAC NULL)
+
+private_material_encrypted (text; u ES256 šifrovaný privátní JWK; u HMAC šifrovaný shared secret)
+
+notes (text, nullable)
+
+Indexy & omezení:
+
+UNIQUE(kid)
+
+UNIQUE(purpose) kde status='active' (partial unique)
+
+(optional) INDEX(purpose, status)
+
+Tabulka key_audit (lehké auditování bez PII):
+
+id (uuid)
+
+kid
+
+purpose
+
+event (enum: sign_ok | sign_fail | verify_ok | verify_fail | jwks_served)
+
+at (timestamptz)
+
+context (jsonb; např. { "reason": "UNSUPPORTED_ALG" })
+
+Pozn.: Privátní materiál v DB musí být šifrovaný (viz sekce „Šifrování“).
+
+2) Moduly
+
+KeyManager
+
+getActiveKey(purpose) → vrátí aktivní klíč (public+decrypted private, resp. HMAC secret).
+
+getKeyByKid(kid) → vrátí klíč (pro verify) i když je retiring.
+
+listJWKS() → pole public JWK pro klíče se stavem active|retiring a alg=ES256.
+
+bootstrapIfEmpty() → při startu: pokud chybí klíče, vygeneruj po jednom active pro access_jwt, refresh_jwt, qr_jwt.
+
+Invarianta: enforce „1× active/purpose“. Při porušení fail fast.
+
+TokenService
+
+sign(payload, { purpose, ttl }) → JWS ES256 s headerem { alg: ES256, kid }.
+
+verify(token, { acceptFallbackEnvKey?: boolean }) → ověří libovolný kid z keystore; když kid neznámý a acceptFallbackEnvKey==true, zkusí starý statický klíč z ENV (dočasně).
+
+Algoritmy: jen ES256 pro JWS. Odmítnout jiné alg.
+
+Claimy: nech generické; TTL nech na volajícím (různá dle účelu).
+
+ConfigService
+
+Validace ENV (viz níže).
+
+Feature flags scaffold (např. SAFE_MODE, zatím jen načítání).
+
+3) JWKS endpoint
+
+GET /.well-known/jwks.json → { keys: [ ...public JWKs for active|retiring ES256 ] }
+
+HTTP cache hlavičky (krátké TTL), ETag volitelně.
+
+Žádné privátní materiály; žádné HMAC klíče.
+
+4) ENV & šifrování (envelope)
+
+ENV proměnné (povinné):
+
+ENVIRONMENT = development|staging|production
+
+ENCRYPTION_MASTER_KEY (base64 či hex) – použij pro symetrické šifrování private_material_encrypted.
+
+LEGACY_JWT_PRIVATE_KEY_PEM (optional) – pouze pro dočasný fallback verifikace starých tokenů, nikdy se tím už nepodepisuje.
+
+FEATURE_FLAGS (json, optional) – placeholder.
+
+Šifrování:
+
+Implementuj envelope: private_material (JWK/secret) šifruj symetricky klíčem odvozeným z ENCRYPTION_MASTER_KEY.
+
+Zakázáno logovat dešifrovaný obsah.
+
+Pokud ENCRYPTION_MASTER_KEY chybí → start aplikace má failnout (kromě „dev-grace“, viz testy).
+
+5) Chybové kódy (mapuj na HTTP 400/401/500 dle kontextu)
+
+INVALID_KID
+
+KEY_NOT_FOUND
+
+KEY_NOT_ACTIVE (pro sign s purpose bez active klíče)
+
+PURPOSE_MISMATCH
+
+UNSUPPORTED_ALG
+
+TOKEN_EXPIRED
+
+JWKS_UNAVAILABLE (např. interní chyba při listování)
+
+6) Telemetrie (minimum – navazuje na MUST #7 později)
+
+Counter: key_sign_total{purpose,kid} / key_sign_fail_total{reason}
+
+Counter: key_verify_total{kid} / key_verify_fail_total{reason}
+
+Counter: jwks_served_total
+
+Gauge (periodicky): active_keys_per_purpose
+
+7) Bootstrapping & kompatibilita
+
+Při startu:
+
+bootstrapIfEmpty() → vygeneruj po 1 aktivním ES256 klíči pro access_jwt, refresh_jwt, qr_jwt.
+
+Ulož public JWK do public_material.
+
+Ulož privátní JWK šifrovaně do private_material_encrypted.
+
+Verifikace musí umět tokeny s neznámým kid ověřit přes LEGACY_JWT_PRIVATE_KEY_PEM jen pokud je acceptFallbackEnvKey==true.
+
+Podepisování od této chvíle vždy používá KeyManager.getActiveKey(purpose) → JWS s kid.
+
+Akceptační testy (musí projít)
+
+DB & invarianta
+
+Při startu prázdné DB → vytvoří se 3 aktivní ES256 klíče (access/refresh/qr).
+
+Nelze mít 2× active pro stejný purpose (DB constraint + test).
+
+JWKS
+
+GET /.well-known/jwks.json vrací public JWKs pro active|retiring ES256 klíče.
+
+Žádný privátní materiál; žádné HMAC klíče.
+
+Sign/Verify (multi-kid)
+
+TokenService.sign vytvoří JWS s kid v headeru a alg=ES256.
+
+TokenService.verify ověří tokeny pro aktuální kid i libovolný starší retiring (až zavedeme).
+
+Při alg ≠ ES256 → UNSUPPORTED_ALG.
+
+Fallback kompatibilita
+
+Token podepsaný původním legacy klíčem (bez kid) je možné ověřit pouze, pokud acceptFallbackEnvKey==true a existuje LEGACY_JWT_PRIVATE_KEY_PEM.
+
+Podepisování legacy klíčem je zakázané (není k dispozici).
+
+Šifrování
+
+Bez ENCRYPTION_MASTER_KEY prod env nespustit (dev může mít výjimku jen pro test).
+
+De/šifrování funguje; audit neobsahuje tajemství.
+
+Metriky & audit
+
+Volání sign/verify inkrementuje správné countery a zapisuje stručný audit záznam (bez PII).
+
+JWKS endpoint inkrementuje jwks_served_total.
+
+Výkon & stabilita (light)
+
+1000× verify/s (lokální) bez chyb a bez memory leaků.
+
+Paralelní sign z více requestů stále volí jediný active per purpose.
+
+Implementační pokyny
+
+TypeScript, modulárně (KeyManager, TokenService, ConfigService).
+
+Preferuj knihovnu pro JWS ES256 (např. jose), ale architekturu udělej tak, aby šla snadno vyměnit.
+
+Žádné tajemství v logu, žádné klíče v repozitáři.
+
+Přidej README (krátké): co dělá keystore, jak funguje bootstrap, jak nastavit ENV (dev/stage/prod), jak volat sign/verify, jaký je formát JWKS.
+
+Dodávky (Definition of Done)
+
+DB migrace (Drizzle) pro keys a key_audit + partial unique constraint.
+
+Backend moduly (KeyManager, TokenService, ConfigService) + drátování do Expressu.
+
+JWKS endpoint publikovaný.
+
+Základní testy (unit + light integration) pokrývající akceptační scénáře.
+
+Telemetry counters + zápis do key_audit.
+
+README s instrukcemi.
+
+Vše proběhne lokálně na development ENV bez chyb, a je připraveno pro nasazení na staging (Neon).
