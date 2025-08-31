@@ -33,18 +33,25 @@ shared/   # Zod typy & schémata
 - **Plan:** (kroky) → **Changes:** (shrnutí diffu)
 - Piš česky, běžným jazykem
 
-## Recent Changes (2025-01-12)
-### Security & Stability Fixes ✅
-- **Fixed production secrets check:** App now throws error on startup if JWT secrets missing in production
-- **Fixed TTL calculation:** SESSION_IDLE_TTL corrected from 30 hours to 30 minutes
-- **Unified cookie paths:** All refresh tokens use consistent `/api/auth` path for proper deletion
-- **SameSite strategy:** Configurable via COOKIE_SAMESITE env var (strict/lax/none)
-- **Fixed CSRF maxAge:** Changed from string to number in milliseconds
-- **Race condition fix:** Frontend refresh now uses useRef to prevent multiple simultaneous refreshes
-- **Logout improvement:** Always calls API to clear refresh cookie, even without access token
-- **HTTP-only cookies:** All auth routes now properly set refresh tokens as secure cookies
-- **CORS configuration:** Added proper CORS middleware with credentials support for cross-origin requests
-- **Cookie security:** Updated SameSite mode to "lax" for better cross-origin compatibility while maintaining security
+## Recent Changes (2025-08-31)
+### JWT Keystore System ✅ COMPLETED
+- **Database schema:** Extended with `keys` and `key_audit` tables with proper constraints
+- **ConfigService:** ENV validation and feature flags management implemented
+- **KeyManager:** Envelope encryption using ENCRYPTION_MASTER_KEY for secure private key storage
+- **TokenService:** ES256 JWS signing/verification with kid headers using `jose` library  
+- **JWKS endpoint:** `/.well-known/jwks.json` returning public keys for active/retiring ES256 keys
+- **Bootstrap:** Auto-generates initial keys for access_jwt, refresh_jwt, and qr_jwt purposes
+- **Metrics:** Telemetry tracking sign/verify operations and JWKS endpoint usage via `/api/metrics`
+- **Audit logging:** Complete audit trail of all keystore operations without PII
+- **Backward compatibility:** Legacy token verification via LEGACY_JWT_PRIVATE_KEY_PEM
+- **Tests:** 11 integration tests covering JWKS, metrics, health, and auth endpoints
+
+### Security Features
+- **Envelope encryption:** Private keys encrypted in database using master key
+- **Kid-based verification:** Each token has unique key identifier in header
+- **One active key constraint:** Maximum one active key per purpose enforced by DB
+- **Fail-fast production:** App throws error on startup if encryption key missing
+- **Secure endpoints:** JWKS cached 5min, metrics only in development
 
 ## Current Sprint (2025-W31)
 1. Dokončit 120 s void logiku `/server/src/void.ts`

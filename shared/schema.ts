@@ -11,6 +11,11 @@ export const adminRoleEnum = pgEnum("admin_role", ["manager", "staff"]);
 export const actorTypeEnum = pgEnum("actor_type", ["user", "admin", "system"]);
 export const resetTokenStatusEnum = pgEnum("reset_token_status", ["active", "used", "revoked", "expired"]);
 
+// Keystore enums
+export const keyPurposeEnum = pgEnum("key_purpose", ["access_jwt", "refresh_jwt", "qr_jwt", "webhook_hmac"]);
+export const keyStatusEnum = pgEnum("key_status", ["active", "retiring", "retired", "revoked"]);
+export const keyEventEnum = pgEnum("key_event", ["sign_ok", "sign_fail", "verify_ok", "verify_fail", "jwks_served"]);
+
 // Users table
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -135,6 +140,32 @@ export const metricsDaily = pgTable("metrics_daily", {
   spendCents: integer("spend_cents").notNull()
 });
 
+// Keys table (keystore)
+export const keys = pgTable("keys", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  kid: text("kid").notNull().unique(),
+  purpose: keyPurposeEnum("purpose").notNull(),
+  alg: text("alg").notNull(), // ES256 pro JWS; HMAC pro webhook
+  status: keyStatusEnum("status").notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  notAfter: timestamp("not_after"), // plán pro vyřazení
+  publicMaterial: text("public_material"), // u ES256 public JWK; u HMAC NULL
+  privateMaterialEncrypted: text("private_material_encrypted").notNull(), // šifrovaný privátní JWK/secret
+  notes: text("notes")
+}, (table) => ({
+  purposeStatusIdx: index("idx_keys_purpose_status").on(table.purpose, table.status)
+}));
+
+// Key audit table (lehké auditování bez PII)
+export const keyAudit = pgTable("key_audit", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  kid: text("kid").notNull(),
+  purpose: keyPurposeEnum("purpose").notNull(),
+  event: keyEventEnum("event").notNull(),
+  at: timestamp("at").default(sql`now()`).notNull(),
+  context: jsonb("context").default({}).notNull()
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   wallet: one(wallets),
@@ -227,6 +258,16 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8, "Password must be at least 8 characters")
 });
 
+export const insertKeySchema = createInsertSchema(keys).omit({
+  id: true,
+  createdAt: true
+});
+
+export const insertKeyAuditSchema = createInsertSchema(keyAudit).omit({
+  id: true,
+  at: true
+});
+
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
   createdAt: true
@@ -256,6 +297,10 @@ export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 export type ForgotPasswordRequest = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordRequest = z.infer<typeof resetPasswordSchema>;
+export type Key = typeof keys.$inferSelect;
+export type InsertKey = z.infer<typeof insertKeySchema>;
+export type KeyAudit = typeof keyAudit.$inferSelect;
+export type InsertKeyAudit = z.infer<typeof insertKeyAuditSchema>;
 
 // Top-up package constants
 export const TOP_UP_PACKAGES = {

@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { keyManager } from "./key-manager";
 
 const app = express();
 
@@ -69,6 +70,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize keystore with default keys if empty
+  try {
+    await keyManager.bootstrapIfEmpty();
+    await keyManager.validateInvariant();
+  } catch (error) {
+    console.error("❌ Keystore initialization failed:", error);
+    process.exit(1);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

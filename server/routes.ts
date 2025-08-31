@@ -27,6 +27,8 @@ import {
 } from "./auth";
 import { auditLog, createErrorResponse, validateEmail, validatePassword, formatCZK, parseCZK, addRequestId, getClientIP, getUserAgent } from "./utils";
 import { sendPasswordResetEmail } from "./email";
+import { keyManager } from "./key-manager";
+import { metrics } from "./metrics";
 
 // Production flag for cookie security
 const isProd = process.env.NODE_ENV === "production";
@@ -105,6 +107,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       commit: process.env.GIT_SHA || "unknown",
       builtAt: new Date().toISOString()
     });
+  });
+
+  // Metrics endpoint (pouze development)
+  app.get("/api/metrics", async (req, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    try {
+      const allMetrics = metrics.getAllMetrics();
+      const activeKeysGauge = await metrics.getActiveKeysPerPurpose();
+      
+      res.json({
+        counters: allMetrics,
+        gauges: {
+          active_keys_per_purpose: activeKeysGauge
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Metrics endpoint error:", error);
+      res.status(500).json({ error: "Metrics unavailable" });
+    }
+  });
+
+  // JWKS endpoint
+  app.get("/.well-known/jwks.json", async (req, res) => {
+    try {
+      const jwks = await keyManager.listJWKS();
+      
+      // Audit JWKS přístup
+      await keyManager.auditEvent("*", "access_jwt", "jwks_served", {
+        ip: getClientIP(req),
+        userAgent: getUserAgent(req)
+      });
+
+      // Metrics
+      metrics.recordJWKSServed();
+
+      // HTTP cache hlavičky
+      res.set({
+        "Cache-Control": "public, max-age=300", // 5 minut cache
+        "Content-Type": "application/json"
+      });
+
+      res.json(jwks);
+    } catch (error) {
+      console.error("JWKS endpoint error:", error);
+      res.status(500).json(createErrorResponse("InternalServerError", "JWKS unavailable", "JWKS_UNAVAILABLE"));
+    }
   });
 
   // Customer Authentication Routes
