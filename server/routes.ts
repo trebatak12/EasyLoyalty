@@ -12,8 +12,6 @@ import {
   generateShortCode, 
   verifyQRToken,
   authenticate,
-  authenticateUser, 
-  authenticateAdmin,
   checkRateLimit,
   verifyGoogleToken,
   verifyRefreshToken,
@@ -25,6 +23,14 @@ import {
   generatePasswordResetToken,
   hashPasswordResetToken
 } from "./auth";
+import { 
+  generateKeystoreAccessToken,
+  generateKeystoreRefreshToken,
+  generateKeystoreQRToken,
+  verifyKeystoreToken,
+  authenticateWithKeystore,
+  authenticateAdminWithKeystore
+} from "./keystore-auth";
 import { auditLog, createErrorResponse, validateEmail, validatePassword, formatCZK, parseCZK, addRequestId, getClientIP, getUserAgent } from "./utils";
 import { sendPasswordResetEmail } from "./email";
 import { keyManager } from "./key-manager";
@@ -194,14 +200,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
-      // Generate tokens with current token version
-      const accessToken = generateAccessToken(user.id, ["user"], user.tokenVersion || 0, user.passwordChangedAt || undefined);
+      // Generate keystore tokens with current token version
+      const accessToken = await generateKeystoreAccessToken(user.id, ["user"], user.tokenVersion || 0, user.passwordChangedAt || undefined);
       const deviceId = `${ip}_${getUserAgent(req).substring(0, 50)}`;
-      const refreshToken = generateRefreshToken(user.id, deviceId, user.tokenVersion || 0, user.passwordChangedAt || undefined);
+      const refreshToken = await generateKeystoreRefreshToken(user.id, deviceId, user.tokenVersion || 0, user.passwordChangedAt || undefined);
 
+      // Dekóduj keystore token pro jti
+      const decodedRefresh = await verifyKeystoreToken(refreshToken, false);
       await storage.storeRefreshToken({
         userId: user.id,
-        tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
+        tokenId: decodedRefresh.jti || 'unknown',
         deviceId,
         ip,
         userAgent: getUserAgent(req),
@@ -269,15 +277,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
-      // Generate secure tokens with current token version
+      // Generate keystore tokens with current token version
       const deviceId = `${ip}_${userAgent.substring(0, 50)}`;
-      const accessToken = generateAccessToken(user.id, ["user"], user.tokenVersion || 0, user.passwordChangedAt || undefined);
-      const refreshToken = generateRefreshToken(user.id, deviceId, user.tokenVersion || 0, user.passwordChangedAt || undefined);
+      const accessToken = await generateKeystoreAccessToken(user.id, ["user"], user.tokenVersion || 0, user.passwordChangedAt || undefined);
+      const refreshToken = await generateKeystoreRefreshToken(user.id, deviceId, user.tokenVersion || 0, user.passwordChangedAt || undefined);
 
-      // Store refresh token in database for rotation detection
+      // Store keystore refresh token in database for rotation detection
+      // Use token hash for rotation detection since jti might be missing in ES256
+      const { createHash } = await import("crypto");
+      const tokenHash = createHash("sha256").update(refreshToken).digest("hex");
+      console.log("🔑 Storing refresh token hash at signup:", tokenHash);
       await storage.storeRefreshToken({
         userId: user.id,
-        tokenId: (jwt.decode(refreshToken) as any)?.jti || 'unknown',
+        tokenId: tokenHash,
         deviceId,
         ip,
         userAgent,
@@ -317,17 +329,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json(createErrorResponse("Unauthorized", "Refresh token missing", "E_AUTH_NO_REFRESH_TOKEN"));
       }
 
-      const payload = verifyRefreshToken(refreshToken);
-      if (!payload) {
+      let payload;
+      try {
+        // Try keystore first
+        payload = await verifyKeystoreToken(refreshToken, false);
+      } catch (error: any) {
+        if (error.code === 'UNSUPPORTED_ALG') {
+          // Fallback to legacy HS256 for gradual migration
+          payload = verifyRefreshToken(refreshToken);
+          if (!payload) {
+            return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH_INVALID_REFRESH_TOKEN"));
+          }
+        } else {
+          throw error;
+        }
+      }
+
+      if (!payload || (payload.type && payload.type !== "refresh")) {
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH_INVALID_REFRESH_TOKEN"));
       }
 
       // Check if token was already used (rotation detection)
-      const storedToken = await storage.getRefreshToken(payload.jti);
+      // Use token hash for rotation detection since jti might be missing in ES256
+      const { createHash } = await import("crypto");
+      const tokenHash = createHash("sha256").update(refreshToken).digest("hex");
+      console.log("🔍 Looking for refresh token hash:", tokenHash);
+      const storedToken = await storage.getRefreshToken(tokenHash);
+      console.log("🔍 Found stored token:", storedToken ? "YES" : "NO");
       if (!storedToken || storedToken.revokedAt) {
         // Token reuse detected - security breach!
         await logAuthEvent("token_reuse_detected", payload.sub, getClientIP(req), getUserAgent(req), { 
-          tokenId: payload.jti 
+          tokenId: tokenHash
         });
 
         // Revoke all tokens for this user
@@ -337,16 +369,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Mark old token as used
-      await storage.markRefreshTokenUsed(payload.jti);
+      await storage.markRefreshTokenUsed(tokenHash);
 
-      // Generate new access token
-      const newAccessToken = generateAccessToken(payload.sub, ["user"]);
+      // Generate new keystore access token
+      const newAccessToken = await generateKeystoreAccessToken(payload.sub, ["user"]);
 
-      // Rotate refresh token  
-      const newRefreshToken = generateRefreshToken(payload.sub, payload.deviceId);
+      // Rotate keystore refresh token  
+      const newRefreshToken = await generateKeystoreRefreshToken(payload.sub, payload.deviceId);
+      const newTokenHash = createHash("sha256").update(newRefreshToken).digest("hex");
       await storage.storeRefreshToken({
         userId: payload.sub,
-        tokenId: (jwt.decode(newRefreshToken) as any)?.jti || 'unknown',
+        tokenId: newTokenHash,
         deviceId: payload.deviceId,
         ip: getClientIP(req),
         userAgent: getUserAgent(req),
@@ -367,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", authenticate, async (req, res) => {
+  app.post("/api/auth/logout", authenticateWithKeystore, async (req, res) => {
     try {
       const userId = req.user.id;
       const tokenPayload = req.tokenPayload;
@@ -413,7 +446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Logout from all devices
-  app.post("/api/auth/logout-everywhere", authenticate, async (req, res) => {
+  app.post("/api/auth/logout-everywhere", authenticateWithKeystore, async (req, res) => {
     try {
       const userId = req.user.id;
 
@@ -729,7 +762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Customer Routes (JWT Protected)
-  app.get("/api/me", authenticateUser, async (req, res) => {
+  app.get("/api/me", authenticateWithKeystore, async (req, res) => {
     try {
       const user = req.user;
       const wallet = await storage.getWalletByUserId(user.id);
@@ -754,7 +787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Wallet routes
-  app.get("/api/me/wallet", authenticateUser, async (req, res) => {
+  app.get("/api/me/wallet", authenticateWithKeystore, async (req, res) => {
     try {
       const wallet = await storage.getWalletByUserId(req.user!.id);
       if (!wallet) {
@@ -777,7 +810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Transaction history route
-  app.get("/api/me/history", authenticateUser, async (req, res) => {
+  app.get("/api/me/history", authenticateWithKeystore, async (req, res) => {
     try {
       const userId = req.user!.id;
       const limit = parseInt(req.query.limit as string) || 20;
@@ -796,7 +829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // QR payment generation route
-  app.post("/api/me/qr", authenticateUser, async (req, res) => {
+  app.post("/api/me/qr", authenticateWithKeystore, async (req, res) => {
     try {
       const userId = req.user!.id;
       const nonce = Math.random().toString(36).substring(2, 15);
@@ -820,7 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Robust Top-up endpoint with atomic transactions and idempotency
-  app.post("/api/me/topup", authenticateUser, async (req, res) => {
+  app.post("/api/me/topup", authenticateWithKeystore, async (req, res) => {
     try {
       const body = topupSchema.parse(req.body);
       const userId = req.user.id;
@@ -884,7 +917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/me/qr", authenticateUser, async (req, res) => {
+  app.post("/api/me/qr", authenticateWithKeystore, async (req, res) => {
     try {
       const userId = req.user.id;
       const nonce = randomUUID();
@@ -908,7 +941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/me/history", authenticateUser, async (req, res) => {
+  app.get("/api/me/history", authenticateWithKeystore, async (req, res) => {
     try {
       const { type = "all", cursor } = req.query;
       const transactions = await storage.getUserTransactions(req.user.id, 20, cursor as string);
@@ -1125,7 +1158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/logout", authenticateAdmin, async (req, res) => {
+  app.post("/api/admin/logout", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const adminId = req.admin.id;
       const tokenPayload = req.tokenPayload;
@@ -1171,7 +1204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Routes (Session Protected)
-  app.get("/api/admin/me", authenticateAdmin, async (req, res) => {
+  app.get("/api/admin/me", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const admin = req.admin;
       res.json({
@@ -1188,7 +1221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/charge/init", authenticateAdmin, async (req, res) => {
+  app.post("/api/admin/charge/init", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const body = chargeInitSchema.parse(req.body);
       const { tokenOrCode } = body;
@@ -1251,7 +1284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/charge/confirm", authenticateAdmin, async (req, res) => {
+  app.post("/api/admin/charge/confirm", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const body = chargeConfirmSchema.parse(req.body);
       const { chargeId, amountCZK, idempotencyKey } = body;
@@ -1345,7 +1378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/charge/void", authenticateAdmin, async (req, res) => {
+  app.post("/api/admin/charge/void", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const body = chargeVoidSchema.parse(req.body);
       const { chargeId } = body;
@@ -1402,7 +1435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/customers", authenticateAdmin, async (req, res) => {
+  app.get("/api/admin/customers", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const { query, cursor } = req.query;
       const limit = 50;
@@ -1431,7 +1464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin dashboard stats
-  app.get("/api/admin/dashboard", authenticateAdmin, async (req, res) => {
+  app.get("/api/admin/dashboard", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
       
@@ -1451,7 +1484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/summary", authenticateAdmin, async (req, res) => {
+  app.get("/api/admin/summary", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const stats = await storage.getSummaryStats();
 
@@ -1472,7 +1505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/adjustment", authenticateAdmin, async (req, res) => {
+  app.post("/api/admin/adjustment", authenticateAdminWithKeystore, async (req, res) => {
     try {
       const body = adjustmentSchema.parse(req.body);
       const { userId, amountCZK, reason, idempotencyKey } = body;

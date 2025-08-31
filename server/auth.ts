@@ -245,7 +245,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   next();
 }
 
-// Backward compatibility wrapper
+// Temporary backward compatibility wrapper - migrating to keystore
 export const authenticateUser = authenticate;
 
 // Role-based authentication

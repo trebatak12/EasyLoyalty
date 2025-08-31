@@ -14,7 +14,9 @@ export async function generateKeystoreAccessToken(
   tokenVersion: number = 0, 
   passwordChangedAt?: Date
 ): Promise<string> {
+  const { randomBytes } = await import("crypto");
   const payload = {
+    jti: randomBytes(16).toString("hex"),
     sub: userId,
     type: "access",
     roles,
@@ -31,7 +33,9 @@ export async function generateKeystoreRefreshToken(
   tokenVersion: number = 0, 
   passwordChangedAt?: Date
 ): Promise<string> {
+  const { randomBytes } = await import("crypto");
   const payload = {
+    jti: randomBytes(16).toString("hex"),
     sub: userId,
     type: "refresh",
     deviceId: deviceId || "unknown",
@@ -53,7 +57,32 @@ export async function generateKeystoreQRToken(userId: string, nonce: string): Pr
 }
 
 export async function verifyKeystoreToken(token: string, acceptFallback: boolean = true) {
-  return await tokenService.verify(token, { acceptFallbackEnvKey: acceptFallback });
+  try {
+    return await tokenService.verify(token, { acceptFallbackEnvKey: acceptFallback });
+  } catch (error: any) {
+    if (acceptFallback && error.code === 'UNSUPPORTED_ALG') {
+      // Fallback to legacy verification for HS256 tokens during migration
+      const { verifyAccessToken, verifyRefreshToken, verifyQRToken } = await import('./auth');
+      
+      // Try different token types based on expected signature
+      try {
+        const accessPayload = verifyAccessToken(token);
+        if (accessPayload) return accessPayload;
+      } catch { /* ignore */ }
+      
+      try {
+        const refreshPayload = verifyRefreshToken(token);
+        if (refreshPayload) return refreshPayload;
+      } catch { /* ignore */ }
+      
+      try {
+        const qrPayload = verifyQRToken(token);
+        if (qrPayload) return qrPayload;
+      } catch { /* ignore */ }
+    }
+    
+    throw error;
+  }
 }
 
 /**
@@ -82,8 +111,11 @@ export async function authenticateWithKeystore(req: Request, res: Response, next
       });
     }
 
+    // Type-safe payload handling with fallback support
+    const safePayload = payload as any;
+    
     // Zkontroluj blacklist
-    const isBlacklisted = await storage.isTokenBlacklisted(payload.jti || "");
+    const isBlacklisted = await storage.isTokenBlacklisted(safePayload.jti || "");
     if (isBlacklisted) {
       return res.status(401).json({
         error: "Unauthorized",
@@ -93,7 +125,7 @@ export async function authenticateWithKeystore(req: Request, res: Response, next
     }
 
     // Získej a validuj uživatele
-    const user = await storage.getUser(payload.sub);
+    const user = await storage.getUser(safePayload.sub);
     if (!user || user.status === "blocked") {
       return res.status(403).json({ 
         error: "Forbidden", 
@@ -103,7 +135,7 @@ export async function authenticateWithKeystore(req: Request, res: Response, next
     }
 
     // Validuj token version
-    if (payload.token_version !== user.tokenVersion) {
+    if (safePayload.token_version !== user.tokenVersion) {
       return res.status(401).json({
         error: "Unauthorized",
         message: "Token version mismatch - please re-authenticate",
@@ -112,9 +144,9 @@ export async function authenticateWithKeystore(req: Request, res: Response, next
     }
 
     // Validuj password change timestamp
-    if (payload.pwd_ts && user.passwordChangedAt) {
+    if (safePayload.pwd_ts && user.passwordChangedAt) {
       const userPwdTs = Math.floor(user.passwordChangedAt.getTime() / 1000);
-      if (payload.pwd_ts < userPwdTs) {
+      if (safePayload.pwd_ts < userPwdTs) {
         return res.status(401).json({
           error: "Unauthorized",
           message: "Token issued before password change - please re-authenticate",
@@ -125,12 +157,12 @@ export async function authenticateWithKeystore(req: Request, res: Response, next
 
     req.user = user;
     req.tokenPayload = {
-      sub: payload.sub,
-      type: payload.type || "access",
-      roles: payload.roles || ["user"],
-      jti: payload.jti || "",
-      token_version: payload.token_version || 0,
-      pwd_ts: payload.pwd_ts
+      sub: safePayload.sub,
+      type: safePayload.type || "access",
+      roles: safePayload.roles || ["user"],
+      jti: safePayload.jti || "",
+      token_version: safePayload.token_version || 0,
+      pwd_ts: safePayload.pwd_ts
     };
     next();
   } catch (error) {
@@ -169,8 +201,11 @@ export async function authenticateAdminWithKeystore(req: Request, res: Response,
       });
     }
 
+    // Type-safe payload handling with fallback support
+    const safePayload = payload as any;
+    
     // Zkontroluj admin roli
-    if (!payload.roles?.includes("admin")) {
+    if (!safePayload.roles?.includes("admin")) {
       return res.status(403).json({
         error: "Forbidden",
         message: "Admin access required",
@@ -179,7 +214,7 @@ export async function authenticateAdminWithKeystore(req: Request, res: Response,
     }
 
     // Zbytek validace...
-    const admin = await storage.getAdminUser(payload.sub);
+    const admin = await storage.getAdminUser(safePayload.sub);
     if (!admin || admin.status !== "active") {
       return res.status(403).json({ 
         error: "Forbidden", 
@@ -190,12 +225,12 @@ export async function authenticateAdminWithKeystore(req: Request, res: Response,
 
     req.admin = admin;
     req.tokenPayload = {
-      sub: payload.sub,
-      type: payload.type || "access",
-      roles: payload.roles || ["admin"],
-      jti: payload.jti || "",
-      token_version: payload.token_version || 0,
-      pwd_ts: payload.pwd_ts
+      sub: safePayload.sub,
+      type: safePayload.type || "access",
+      roles: safePayload.roles || ["admin"],
+      jti: safePayload.jti || "",
+      token_version: safePayload.token_version || 0,
+      pwd_ts: safePayload.pwd_ts
     };
     next();
   } catch (error) {
