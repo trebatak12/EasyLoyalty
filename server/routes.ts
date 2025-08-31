@@ -283,13 +283,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const refreshToken = await generateKeystoreRefreshToken(user.id, deviceId, user.tokenVersion || 0, user.passwordChangedAt || undefined);
 
       // Store keystore refresh token in database for rotation detection
-      // Use token hash for rotation detection since jti might be missing in ES256
-      const { createHash } = await import("crypto");
-      const tokenHash = createHash("sha256").update(refreshToken).digest("hex");
-      console.log("🔑 Storing refresh token hash at signup:", tokenHash);
+      const decodedRefresh = await verifyKeystoreToken(refreshToken, false);
       await storage.storeRefreshToken({
         userId: user.id,
-        tokenId: tokenHash,
+        tokenId: decodedRefresh.jti!,
         deviceId,
         ip,
         userAgent,
@@ -349,17 +346,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH_INVALID_REFRESH_TOKEN"));
       }
 
-      // Check if token was already used (rotation detection)
-      // Use token hash for rotation detection since jti might be missing in ES256
-      const { createHash } = await import("crypto");
-      const tokenHash = createHash("sha256").update(refreshToken).digest("hex");
-      console.log("🔍 Looking for refresh token hash:", tokenHash);
-      const storedToken = await storage.getRefreshToken(tokenHash);
-      console.log("🔍 Found stored token:", storedToken ? "YES" : "NO");
+      // Check if token was already used (rotation detection)  
+      const jti = payload.jti || "";
+      if (!jti) {
+        return res.status(401).json(createErrorResponse("Unauthorized", "Token missing jti", "E_AUTH_INVALID_REFRESH_TOKEN"));
+      }
+      
+      const storedToken = await storage.getRefreshToken(jti);
       if (!storedToken || storedToken.revokedAt) {
         // Token reuse detected - security breach!
         await logAuthEvent("token_reuse_detected", payload.sub, getClientIP(req), getUserAgent(req), { 
-          tokenId: tokenHash
+          tokenId: jti
         });
 
         // Revoke all tokens for this user
@@ -369,17 +366,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Mark old token as used
-      await storage.markRefreshTokenUsed(tokenHash);
+      await storage.markRefreshTokenUsed(jti);
 
       // Generate new keystore access token
       const newAccessToken = await generateKeystoreAccessToken(payload.sub, ["user"]);
 
       // Rotate keystore refresh token  
       const newRefreshToken = await generateKeystoreRefreshToken(payload.sub, payload.deviceId);
-      const newTokenHash = createHash("sha256").update(newRefreshToken).digest("hex");
+      const decodedNewRefresh = await verifyKeystoreToken(newRefreshToken, false);
       await storage.storeRefreshToken({
         userId: payload.sub,
-        tokenId: newTokenHash,
+        tokenId: decodedNewRefresh.jti!,
         deviceId: payload.deviceId,
         ip: getClientIP(req),
         userAgent: getUserAgent(req),
