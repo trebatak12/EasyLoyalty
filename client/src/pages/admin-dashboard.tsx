@@ -20,7 +20,7 @@ interface DashboardData {
 }
 
 // Import API service with auth token support
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
     queryKey: ["adminDashboard"],
     queryFn: async () => {
       console.log("Fetching admin dashboard data...");
-      const response = await api.get("/api/admin/dashboard");
+      const response = await httpClient.get("/api/admin/dashboard");
       console.log("Dashboard data received:", response);
       return response as DashboardData;
     },
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await api.post("/api/admin/logout");
+      await httpClient.post("/api/admin/logout");
     },
     onSuccess: () => {
       if (logout) {
