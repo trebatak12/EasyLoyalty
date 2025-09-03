@@ -294,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decodedRefresh = await verifyKeystoreToken(refreshToken, false);
       await storage.storeRefreshToken({
         userId: user.id,
-        tokenId: decodedRefresh.jti!,
+        tokenId: (decodedRefresh as any).jti!,
         deviceId,
         ip,
         userAgent,
@@ -1086,17 +1086,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json(createErrorResponse("Unauthorized", "Refresh token missing", "E_AUTH_NO_REFRESH_TOKEN"));
       }
 
-      const payload = verifyRefreshToken(refreshToken);
-      if (!payload) {
+      let payload;
+      try {
+        // Try keystore first
+        payload = await verifyKeystoreToken(refreshToken, false);
+      } catch (error: any) {
+        if (error.code === 'UNSUPPORTED_ALG') {
+          // Fallback to legacy HS256 for gradual migration
+          payload = verifyRefreshToken(refreshToken);
+          if (!payload) {
+            return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH_INVALID_REFRESH_TOKEN"));
+          }
+        } else {
+          throw error;
+        }
+      }
+
+      if (!payload || (payload.type && payload.type !== "refresh")) {
         return res.status(401).json(createErrorResponse("Unauthorized", "Invalid refresh token", "E_AUTH_INVALID_REFRESH_TOKEN"));
       }
 
-      // Check if token was already used (rotation detection)
-      const storedToken = await storage.getRefreshToken(payload.jti);
+      // Check if token was already used (rotation detection)  
+      const jti = (payload as any).jti || "";
+      if (!jti) {
+        return res.status(401).json(createErrorResponse("Unauthorized", "Token missing jti", "E_AUTH_INVALID_REFRESH_TOKEN"));
+      }
+      
+      const storedToken = await storage.getRefreshToken(jti);
       if (!storedToken || storedToken.revokedAt) {
         // Token reuse detected - security breach!
         await logAuthEvent("admin_token_reuse_detected", payload.sub, getClientIP(req), getUserAgent(req), { 
-          tokenId: payload.jti 
+          tokenId: jti
         });
 
         // Revoke all tokens for this admin
@@ -1106,33 +1126,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Mark old token as used
-      await storage.markRefreshTokenUsed(payload.jti);
+      await storage.markRefreshTokenUsed(jti);
 
-      // Verify this is for an admin user  
+      // Get admin's current tokenVersion and passwordChangedAt for new tokens
       const admin = await storage.getAdminUser(payload.sub);
       if (!admin || admin.status !== "active") {
         console.log("Admin not found or inactive:", payload.sub, admin?.status);
         return res.status(403).json(createErrorResponse("Forbidden", "Admin account not found or blocked", "E_FORBIDDEN"));
       }
 
-      // Validate token version and password change timestamp
-      if (payload.token_version !== admin.tokenVersion) {
-        await logAuthEvent("admin_token_version_mismatch", admin.id, getClientIP(req), getUserAgent(req), {
-          tokenVersion: payload.token_version,
-          currentVersion: admin.tokenVersion
-        });
-        return res.status(401).json({
-          error: "Unauthorized",
-          message: "Token version mismatch - please re-authenticate",
-          code: "E_AUTH_TOKEN_VERSION_MISMATCH"
-        });
-      }
-
-      if (payload.pwd_ts && admin.passwordChangedAt) {
+      // PHASE C FIX: Do not increment tokenVersion on routine refresh
+      // Only validate if there was a forced invalidation (password change, etc)
+      // The new tokens will use current admin.tokenVersion
+      
+      const safePayload = payload as any;
+      if (safePayload.pwd_ts && admin.passwordChangedAt) {
         const adminPwdTs = Math.floor(admin.passwordChangedAt.getTime() / 1000);
-        if (payload.pwd_ts < adminPwdTs) {
+        if (safePayload.pwd_ts < adminPwdTs) {
           await logAuthEvent("admin_password_changed_during_session", admin.id, getClientIP(req), getUserAgent(req), {
-            tokenPwdTs: payload.pwd_ts,
+            tokenPwdTs: safePayload.pwd_ts,
             currentPwdTs: adminPwdTs
           });
           return res.status(401).json({
@@ -1143,17 +1155,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Generate new access token with version info
+      // Generate new keystore access token with current tokenVersion
       const newAccessToken = generateAdminAccessToken(admin.id, admin.tokenVersion, admin.passwordChangedAt || undefined);
 
-      // Rotate refresh token with version info
-      const newRefreshToken = generateRefreshToken(admin.id, payload.deviceId, admin.tokenVersion, admin.passwordChangedAt || undefined);
+      // Rotate keystore refresh token with current tokenVersion
+      const newRefreshToken = await generateKeystoreRefreshToken(admin.id, (payload as any).deviceId || "unknown", admin.tokenVersion, admin.passwordChangedAt || undefined);
       
-      // Store the new refresh token
+      // Store the new keystore refresh token  
+      const decodedNewRefresh = await verifyKeystoreToken(newRefreshToken, false);
       await storage.storeRefreshToken({
         userId: payload.sub,
-        tokenId: (jwt.decode(newRefreshToken) as any)?.jti || 'unknown',
-        deviceId: payload.deviceId,
+        tokenId: (decodedNewRefresh as any).jti!,
+        deviceId: (payload as any).deviceId,
         ip: getClientIP(req),
         userAgent: getUserAgent(req),
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)

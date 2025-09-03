@@ -1,0 +1,183 @@
+MUST #1 — Auth Integration FINAL Fix Prompt for Replit Agent (v1.1)
+
+Goal: Fully unblock and harden auth so the Ledger (MUST #1) is usable from the frontend. Implement all fixes below in this repo. Do not change ledger business logic or schemas. Keep AdminAuthProvider as the gating mechanism.
+
+0) Context & constraints (do not break)
+
+Repo layout: server/, client/src/, shared/schema.ts, migrations in /migrations/.
+
+Auth (client): AdminAuthProvider at client/src/hooks/use-admin-auth.tsx.
+
+HTTP client: Use the shared httpClient from client/src/lib/http.ts (single‑flight refresh support). Stop using legacy api instances.
+
+Ledger routes: /server/routes/ledger/ → /api/v1/ledger/*.
+
+Flags: LEDGER_ENABLED, LEDGER_DEV_ENDPOINTS_ENABLED (false in prod ⇒ /dev/* must 403).
+
+Do not modify ledger invariants/DB schema/error code names.
+
+1) Phase A — Migrate everything to httpClient (client)
+
+Problem: use-auth.tsx and possibly other modules still use a legacy axios/api instance. Interceptor logs show the old stack handling 401s.
+
+Implement:
+
+Create/confirm a single export in client/src/lib/http.ts:
+
+export const http = axios.create(/* baseURL, withCredentials if needed */).
+
+export function installAuthInterceptors(http, authStore): { eject(): void } implementing single‑flight refresh & retry‑once (see Phase B).
+
+In AdminAuthProvider (or root bootstrap), install interceptors exactly once and keep the eject handle:
+
+On mount: const { eject } = installAuthInterceptors(http, authStore).
+
+On unmount: call eject().
+
+Replace all imports of legacy api service with http:
+
+Search for axios.create(, api., apiClient, etc., under client/src/.
+
+Update use-auth.tsx to call http for /api/me, login, refresh, and any protected routes.
+
+Remove any blanket "clear all interceptors" logic. We only eject via the IDs returned by axios.
+
+Acceptance: No more logs like "Clearing all axios interceptors"; only one interceptor pair is installed; all requests flow through http.
+
+2) Phase B — Fix interceptor logic (no accessToken && gate)
+
+Problems:
+
+Refresh was gated by accessToken &&, which is false during 401 (expired/absent token), preventing refresh.
+
+Logs show: ⚠️ 401 error but not handling: { status:401, url:'/api/me', isCustomerEndpoint:true }.
+
+Implement (in client/src/lib/http.ts):
+
+Protected predicate: isProtectedRequest(config) → true for /api/me, /api/v1/ledger/*, and other private endpoints; false for auth/refresh/health/static.
+
+401 handler for protected requests:
+
+If response.status===401 and !config._retry and isProtectedRequest(config):
+
+Mark config._retry = true (type‑safe).
+
+Use a single‑flight refresh (only one refresh in progress; queue pending requests and replay when done).
+
+If refresh succeeds → set latest Authorization header and replay original request once.
+
+If refresh fails (401/403/5xx) → logout (clear tokens → route to login). No loops.
+
+Header injection: Request interceptor must inject current access token (from auth store) right before sending.
+
+Never try to refresh on the refresh endpoint itself. Guard against absolute vs relative URLs.
+
+Debug flag: Wrap verbose logs behind DEBUG_AUTH.
+
+Acceptance:
+
+Expired access + valid refresh → one refresh then successful replay; no infinite loop.
+
+Invalid refresh → one refresh attempt, then logout; subsequent protected calls don’t loop.
+
+3 parallel protected calls during expiry → only one refresh; all three succeed after.
+
+3) Phase C — Fix server tokenVersion semantics (access & refresh)
+
+Problems observed:
+
+After /api/auth/refresh the next /api/me returns 401 Token version mismatch, or refresh itself returns 401 "Refresh token expired or invalid".
+
+Indicates inconsistent tokenVersion policy or refresh rotation logic.
+
+Implement (server):
+
+Policy:
+
+user.tokenVersion is an integer. Access tokens carry claim tv.
+
+Do not increment tokenVersion on routine refresh. Increment only on global invalidation (password change, force logout, device revoke).
+
+Refresh endpoint (POST /api/auth/refresh):
+
+Validate refresh token (signature, exp, subject; and if used: session_id and tv vs current user).
+
+If using rotation (jti): persist new refresh token & blacklist the old before responding.
+
+Issue new access token (and refresh if rotating) where claim tv equals current user.tokenVersion.
+
+Return 200 with tokens; do not bump tokenVersion here.
+
+Protected endpoints (incl. /api/me):
+
+Validate JWT; compare tv to DB user.tokenVersion. If mismatch → 401 { error:'UNAUTHENTICATED', message:'Token version mismatch' }.
+
+Ensure /api/me reads from the primary DB connection to avoid replica lag.
+
+Edge cases:
+
+If tokenVersion is incremented manually, both access and next refresh must fail (force logout path in client).
+
+Confirm cookies vs bearer consistency (withCredentials, CORS, sameSite) so refresh is reachable.
+
+Acceptance: Immediately after a successful refresh, /api/me returns 200. Forcibly bumping tokenVersion makes old tokens invalid as expected.
+
+4) Phase D — Unified interceptor lifecycle
+
+Implement:
+
+Provide installAuthInterceptors(http, authStore) -> { eject } and use it once in the app.
+
+Remove any duplicate interceptor setup (search for axios.interceptors under client/src/).
+
+Document the lifecycle in a short comment.
+
+Acceptance: No duplicate handling; navigation does not reinstall interceptors.
+
+5) Phase E — Tests & verification
+
+Manual smoke:
+
+Start app with an expired access token and a valid refresh token:
+
+Visit Ledger Health page as admin → first API 401 → single refresh → page loads.
+
+Invalidate refresh token (e.g., revoke session or tamper):
+
+Next 401 triggers one refresh → fails → client logs out; no loop.
+
+Parallel requests during expiry (open 3 tiles that fetch simultaneously) → one refresh, all succeed after.
+
+Bump user.tokenVersion++ in DB → subsequent calls fail with mismatch → refresh fails → logout.
+
+Validator:
+
+Ensure scripts/validate-must1.ts authenticates as admin (use env creds) and passes all 11 steps.
+
+6) Commits (split exactly like this)
+
+refactor(client): migrate all API calls to shared http client + installAuthInterceptors in AdminAuthProvider
+
+fix(auth-client): remove accessToken guard; add single-flight refresh + retry-once + logout-on-fail
+
+fix(auth-server): align tokenVersion policy; accept new tokens post-refresh; strict /api/me validation
+
+chore(client): interceptor lifecycle cleanup (predictable eject, no blanket clears)
+
+test(auth): manual smoke checklist + ensure validator runs with admin creds
+
+7) Rollback plan
+
+Client: feature-flag new interceptor (USE_NEW_INTERCEPTOR) to quickly switch back while investigating.
+
+Server: guard the strict tokenVersion compare with a temporary flag if needed (default ON), revertable by env.
+
+8) Final acceptance (all must pass)
+
+Frontend no longer hits infinite 401 loops; ledger UI usable by admin when LEDGER_ENABLED=true.
+
+/api/auth/refresh returns tokens accepted by /api/me immediately.
+
+Only one interceptor stack is installed; no duplicate logs/handlers.
+
+npm run validate:must1 passes locally and in CI.

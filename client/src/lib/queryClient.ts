@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -67,7 +67,7 @@ export const queryClient = new QueryClient({
         const url = queryKey[0] as string
         console.log("🔍 TanStack Query fetching:", url)
         try {
-          const response = await api.get(url)
+          const response = await httpClient.get(url)
           console.log("✅ TanStack Query success:", url)
           return response
         } catch (error: any) {
