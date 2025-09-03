@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Coffee, LogOut, Users, Wallet, Gift, TrendingUp, Store, Plus, QrCode, History, CreditCard } from "lucide-react";
+import { Coffee, LogOut, Users, Wallet, Gift, TrendingUp, Store, Plus, QrCode, History, CreditCard, Calculator } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card 
-                className="border-2 border-yellow-200 bg-yellow-50/50 hover:bg-yellow-50 transition-all duration-200 cursor-pointer rounded-3xl shadow-lg hover:shadow-xl group sm:col-span-2 lg:col-span-1"
+                className="border-2 border-yellow-200 bg-yellow-50/50 hover:bg-yellow-50 transition-all duration-200 cursor-pointer rounded-3xl shadow-lg hover:shadow-xl group"
                 onClick={() => setLocation("/admin/summaries")}
               >
                 <CardContent className="p-6 text-center">
@@ -215,6 +215,19 @@ export default function AdminDashboard() {
                   </div>
                   <h3 className="text-lg font-bold text-stone-800 mb-2">Statistics</h3>
                   <p className="text-stone-600 text-sm">View detailed analytics</p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="border-2 border-purple-200 bg-purple-50/50 hover:bg-purple-50 transition-all duration-200 cursor-pointer rounded-3xl shadow-lg hover:shadow-xl group"
+                onClick={() => setLocation("/admin/ledger")}
+              >
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-purple-200 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-300 transition-colors">
+                    <Calculator className="w-8 h-8 text-purple-700" />
+                  </div>
+                  <h3 className="text-lg font-bold text-stone-800 mb-2">Ledger Management</h3>
+                  <p className="text-stone-600 text-sm">Manage accounts and transactions</p>
                 </CardContent>
               </Card>
             </div>

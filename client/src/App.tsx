@@ -16,6 +16,7 @@ import AdminAuth from "@/pages/admin-auth";
 import AdminDashboard from "./pages/admin-dashboard";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminSummaries from "@/pages/admin-summaries";
+import AdminLedger from "@/pages/admin-ledger";
 import POSCharge from "@/pages/pos-charge";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
@@ -44,6 +45,7 @@ function App() {
               <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/admin/customers" component={AdminCustomers} />
               <Route path="/admin/summaries" component={AdminSummaries} />
+              <Route path="/admin/ledger" component={AdminLedger} />
 
               {/* POS routes */}
               <Route path="/pos/*">

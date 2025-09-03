@@ -146,9 +146,7 @@ export class LedgerService {
    * Execute top-up operation: Dr 1000 +X, Cr 2000(user) +X
    */
   async topup(request: DevTopupRequest): Promise<LedgerOperationResult> {
-    console.log('Topup called with:', request)
     return this.executeTransaction('topup', async (txId) => {
-      console.log('Topup transaction executing with txId:', txId)
       const entries: InsertLedgerEntry[] = [
         {
           txId,
@@ -262,7 +260,6 @@ export class LedgerService {
    * Max 1 reversal per origin. Reversal of a reversal is forbidden.
    */
   async reversal(request: DevReversalRequest): Promise<LedgerOperationResult> {
-    console.log('REVERSAL METHOD CALLED with request:', request)
     // Get original transaction
     const original = await this.getTransaction(request.txId)
     if (!original) {
@@ -418,14 +415,10 @@ export class LedgerService {
       originRef: null
     }
     
-    console.log('Creating ledger transaction:', { txId, txRecord })
     const result = await db.insert(ledgerTransactions).values(txRecord).returning()
-    console.log('Transaction created:', result)
     
     // Create entries - Step 2
-    console.log('Creating entries:', entries)
     const createdEntries = await db.insert(ledgerEntries).values(entries).returning()
-    console.log('Entries created:', createdEntries)
     
     return {
       txId,
@@ -444,11 +437,6 @@ export class LedgerService {
     const { transaction, entries } = original
     const amount = entries[0].amountMinor // Both entries have same amount
     
-    console.log('Reconstructing reversal deltas for:', { 
-      type: transaction.type, 
-      amount, 
-      entries: entries.map(e => ({ accountCode: e.accountCode, userId: e.userId, side: e.side, amount: e.amountMinor }))
-    })
     
     switch (transaction.type) {
       case 'topup':
@@ -460,12 +448,10 @@ export class LedgerService {
       
       case 'charge':
         // Original: -amount to customer (2000), +amount to revenue (4000)
-        const reverseDeltas = [
+        return [
           { accountCode: 2000, userId: entries.find(e => e.accountCode === 2000)?.userId || null, delta: +amount },
           { accountCode: 4000, userId: null, delta: -amount }
         ]
-        console.log('Charge reversal deltas:', reverseDeltas)
-        return reverseDeltas
       
       case 'bonus':
         // Original: +amount to customer (2000), +amount to expense (5000)
