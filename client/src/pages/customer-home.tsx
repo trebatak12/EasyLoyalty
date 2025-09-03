@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { formatCurrency } from "@/utils/currency";
+import { ledgerClient } from "@/lib/api/ledgerClient";
 
 export default function CustomerHome() {
   const [, setLocation] = useLocation();
@@ -30,6 +31,23 @@ export default function CustomerHome() {
     enabled: isAuthenticated && !!api.authToken, // Wait for token to be set
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
+  });
+
+  // Ledger balance query (new accounting system)
+  const { data: ledgerBalance, isLoading: ledgerLoading } = useQuery({
+    queryKey: ["ledgerBalance", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      try {
+        return await ledgerClient.getBalance(user.id);
+      } catch (error) {
+        console.warn("Ledger balance fetch failed:", error);
+        return null;
+      }
+    },
+    enabled: isAuthenticated && !!api.authToken && !!user?.id,
+    retry: false, // Don't retry if ledger system is not available
+    staleTime: 30000 // Cache for 30 seconds
   });
 
   const { data: recentTransactions, isLoading: historyLoading, refetch: refetchHistory } = useQuery<{
@@ -114,19 +132,42 @@ export default function CustomerHome() {
             </div>
             
             {!walletLoading && wallet && (
-              <div className="flex items-center justify-between pt-4 border-t border-white/20">
-                <div>
-                  <p className="text-white/70 text-sm">Total Bonus Earned</p>
-                  <p className="text-lg font-semibold">
-                    {formatCurrency(wallet.bonusGrantedTotalCents || 0)}
-                  </p>
+              <div className="space-y-4 pt-4 border-t border-white/20">
+                {/* Legacy system info */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white/70 text-sm">Total Bonus Earned</p>
+                    <p className="text-lg font-semibold">
+                      {formatCurrency(wallet.bonusGrantedTotalCents || 0)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white/70 text-sm">Available Credit</p>
+                    <p className="text-lg font-semibold">
+                      {formatCurrency(wallet.balanceCents || 0)}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-white/70 text-sm">Available Credit</p>
-                  <p className="text-lg font-semibold">
-                    {formatCurrency(wallet.balanceCents || 0)}
-                  </p>
-                </div>
+                
+                {/* Ledger system comparison (if available) */}
+                {ledgerBalance && (
+                  <div className="bg-white/10 rounded-xl p-3 border border-white/20">
+                    <div className="flex items-center justify-between text-sm">
+                      <div>
+                        <p className="text-white/70">New Accounting Balance</p>
+                        <p className="text-white font-semibold">
+                          {formatCurrency(ledgerBalance.balanceMinor)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white/70">System Status</p>
+                        <p className="text-green-200 font-semibold text-xs">
+                          {ledgerLoading ? "Loading..." : "Active"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
