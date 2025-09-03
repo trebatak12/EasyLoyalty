@@ -1,0 +1,163 @@
+Goal for agent: Fix all blockers and gaps discovered during integration so that the MUST #1 ledger becomes fully usable from the frontend and compliant with the spec. Implement exactly as described below, in this repo’s structure. Do not change the ledger business logic.
+
+0) Non‑negotiables & context
+
+Repo structure: server/, client/src/, shared/schema.ts, migrations in /migrations/.
+
+Auth (client): AdminAuthProvider in client/src/hooks/use-admin-auth.tsx.
+
+Ledger routes: mounted under /server/routes/ledger/ at /api/v1/ledger/*.
+
+Feature flags: LEDGER_ENABLED, LEDGER_DEV_ENDPOINTS_ENABLED (false in prod ⇒ /dev/* must 403).
+
+Do not modify ledger invariants, DB schema, or error code names.
+
+1) Fix Critical Auth Interceptor Bug (client)
+
+Problem: The interceptor refresh condition requires an accessToken during a 401, which is usually missing/expired, causing infinite 401 loops and blocking the UI.
+
+Implement:
+
+Centralize auth handling in client/src/hooks/use-auth.tsx (or the shared axios instance) with these rules:
+
+On any 401 from a protected API (exclude login/refresh/health/static):
+
+If request has no _retry flag → mark _retry=true and attempt exactly one token refresh.
+
+Use a single‑flight refresh mechanism: concurrent 401s wait for one ongoing refresh, then replay.
+
+If refresh succeeds, update tokens in memory/store, replay the original request once.
+
+If refresh fails (401/403/5xx) → perform logout (clear tokens, redirect to login), do not loop.
+
+Never try to refresh for the refresh endpoint itself or for public endpoints.
+
+Ensure Authorization header injection uses the latest access token after refresh.
+
+Acceptance tests:
+
+Expired access token + valid refresh → first protected call 401 → one refresh → replay succeeds; app loads.
+
+Invalid refresh token → one refresh attempt, then logout; no infinite loops.
+
+Three parallel protected requests with expired token → one refresh; all three replay succeed; no race.
+
+2) Enforce Admin Authentication on Ledger Endpoints (server & client)
+
+Problem: /dev/* and /trial-balance/run lack active admin checks; only TODO comments present.
+
+Implement:
+
+On server, for all ledger routes:
+
+Wire existing auth middleware to populate user/roles (use what the project already has; do not introduce new auth flows).
+
+Add a require‑admin check for:
+
+/api/v1/ledger/dev/* — requires admin and LEDGER_DEV_ENDPOINTS_ENABLED=true. Otherwise 403 FORBIDDEN_DEV_ENDPOINT.
+
+/api/v1/ledger/trial-balance/run — requires admin always.
+
+On client, guard the dev UI via AdminAuthProvider so only admins can see/use the page.
+
+Acceptance tests:
+
+Non‑admin calling /api/v1/ledger/dev/topup in dev → 403.
+
+Admin calling /api/v1/ledger/dev/topup in dev with flag true → 201.
+
+Any /api/v1/ledger/dev/* in prod (flag false) → 403 for everyone.
+
+/api/v1/ledger/trial-balance/run: admin 200, non‑admin 403.
+
+3) Complete Feature‑Flag & UI Gating (client)
+
+Problem: LEDGER_ENABLED exists but dev page visibility and access gating are incomplete.
+
+Implement:
+
+Show the Ledger Health page and any ledger dev actions only if:
+
+LEDGER_ENABLED === true, and
+
+current user is admin (via AdminAuthProvider).
+
+Hide nav links / routes for non‑admins or when the flag is off. Never render dev controls in prod.
+
+Ensure the client still handles 403s gracefully with a friendly message if someone reaches the page via direct URL.
+
+Acceptance tests:
+
+Toggle LEDGER_ENABLED on/off → page appears/disappears after reload for admins.
+
+Non‑admin never sees the page nor controls; direct URL → guarded message (and server 403 for dev endpoints).
+
+4) Query Parameter Type Coercion (shared contracts)
+
+Problem: Zod error Expected number, received string on endpoints expecting numeric query params (e.g., limit).
+
+Implement:
+
+In **/shared/contracts/ledger.ts**, for all schemas that accept numeric query params (e.g., limit, offset, page sizes):
+
+Use coercion to number, apply safe bounds (e.g., default 20, max 100), and return 422 VALIDATION_FAILED for invalid values.
+
+Ensure server handlers import and use these schemas for validation before executing logic.
+
+Acceptance tests:
+
+?limit=20 → OK; ?limit=abc → 422 with { error:"VALIDATION_FAILED" }.
+
+?limit=9999 → clamped or 422 per the schema (be explicit in the schema).
+
+Cursor+limit pagination works as specified in the MUST #1 prompt.
+
+5) Validator & CI Unblock (scripts)
+
+Problem: The validator script exists but cannot run end‑to‑end because auth blocks the flow.
+
+Implement:
+
+Update scripts/validate-must1.ts to authenticate as admin using the project’s existing login flow (locate the admin login API and perform programmatic sign‑in). Read credentials from env (e.g., VALIDATOR_ADMIN_EMAIL, VALIDATOR_ADMIN_PASSWORD).
+
+Reuse the resulting session (cookies or bearer token) for subsequent calls to /api/v1/ledger/*.
+
+Keep the existing 10–11 validation steps intact.
+
+Acceptance tests:
+
+Running npm run validate:must1 locally (dev mode) completes all steps with exit code 0.
+
+CI job passes on PR to main.
+
+6) Deliverables & checkpoints
+
+Commit 1: fix(auth): robust 401 refresh interceptor (single-flight, retry-once, logout-on-fail)
+
+Commit 2: feat(ledger): require admin on /dev/* and /trial-balance/run + flag gating
+
+Commit 3: fix(contracts): zod coercion for numeric query params + bounds + 422
+
+Commit 4: chore(validator): admin login in validate-must1.ts + docs
+
+Docs: Update the Ledger Health page help text to explain flag+admin requirements; add a short README note for running the validator with admin creds.
+
+7) Rollback plan
+
+Interceptor: keep the previous version under git tag; if issues arise, revert to prior interceptor and temporarily disable ledger UI (keep backend intact).
+
+Admin gating: if unexpected 403s occur, toggle LEDGER_ENABLED=false and LEDGER_DEV_ENDPOINTS_ENABLED=false while investigating.
+
+Contracts: coercion changes are backward‑compatible at runtime; if needed, reduce max limit to stabilize.
+
+8) Final acceptance (end‑to‑end)
+
+Frontend loads and can use the Ledger Health page as admin when LEDGER_ENABLED=true.
+
+All /dev/* calls behave according to admin + flag rules; /trial-balance/run requires admin.
+
+Query params with numbers work or fail cleanly with 422.
+
+npm run validate:must1 passes locally and in CI.
+
+No infinite 401 loops; refresh happens exactly once per expiry event; parallel requests are handled via single‑flight.

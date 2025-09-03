@@ -106,7 +106,7 @@ export type GetTransactionResponse = z.infer<typeof GetTransactionResponse>
 // Query parameters for transaction list
 export const GetTransactionsQuery = z.object({
   userId: z.string().uuid().optional(),
-  limit: z.number().int().min(1).max(100).default(20).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
   cursor: z.string().optional()
 })
 export type GetTransactionsQuery = z.infer<typeof GetTransactionsQuery>
@@ -158,7 +158,7 @@ export type DevReversalResponse = z.infer<typeof DevReversalResponse>
 // 4.4 Customer search
 export const CustomerSearchQuery = z.object({
   q: z.string().optional(),
-  limit: z.number().int().min(1).max(50).default(20).optional()
+  limit: z.coerce.number().int().min(1).max(50).default(20).optional()
 })
 export type CustomerSearchQuery = z.infer<typeof CustomerSearchQuery>
 

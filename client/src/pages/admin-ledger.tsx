@@ -18,10 +18,12 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Clock
+  Clock,
+  Lock
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { ledgerClient } from "@/lib/api/ledgerClient";
 import { formatCurrency } from "@/utils/currency";
 
@@ -67,6 +69,44 @@ export default function AdminLedger() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
   const { toast } = useToast();
+  const { isAuthenticated, admin } = useAdminAuth();
+
+  // Check feature flags
+  const LEDGER_ENABLED = import.meta.env.VITE_LEDGER_ENABLED === 'true';
+  const LEDGER_DEV_ENDPOINTS_ENABLED = import.meta.env.VITE_LEDGER_DEV_ENDPOINTS_ENABLED !== 'false';
+
+  // Early return if feature is disabled or user is not admin
+  if (!LEDGER_ENABLED) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8 text-center">
+            <Lock className="w-12 h-12 text-stone-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-stone-900 mb-2">Ledger System Disabled</h2>
+            <p className="text-stone-600">
+              The ledger system is currently disabled. Contact your system administrator to enable it.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !admin) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8 text-center">
+            <Lock className="w-12 h-12 text-stone-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-stone-900 mb-2">Admin Access Required</h2>
+            <p className="text-stone-600">
+              You need admin privileges to access the ledger system.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Search customers
   const customersQuery = useQuery({
@@ -477,8 +517,8 @@ export default function AdminLedger() {
           </TabsContent>
 
           <TabsContent value="operations" className="space-y-6">
-            {/* Manual Operations */}
-            {selectedCustomerId && (
+            {/* Manual Operations - Only show if dev endpoints are enabled */}
+            {selectedCustomerId && LEDGER_DEV_ENDPOINTS_ENABLED ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Topup */}
                 <Card>
@@ -591,7 +631,17 @@ export default function AdminLedger() {
                   </CardContent>
                 </Card>
               </div>
-            )}
+            ) : selectedCustomerId && !LEDGER_DEV_ENDPOINTS_ENABLED ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Lock className="w-12 h-12 text-stone-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Dev Operations Disabled</h3>
+                  <p className="text-gray-600">
+                    Manual operations are disabled in production mode. Dev endpoints must be enabled to access these features.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : null}
 
             {!selectedCustomerId && (
               <Card>

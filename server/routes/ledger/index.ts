@@ -1,6 +1,7 @@
-import type { Express } from 'express'
+import type { Express, Request, Response, NextFunction } from 'express'
 import { Router } from 'express'
 import { z } from 'zod'
+import { authenticateAdminWithKeystore } from '../../keystore-auth'
 import { 
   HealthResponse,
   GetBalanceResponse, 
@@ -31,16 +32,30 @@ const LEDGER_ENABLED = process.env.LEDGER_ENABLED === 'true'
 const LEDGER_DEV_ENDPOINTS_ENABLED = process.env.LEDGER_DEV_ENDPOINTS_ENABLED !== 'false'
 
 // Helper to check dev endpoints access
-function checkDevEndpointAccess(req: any, res: any): boolean {
+function checkDevEndpointAccess(req: Request, res: Response): boolean {
   if (!LEDGER_DEV_ENDPOINTS_ENABLED) {
     const error = createLedgerError('FORBIDDEN_DEV_ENDPOINT', 'Dev endpoints are disabled')
     res.status(getHttpStatusForError('FORBIDDEN_DEV_ENDPOINT')).json(error)
     return false
   }
   
-  // TODO: Check admin auth here using existing AdminAuthProvider
-  // For now, just allow if dev endpoints are enabled
+  // Admin auth is handled by middleware before this point
   return true
+}
+
+// Admin auth middleware for dev endpoints
+function requireAdminForDev(req: Request, res: Response, next: NextFunction) {
+  if (!LEDGER_DEV_ENDPOINTS_ENABLED) {
+    const error = createLedgerError('FORBIDDEN_DEV_ENDPOINT', 'Dev endpoints are disabled')
+    return res.status(getHttpStatusForError('FORBIDDEN_DEV_ENDPOINT')).json(error)
+  }
+  
+  authenticateAdminWithKeystore(req, res, next)
+}
+
+// Admin auth middleware for trial balance
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  authenticateAdminWithKeystore(req, res, next)
 }
 
 // 4.1 Health endpoint
@@ -159,7 +174,7 @@ router.get('/tx', async (req, res) => {
 })
 
 // 4.3 Dev-only operations
-router.post('/dev/topup', async (req, res) => {
+router.post('/dev/topup', requireAdminForDev, async (req, res) => {
   if (!checkDevEndpointAccess(req, res)) return
   
   try {
@@ -187,7 +202,7 @@ router.post('/dev/topup', async (req, res) => {
   }
 })
 
-router.post('/dev/charge', async (req, res) => {
+router.post('/dev/charge', requireAdminForDev, async (req, res) => {
   if (!checkDevEndpointAccess(req, res)) return
   
   try {
@@ -215,7 +230,7 @@ router.post('/dev/charge', async (req, res) => {
   }
 })
 
-router.post('/dev/bonus', async (req, res) => {
+router.post('/dev/bonus', requireAdminForDev, async (req, res) => {
   if (!checkDevEndpointAccess(req, res)) return
   
   try {
@@ -243,7 +258,7 @@ router.post('/dev/bonus', async (req, res) => {
   }
 })
 
-router.post('/dev/reversal', async (req, res) => {
+router.post('/dev/reversal', requireAdminForDev, async (req, res) => {
   if (!checkDevEndpointAccess(req, res)) return
   
   try {
@@ -272,8 +287,8 @@ router.post('/dev/reversal', async (req, res) => {
 })
 
 // 4.4 Customer search
-router.get('/customers', async (req, res) => {
-  // TODO: Check admin auth here using existing AdminAuthProvider
+router.get('/customers', requireAdmin, async (req, res) => {
+  // Admin auth is handled by middleware
   
   try {
     const query = CustomerSearchQuery.parse(req.query)
@@ -314,8 +329,8 @@ router.get('/customers', async (req, res) => {
 })
 
 // 4.5 Trial balance
-router.post('/trial-balance/run', async (req, res) => {
-  // TODO: Check admin auth here using existing AdminAuthProvider
+router.post('/trial-balance/run', requireAdmin, async (req, res) => {
+  // Admin auth is handled by middleware
   
   try {
     const result = await ledgerService.runTrialBalance()

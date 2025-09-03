@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   // FIX: Prevent refresh race conditions with useRef (survives re-renders)
   const isRefreshingRef = useRef(false);
+  const refreshPromiseRef = useRef<Promise<void> | null>(null);
 
   // Set access token in memory and API headers
   const setTokens = (newAccessToken: string) => {
@@ -49,44 +50,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  // Define refreshAuth function WITH DEBUG LOGGING
-  const refreshAuth = async () => {
+  // Define refreshAuth function with single-flight mechanism
+  const refreshAuth = async (): Promise<void> => {
     console.log('🔄 refreshAuth called, isRefreshing:', isRefreshingRef.current);
     
-    if (isRefreshingRef.current) {
+    // If refresh is already in progress, wait for it
+    if (isRefreshingRef.current && refreshPromiseRef.current) {
       console.log('⏳ Waiting for ongoing refresh...');
-      while (isRefreshingRef.current) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      console.log('✅ Ongoing refresh completed');
-      return;
+      return refreshPromiseRef.current;
     }
 
+    // Start new refresh
     isRefreshingRef.current = true;
     console.log('🔄 Starting new token refresh...');
     
-    try {
-      // 🔒 Refresh token sent automatically via HTTP-only cookie
-      const response = await api.post("/api/auth/refresh", {});
-      const { accessToken } = response;
-      console.log('✅ Refresh response received, has accessToken:', !!accessToken);
-      
-      console.log('🔧 Setting new tokens via setTokens...');
-      setTokens(accessToken);
-      console.log('✅ Tokens set, accessToken state:', !!accessToken, 'api.authToken:', !!api.authToken);
-      
-      // Get updated user data
-      const userData = await api.get("/api/me");
-      setUser(userData);
-      console.log('✅ User data updated');
-    } catch (error) {
-      console.log('❌ Refresh failed:', error);
-      clearTokens();
-      throw error;
-    } finally {
-      isRefreshingRef.current = false;
-      console.log('🏁 Refresh completed, isRefreshing=false');
-    }
+    const refreshPromise = (async () => {
+      try {
+        // 🔒 Refresh token sent automatically via HTTP-only cookie
+        const response = await api.post("/api/auth/refresh", {});
+        const { accessToken } = response;
+        console.log('✅ Refresh response received, has accessToken:', !!accessToken);
+        
+        console.log('🔧 Setting new tokens via setTokens...');
+        setTokens(accessToken);
+        console.log('✅ Tokens set, accessToken state:', !!accessToken, 'api.authToken:', !!api.authToken);
+        
+        // Get updated user data
+        const userData = await api.get("/api/me");
+        setUser(userData);
+        console.log('✅ User data updated');
+      } catch (error) {
+        console.log('❌ Refresh failed:', error);
+        clearTokens();
+        throw error;
+      } finally {
+        isRefreshingRef.current = false;
+        refreshPromiseRef.current = null;
+        console.log('🏁 Refresh completed, isRefreshing=false');
+      }
+    })();
+    
+    refreshPromiseRef.current = refreshPromise;
+    return refreshPromise;
   };
 
   // 🔒 Initialize auth state - try refresh first (secure)
@@ -131,26 +136,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return Promise.reject(error);
         }
         
-        // Only handle customer 401 errors with customer refresh token
-        if (error.response?.status === 401 && 
-            !originalRequest?._retry && 
-            accessToken && 
-            originalRequest?.url?.startsWith('/api/me')) {
-          originalRequest._retry = true;
+        // Handle 401 errors for protected endpoints (exclude auth/admin endpoints)
+        if (error.response?.status === 401 && !originalRequest?._retry) {
+          // Check if this is a protected endpoint that should trigger refresh
+          const isProtectedEndpoint = originalRequest?.url && (
+            originalRequest.url.startsWith('/api/me') ||
+            originalRequest.url.startsWith('/api/v1/ledger') ||
+            (originalRequest.url.startsWith('/api/') && 
+             !originalRequest.url.includes('/api/auth/') && 
+             !originalRequest.url.includes('/api/admin/'))
+          );
           
-          console.log('→ Starting customer token refresh...');
-          
-          try {
-            console.log("Customer token expired, refreshing...");
-            await refreshAuth();
-            console.log('✅ Customer refresh OK, retrying original request');
+          if (isProtectedEndpoint) {
+            originalRequest._retry = true;
             
-            // Retry original request with axios instance directly
-            return api.instance(originalRequest);
-          } catch (refreshError) {
-            console.log("❌ Customer refresh failed:", refreshError);
-            clearTokens();
-            return Promise.reject(refreshError);
+            console.log('→ 401 on protected endpoint, starting token refresh...');
+            
+            try {
+              console.log("Token expired, refreshing...");
+              await refreshAuth();
+              console.log('✅ Refresh OK, retrying original request');
+              
+              // Retry original request with axios instance directly
+              return api.instance(originalRequest);
+            } catch (refreshError) {
+              console.log("❌ Refresh failed:", refreshError);
+              clearTokens();
+              // Don't reject here - let it fall through to logout logic
+            }
           }
         }
         

@@ -16,7 +16,13 @@ const __dirname = dirname(__filename)
 const API_BASE = process.env.API_BASE || 'http://localhost:5000'
 const LEDGER_API = `${API_BASE}/api/v1/ledger`
 
-async function makeRequest(method: string, url: string, body?: any): Promise<Response> {
+// Admin credentials from environment
+const VALIDATOR_ADMIN_EMAIL = process.env.VALIDATOR_ADMIN_EMAIL
+const VALIDATOR_ADMIN_PASSWORD = process.env.VALIDATOR_ADMIN_PASSWORD
+
+let adminAccessToken: string | null = null
+
+async function makeRequest(method: string, url: string, body?: any, requireAuth = false): Promise<Response> {
   const options: RequestInit = {
     method,
     headers: {
@@ -24,11 +30,43 @@ async function makeRequest(method: string, url: string, body?: any): Promise<Res
     }
   }
 
+  // Add authorization header if admin token is available and required
+  if (requireAuth && adminAccessToken) {
+    (options.headers as Record<string, string>)['Authorization'] = `Bearer ${adminAccessToken}`
+  }
+
   if (body) {
     options.body = JSON.stringify(body)
   }
 
   return fetch(url, options)
+}
+
+async function authenticateAsAdmin(): Promise<void> {
+  if (!VALIDATOR_ADMIN_EMAIL || !VALIDATOR_ADMIN_PASSWORD) {
+    throw new Error('VALIDATOR_ADMIN_EMAIL and VALIDATOR_ADMIN_PASSWORD environment variables are required')
+  }
+
+  console.log('🔐 Authenticating as admin...')
+  
+  const loginResponse = await makeRequest('POST', `${API_BASE}/api/admin/login`, {
+    email: VALIDATOR_ADMIN_EMAIL,
+    password: VALIDATOR_ADMIN_PASSWORD
+  })
+  
+  if (loginResponse.status !== 200) {
+    const errorText = await loginResponse.text()
+    throw new Error(`Admin login failed: ${loginResponse.status} - ${errorText}`)
+  }
+  
+  const loginData = await loginResponse.json()
+  adminAccessToken = loginData.accessToken
+  
+  if (!adminAccessToken) {
+    throw new Error('No access token received from admin login')
+  }
+  
+  console.log('✅ Admin authentication successful')
 }
 
 async function expectStatus(response: Response, expectedStatus: number, testName: string): Promise<any> {
@@ -47,23 +85,26 @@ async function validateMust1(): Promise<void> {
   console.log('🧪 Starting MUST #1 Double-Entry Ledger Validation...')
   
   try {
-    // 1. Ensure server is running (check health)
-    console.log('1. Checking server health...')
+    // 1. Authenticate as admin first
+    await authenticateAsAdmin()
+    
+    // 2. Ensure server is running (check health)
+    console.log('2. Checking server health...')
     const healthResponse = await makeRequest('GET', `${LEDGER_API}/health`)
     const health = await expectStatus(healthResponse, 200, 'Health check')
     console.log(`✅ Server healthy: ${JSON.stringify(health)}`)
     
-    // 2. Generate test user ID
+    // 3. Generate test user ID
     const testUserId = uuidv4()
     console.log(`📝 Test user ID: ${testUserId}`)
     
-    // 3. POST /api/v1/ledger/dev/topup {1000} → expect 201, then GET /balances/:userId → balance=1000
-    console.log('3. Testing topup operation...')
+    // 4. POST /api/v1/ledger/dev/topup {1000} → expect 201, then GET /balances/:userId → balance=1000
+    console.log('4. Testing topup operation...')
     const topupResponse = await makeRequest('POST', `${LEDGER_API}/dev/topup`, {
       userId: testUserId,
       amountMinor: 1000,
       note: 'Test topup'
-    })
+    }, true)
     const topupData = await expectStatus(topupResponse, 201, 'Topup operation')
     console.log(`✅ Topup successful, txId: ${topupData.txId}`)
     
@@ -81,7 +122,7 @@ async function validateMust1(): Promise<void> {
       userId: testUserId,
       amountMinor: 400,
       note: 'Test charge'
-    })
+    }, true)
     const chargeData = await expectStatus(chargeResponse, 201, 'Charge operation')
     console.log(`✅ Charge successful, txId: ${chargeData.txId}`)
     
@@ -99,7 +140,7 @@ async function validateMust1(): Promise<void> {
       userId: testUserId,
       amountMinor: 50,
       reason: 'Test bonus'
-    })
+    }, true)
     const bonusData = await expectStatus(bonusResponse, 201, 'Bonus operation')
     console.log(`✅ Bonus successful, txId: ${bonusData.txId}`)
     
@@ -115,7 +156,7 @@ async function validateMust1(): Promise<void> {
     console.log('6. Testing reversal operation...')
     const reversalResponse = await makeRequest('POST', `${LEDGER_API}/dev/reversal`, {
       txId: chargeData.txId
-    })
+    }, true)
     const reversalData = await expectStatus(reversalResponse, 201, 'Reversal operation')
     console.log(`✅ Reversal successful, reversalTxId: ${reversalData.reversalTxId}`)
     
@@ -129,7 +170,7 @@ async function validateMust1(): Promise<void> {
     
     // 7. POST /api/v1/ledger/trial-balance/run → status='ok' and delta=0
     console.log('7. Testing trial balance...')
-    const trialBalanceResponse = await makeRequest('POST', `${LEDGER_API}/trial-balance/run`)
+    const trialBalanceResponse = await makeRequest('POST', `${LEDGER_API}/trial-balance/run`, undefined, true)
     const trialBalanceData = await expectStatus(trialBalanceResponse, 200, 'Trial balance')
     console.log(`⚖️ Trial balance: status=${trialBalanceData.status}, delta=${trialBalanceData.delta}`)
     
