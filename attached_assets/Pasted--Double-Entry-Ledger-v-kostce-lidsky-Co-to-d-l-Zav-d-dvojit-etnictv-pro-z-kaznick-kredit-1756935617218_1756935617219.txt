@@ -1,0 +1,89 @@
+(Double-Entry Ledger) v kostce, lidsky:
+
+Co to dělá
+
+Zavádí dvojité účetnictví pro zákaznické kredity: každá transakce má 1 debit + 1 credit a součet debetů = součet kreditů.
+
+Nic se nepřepisuje; omyl řešíš reversal transakcí (zrcadlově opačné zápisy, max 1× na původní).
+
+Účty (MVP)
+
+1000 Cash/Top-up (globální)
+
+2000 Customer Credits (po uživateli; nesmí jít pod 0)
+
+4000 Sales Revenue (globální)
+
+5000 Marketing Expense (globální)
+
+Operace
+
+Top-up: Dr 1000 / Cr 2000(user)
+
+Charge: Dr 2000(user) / Cr 4000 (zabránit zápornému zůstatku)
+
+Bonus: Dr 5000 / Cr 2000(user)
+
+Reversal: přesně opačné zápisy k originálu; žádný reversal reversalu
+
+Data & pravidla
+
+Tabulky: ledger_transactions, ledger_entries, account_balances (cache), trial_balance_daily.
+
+Částky v minor jednotkách (integer bigint).
+
+Invarianta: v rámci jedné DB transakce vytvoř 2 entries (1 debit, 1 credit), ověř rovnost součtů, upsert do account_balances, u 2000 nedovol < 0, pak teprve commit.
+
+account_balances: jeden řádek na globální účet, jeden per user pro 2000 (unikátní omezení).
+
+API (vše pod /api/v1/ledger)
+
+GET /health (stavy + feature flags)
+
+GET /balances/:userId
+
+GET /tx/:txId, GET /tx?userId=&limit=&cursor= (paginace)
+
+POST /dev/topup|charge|bonus|reversal (jen v ne-prod + jen admin)
+
+POST /trial-balance/run (jen admin)
+
+Chyby (JSON {error, message})
+
+INSUFFICIENT_FUNDS 409, TX_NOT_FOUND 404, REVERSAL_ALREADY_EXISTS 409, REVERSAL_FORBIDDEN_TYPE 409, VALIDATION_FAILED 422, FORBIDDEN_DEV_ENDPOINT 403, LEDGER_INVARIANT_BROKEN 500.
+
+Bezpečnost & flagy
+
+NE sahat na existující auth; použít AdminAuthProvider.
+
+/dev/* musí být 403 v prod, jinak povoleno jen adminům.
+
+Feature flags: LEDGER_ENABLED (UI), LEDGER_DEV_ENDPOINTS_ENABLED (dev API).
+
+Sdílené kontrakty & struktura
+
+Sdílené typy v /shared/contracts/ledger.ts, schémata v /shared/schema.ts.
+
+Backend routy v /server/routes/ledger/, FE klient v /client/src/lib/api/ledgerClient.ts.
+
+Migrace SQL v /migrations/05_ledger_schema.sql.
+
+Všechny časy v UTC.
+
+Telemetrie & kontrola
+
+Základní metriky (počty transakcí, stav trial-balance).
+
+Daily trial-balance: součet debetů = součet kreditů (= delta 0).
+
+Hotovo je, když
+
+trial-balance/run vrací status=ok, delta=0.
+
+charge nikdy nepustí 2000(user) pod 0.
+
+Reversal funguje dle pravidel (1× na origin, žádný reversal reversalu).
+
+/dev/* respektuje flagy i admin roli.
+
+Projde validator validate:must1 (E2E kroky).
