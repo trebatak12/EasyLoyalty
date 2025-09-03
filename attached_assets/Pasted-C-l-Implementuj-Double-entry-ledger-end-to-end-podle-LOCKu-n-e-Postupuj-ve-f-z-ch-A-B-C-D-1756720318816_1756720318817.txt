@@ -1,0 +1,148 @@
+Cíl: Implementuj „Double-entry ledger“ end-to-end podle LOCKu níže. Postupuj ve fázích A → B → C → D → E a zastav se po každém checkpointu (čekej na „continue“).
+Kontrakty jsou zdroj pravdy. Pokud by bylo nutné je měnit, STOP a napiš komentář.
+NEUPRAVUJ auth ani jiné moduly; pracuj pouze v rámci ledgeru.
+
+⸻
+
+LOCK – zdroj pravdy (MUST #1)
+
+1) Scope & cíl
+	•	Zajistit double-entry účetnictví pro zákaznické kredity: každá transakce má Σdebet = Σkredit, nic se nepřepisuje; chyby se řeší reversal transakcí.
+	•	Dodávej: DB schéma, backend logiku, dev-only API pro testy, základní metriky, denní trial-balance kontrolu (= Σdebet − Σkredit = 0).
+	•	Pozn.: Neřeš idempotenci, zámky, ani jiné části systému; pouze ledger.
+
+2) Účty & mapování (MVP)
+	•	1000 Cash/Top-up Clearing (assets)
+	•	2000 Customer Credits (liabilities; sub-account per user)
+	•	4000 Sales Revenue (revenue)
+	•	5000 Marketing Expense (expense)
+
+Mapování operací:
+	•	Top-up X: Dr 1000 +X, Cr 2000(user) +X
+	•	Charge X: Dr 2000(user) +X, Cr 4000 +X
+	•	Bonus X: Dr 5000 +X, Cr 2000(user) +X
+	•	Reversal: nová transakce s opačnými zápisy, reversalOf = původní_tx_id; max 1× reversal per origin.
+
+3) DB schéma (Drizzle, Postgres)
+	•	ledger_transactions
+	•	id uuid PK, created_at timestamptz
+	•	type enum(topup|charge|bonus|reversal)
+	•	origin_ref text nullable
+	•	reversal_of uuid nullable FK → ledger_transactions.id, UNIQUE (1× reversal/of)
+	•	created_by uuid nullable, context jsonb (např. note, idempotency_key)
+	•	ledger_entries
+	•	id uuid PK, tx_id FK (ON DELETE CASCADE)
+	•	account_code int (1000/2000/4000/5000)
+	•	user_id uuid nullable (povinné když account_code=2000)
+	•	side enum(debit|credit)
+	•	amount_minor int > 0 (CHECK)
+	•	Aplikační invarianta: pro každé tx_id: Σdebet = Σkredit (vynucuj v rámci jedné DB transakce).
+	•	account_balances (cache)
+	•	PK (account_code,user_id nullable)
+	•	balance_minor int (pro 2000 nesmí < 0), updated_at
+	•	trial_balance_daily
+	•	as_of_date date PK, sum_debit bigint, sum_credit bigint, delta bigint, status enum(ok|mismatch), details jsonb
+
+user_id neprovazuj FK na users; ber jako opaque UUID. Dev endpointy mají při první operaci založit potřebný řádek v account_balances.
+
+4) API kontrakty (v1, sdílené typy) — vše pod /api/v1/ledger
+	•	GET /health → 200 { ok: true, accounts: ["1000","2000","4000","5000"] }
+	•	GET /balances/:userId (auth middleware použij existující) → 200 { userId, balanceMinor, updatedAt }
+	•	GET /tx/:txId → detail transakce (transaction + entries)
+	•	GET /tx?userId=&limit=&cursor= → stránkovaný výpis
+	•	POST /dev/topup (dev-only; v prod vracej 403)
+body: { userId: string(uuid), amountMinor: number >0, note?: string } → 201 { txId }
+	•	POST /dev/charge (dev-only; v prod 403)
+body: { userId, amountMinor, note? } → 201 { txId } (odmítnout, pokud by 2000 < 0)
+	•	POST /dev/bonus (dev-only; v prod 403)
+body: { userId, amountMinor, reason: string } → 201 { txId }
+	•	POST /dev/reversal (dev-only; v prod 403)
+body: { txId: string(uuid) } → 201 { reversalTxId }
+	•	POST /trial-balance/run (admin) → 200 { status, sumDebit, sumCredit, delta }
+
+context.idempotency_key jen ulož (bez logiky). Neměň existující auth; použij aktuální middleware.
+
+5) Chybové kódy (HTTP mapping)
+	•	INSUFFICIENT_FUNDS → 409
+	•	TX_NOT_FOUND → 404
+	•	REVERSAL_ALREADY_EXISTS → 409
+	•	REVERSAL_FORBIDDEN_TYPE → 409 (např. reversal reversalu)
+	•	VALIDATION_FAILED → 422
+	•	LEDGER_INVARIANT_BROKEN → 500
+	•	FORBIDDEN_DEV_ENDPOINT → 403 (jakákoliv /dev/* v prod)
+
+6) Transakční pravidla
+	•	Každý zápis transakce v jedné DB transakci: připrav entries → zkontroluj Σdebet = Σkredit → aktualizuj account_balances → pro 2000 neumožni < 0 → commit → až potom notifikace/telemetrie.
+
+7) Telemetrie & audit (minimum)
+	•	Metrics (dev): ledger_tx_total{type}, ledger_insufficient_funds_total, ledger_trial_balance_status{status}.
+	•	Audit: ukládej stručný kontext do context (bez PII).
+
+8) Gate/Done
+	•	trial_balance/run vrací status="ok" a delta=0 po testovacích operacích.
+	•	charge neumožní 2000(user) < 0.
+	•	reversal je povolen max 1× per origin (DB UNIQUE na reversal_of).
+	•	/dev/* v prod → 403.
+	•	Validator (níže) končí exit 0.
+
+⸻
+
+Proces & checkpointy (dodrž!)
+
+A) Contracts & DB (stub) — CHECKPOINT A — STOP
+	•	Drizzle migrace (tabulky + indexy/constraints).
+	•	Shared typy v /contracts/ledger.ts (Zod/TS): request/response, enumy, error kódy.
+	•	Stub endpointy /api/v1/ledger/* s validním shape (bez logiky).
+	•	Typed FE klient: /frontend/src/lib/api/ledgerClient.ts (jen wrapper; žádná UI logika).
+	•	npm script: "validate:must1" (zatím build + výpis mapy rout).
+	•	Commit: feat(ledger): contracts+db stub.
+	•	Zastav se a čekej na „continue“.
+
+B) Backend implementation — CHECKPOINT B — STOP
+	•	Implementuj ledger službu: zápis entries, update account_balances, reversal, trial-balance job.
+	•	Namapuj chybové kódy dle LOCKu.
+	•	Telemetrie (dev) + audit do context.
+	•	Rozšiř validate:must1 o BE smoke (viz D).
+	•	Commit: feat(ledger): backend logic.
+	•	Zastav se a čekej na „continue“.
+
+C) Frontend wiring (v1) — CHECKPOINT C — STOP
+	•	FE napoj výhradně přes /contracts/ledger.ts a /api/v1/ledger/*.
+	•	Přidej dev-only mini-page „Ledger Health“ (jen v ne-prod):
+	•	tlačítko Run Trial-Balance, panel User balance, a 3 dev akce Top-up / Charge / Bonus (volají /dev/*).
+	•	Feature-flag: LEDGER_ENABLED (default OFF).
+	•	NEUPRAVUJ auth ani jiné endpointy.
+	•	Commit: feat(ledger): frontend wiring (dev page).
+	•	Zastav se a čekej na „continue“.
+
+D) Validator & CI — CHECKPOINT D — STOP
+	•	Přidej scripts/validate-must1.ts (TypeScript) – rychlý E2E:
+	1.	Nastartuj server (nebo použij běžící).
+	2.	Vygeneruj testUserId (UUID).
+	3.	POST /api/v1/ledger/dev/topup {1000} → očekávej 201 a balance=1000.
+	4.	POST /api/v1/ledger/dev/charge {400} → 201, balance=600.
+	5.	POST /api/v1/ledger/dev/bonus {50} → 201, balance=650.
+	6.	POST /api/v1/ledger/dev/reversal {txId: <charge_tx>} → 201, balance=1000.
+	7.	POST /api/v1/ledger/trial-balance/run → status="ok", delta=0.
+	8.	Negativní: charge {2000} → 409 INSUFFICIENT_FUNDS.
+	9.	Negativní: reversal stejné tx znovu → 409 REVERSAL_ALREADY_EXISTS.
+	10.	Prod-guard simulace: vynuť „production mode“ → jakýkoliv /dev/* → 403 FORBIDDEN_DEV_ENDPOINT.
+	•	Přidej npm run validate:must1 (spouští skript; exit 0 jen pokud všechny kroky PASS).
+	•	CI job: spouštěj validator na PR do main.
+	•	Commit: chore(ledger): validator+ci.
+	•	Zastav se a čekej na „continue“.
+
+E) Enable & dashboards
+	•	Zapni LEDGER_ENABLED v dev/stage.
+	•	Přidej dlaždici do metrik: trial_balance_status, ledger_tx_total{type}.
+	•	Commit: ops(ledger): enable + dashboards.
+
+⸻
+
+Hard guardrails (dodrž vždy)
+	•	NEUPRAVUJ auth, staré endpointy ani jiné moduly.
+	•	Kontrakty v /contracts/ledger.ts jsou neměnné; FE i BE je importují.
+	•	Všechny ledger endpointy jsou /api/v1/ledger/; frontend nesmí volat nic jiného.
+	•	/dev/* endpointy jsou disabled v prod (vracej 403).
+	•	Každý checkpoint = 1 commit + stručný seznam změn.
+	•	npm run validate:must1 musí projít zeleně před dalším krokem.
