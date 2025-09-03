@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 
 interface AdminUser {
   id: string;
@@ -43,7 +43,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         refreshTimeoutRef.current = setTimeout(async () => {
           try {
             console.log("Auto-refreshing admin token");
-            const response = await api.post("/api/admin/refresh");
+            const response = await httpClient.post("/api/admin/refresh");
             setAccessToken(response.accessToken);
             setupTokenRefresh(response.accessToken);
           } catch (error) {
@@ -70,15 +70,15 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       
       try {
         // Try to refresh token first (if cookie exists)
-        const refreshResponse = await api.post("/api/admin/refresh");
+        const refreshResponse = await httpClient.post("/api/admin/refresh");
         if (refreshResponse?.accessToken) {
           console.log("Admin refresh successful, setting token");
           setAccessToken(refreshResponse.accessToken);
-          api.setAuthToken(refreshResponse.accessToken);
+          httpClient.setAuthToken(refreshResponse.accessToken);
           setupTokenRefresh(refreshResponse.accessToken);
 
           // Get admin data (token is now set globally via setAuthToken)
-          const adminData = await api.get("/api/admin/me");
+          const adminData = await httpClient.get("/api/admin/me");
           if (adminData) {
             setAdmin(adminData);
           }
@@ -107,9 +107,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (accessToken) {
       console.log("Setting admin auth token:", accessToken.substring(0, 20) + "...");
-      api.setAuthToken(accessToken);
+      httpClient.setAuthToken(accessToken);
     } else {
-      api.setAuthToken(null);
+      httpClient.setAuthToken(null);
     }
   }, [accessToken]);
 
@@ -121,7 +121,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       console.log("Admin login API call starting");
-      const response = await api.post("/api/admin/login", { email, password });
+      const response = await httpClient.post("/api/admin/login", { email, password });
       const { accessToken: newAccessToken, admin: adminData } = response;
 
       console.log("Admin login successful, setting admin data:", adminData);
@@ -129,9 +129,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       setAdmin(adminData);
       setupTokenRefresh(newAccessToken);
       
-      // Ensure token is set immediately in API service
-      api.setAuthToken(newAccessToken);
-      console.log("Admin token set in API service:", newAccessToken.substring(0, 20) + "...");
+      // Ensure token is set immediately in HTTP client
+      httpClient.setAuthToken(newAccessToken);
+      console.log("Admin token set in HTTP client:", newAccessToken.substring(0, 20) + "...");
     } catch (error: any) {
       console.error("Admin login failed:", {
         message: error?.message || "Unknown error",
@@ -165,7 +165,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       // Try to call logout API - server will handle invalid sessions gracefully
-      await api.post("/api/admin/logout");
+      await httpClient.post("/api/admin/logout");
       console.log("Admin logout API call successful");
     } catch (error: any) {
       // Don't log 401 errors as they're expected when already logged out

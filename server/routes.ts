@@ -217,7 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decodedRefresh = await verifyKeystoreToken(refreshToken, false);
       await storage.storeRefreshToken({
         userId: user.id,
-        tokenId: decodedRefresh.jti || 'unknown',
+        tokenId: (decodedRefresh as any).jti || 'unknown',
         deviceId,
         ip,
         userAgent: getUserAgent(req),
@@ -355,7 +355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if token was already used (rotation detection)  
-      const jti = payload.jti || "";
+      const jti = (payload as any).jti || "";
       if (!jti) {
         return res.status(401).json(createErrorResponse("Unauthorized", "Token missing jti", "E_AUTH_INVALID_REFRESH_TOKEN"));
       }
@@ -376,16 +376,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mark old token as used
       await storage.markRefreshTokenUsed(jti);
 
-      // Generate new keystore access token
-      const newAccessToken = await generateKeystoreAccessToken(payload.sub, ["user"]);
+      // Get user's current tokenVersion and passwordChangedAt for new tokens
+      const user = await storage.getUser(payload.sub);
+      if (!user) {
+        return res.status(401).json(createErrorResponse("Unauthorized", "User not found", "E_AUTH_USER_NOT_FOUND"));
+      }
 
-      // Rotate keystore refresh token  
-      const newRefreshToken = await generateKeystoreRefreshToken(payload.sub, payload.deviceId);
+      // Generate new keystore access token with current tokenVersion
+      const newAccessToken = await generateKeystoreAccessToken(
+        payload.sub, 
+        ["user"], 
+        user.tokenVersion, 
+        user.passwordChangedAt || undefined
+      );
+
+      // Rotate keystore refresh token with current tokenVersion
+      const newRefreshToken = await generateKeystoreRefreshToken(
+        payload.sub, 
+        (payload as any).deviceId || "unknown", 
+        user.tokenVersion, 
+        user.passwordChangedAt || undefined
+      );
       const decodedNewRefresh = await verifyKeystoreToken(newRefreshToken, false);
       await storage.storeRefreshToken({
         userId: payload.sub,
-        tokenId: decodedNewRefresh.jti!,
-        deviceId: payload.deviceId,
+        tokenId: (decodedNewRefresh as any).jti!,
+        deviceId: (payload as any).deviceId,
         ip: getClientIP(req),
         userAgent: getUserAgent(req),
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL)

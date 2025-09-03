@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 
 interface User {
   id: string;
@@ -39,14 +39,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setTokens = (newAccessToken: string) => {
     console.log("🔧 setTokens called with:", newAccessToken?.substring(0, 20) + "...");
     setAccessToken(newAccessToken);
-    api.setAuthToken(newAccessToken);
-    console.log("✅ Tokens set - state updated, api.authToken:", !!api.authToken);
+    httpClient.setAuthToken(newAccessToken);
+    console.log("✅ Tokens set - state updated, httpClient.authToken:", !!httpClient.authToken);
   };
 
   // Clear tokens (refresh token cleared via cookie)
   const clearTokens = () => {
     setAccessToken(null);
-    api.setAuthToken(null);
+    httpClient.setAuthToken(null);
     setUser(null);
   };
 
@@ -67,16 +67,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refreshPromise = (async () => {
       try {
         // 🔒 Refresh token sent automatically via HTTP-only cookie
-        const response = await api.post("/api/auth/refresh", {});
+        const response = await httpClient.post("/api/auth/refresh", {});
         const { accessToken } = response;
         console.log('✅ Refresh response received, has accessToken:', !!accessToken);
         
         console.log('🔧 Setting new tokens via setTokens...');
         setTokens(accessToken);
-        console.log('✅ Tokens set, accessToken state:', !!accessToken, 'api.authToken:', !!api.authToken);
+        console.log('✅ Tokens set, accessToken state:', !!accessToken, 'httpClient.authToken:', !!httpClient.authToken);
         
         // Get updated user data
-        const userData = await api.get("/api/me");
+        const userData = await httpClient.get("/api/me");
         setUser(userData);
         console.log('✅ User data updated');
       } catch (error) {
@@ -116,73 +116,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 🔒 Auto-refresh interceptor setup (CUSTOMER ONLY) - WITH DEBUG LOGGING
   useEffect(() => {
-    // Clear any existing interceptors first to prevent conflicts
-    api.clearAllInterceptors();
+    // Install new auth interceptors
     console.log('🔧 Setting up CUSTOMER interceptor...');
     
-    const interceptor = api.registerInterceptor(
-      (response: any) => {
-        console.log('✅ Response OK:', response.status, response.config?.url);
-        return response;
-      },
-      async (error: any) => {
-        const originalRequest = error.config;
-        console.log('✖️ AXIOS INTERCEPTOR CALLED - Response error:', error.response?.status, originalRequest?.url, 'retry?', originalRequest?._retry, 'has accessToken:', !!accessToken);
-        
-        // Skip refresh attempts for auth endpoints and ALL admin endpoints
-        if (originalRequest?.url?.includes('/api/auth/') || 
-            originalRequest?.url?.includes('/api/admin/')) {
-          console.log('🚫 Skipping refresh for auth/admin endpoint');
-          return Promise.reject(error);
-        }
-        
-        // Handle 401 errors for protected endpoints (exclude auth/admin endpoints)
-        if (error.response?.status === 401 && !originalRequest?._retry) {
-          // Check if this is a protected endpoint that should trigger refresh
-          const isProtectedEndpoint = originalRequest?.url && (
-            originalRequest.url.startsWith('/api/me') ||
-            originalRequest.url.startsWith('/api/v1/ledger') ||
-            (originalRequest.url.startsWith('/api/') && 
-             !originalRequest.url.includes('/api/auth/') && 
-             !originalRequest.url.includes('/api/admin/'))
-          );
-          
-          if (isProtectedEndpoint) {
-            originalRequest._retry = true;
-            
-            console.log('→ 401 on protected endpoint, starting token refresh...');
-            
-            try {
-              console.log("Token expired, refreshing...");
-              await refreshAuth();
-              console.log('✅ Refresh OK, retrying original request');
-              
-              // Retry original request with axios instance directly
-              return api.instance(originalRequest);
-            } catch (refreshError) {
-              console.log("❌ Refresh failed:", refreshError);
-              clearTokens();
-              // Don't reject here - let it fall through to logout logic
-            }
-          }
-        }
-        
-        console.log('⚠️ 401 error but not handling:', {
-          status: error.response?.status,
-          url: originalRequest?.url,
-          isCustomerEndpoint: originalRequest?.url?.startsWith('/api/me')
-        });
-        
-        return Promise.reject(error);
+    const interceptorHandle = httpClient.installAuthInterceptors(
+      () => accessToken,
+      () => {
+        console.log('🚪 Logout triggered by interceptor')
+        clearTokens()
       }
-    );
+    )
 
-    console.log('✅ Customer interceptor set up with reference:', interceptor);
+    console.log('✅ Customer interceptor set up')
     
     return () => {
-      console.log('🗑️ Cleaning up CUSTOMER interceptor:', interceptor);
-      api.interceptors.response.eject(interceptor);
-    };
+      console.log('🗑️ Cleaning up CUSTOMER interceptor')
+      interceptorHandle.eject()
+    }
   }, [accessToken]);
 
   const login = async (email: string, password: string) => {
@@ -194,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     
     try {
-      const response = await api.post("/api/auth/login", { email, password });
+      const response = await httpClient.post("/api/auth/login", { email, password });
       const { user: userData, accessToken } = response;
       // 🔒 Refresh token automatically set as HTTP-only cookie
       
@@ -202,8 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokens(accessToken);
       setUser(userData);
       
-      // Ensure token is properly set in API service before proceeding
-      console.log("Verifying token is set in API service:", !!api.authToken);
+      // Ensure token is properly set in HTTP client before proceeding
+      console.log("Verifying token is set in HTTP client:", !!httpClient.authToken);
       await new Promise(resolve => setTimeout(resolve, 150));
       
     } catch (error: any) {
@@ -231,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (email: string, name: string, password: string) => {
     setIsLoading(true);
     try {
-      const response = await api.post("/api/auth/signup", { email, name, password });
+      const response = await httpClient.post("/api/auth/signup", { email, name, password });
       const { user: userData, accessToken } = response;
       // 🔒 Refresh token automatically set as HTTP-only cookie
       
@@ -247,7 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const googleAuth = async (idToken: string) => {
     setIsLoading(true);
     try {
-      const response = await api.post("/api/auth/google", { idToken });
+      const response = await httpClient.post("/api/auth/google", { idToken });
       const { user: userData, accessToken } = response;
       
       setTokens(accessToken);
@@ -264,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // 🔒 Server will handle refresh token cookie clearing
       // Call logout API even if access token is missing to ensure refresh cookie is cleared
-      await api.post("/api/auth/logout");
+      await httpClient.post("/api/auth/logout");
     } catch (error) {
       // Ignore logout errors - clear local state anyway
       console.warn("Logout API call failed:", error);
@@ -275,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logoutEverywhere = async () => {
     try {
-      await api.post("/api/auth/logout-everywhere");
+      await httpClient.post("/api/auth/logout-everywhere");
       clearTokens();
     } catch (error) {
       console.error("Logout everywhere failed:", error);

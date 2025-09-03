@@ -1,0 +1,152 @@
+Make the frontend fully usable and stable by fixing the auth interceptor and server token‑version semantics. Implement the changes below in this repo’s structure. Do not alter MUST #1 ledger business logic. Keep existing AdminAuthProvider.
+
+0) Context & non‑negotiables
+
+Repo: server/, client/src/, shared/schema.ts, migrations in /migrations/.
+
+Auth (client): AdminAuthProvider in client/src/hooks/use-admin-auth.tsx.
+
+Ledger routes: mounted under /server/routes/ledger/ at /api/v1/ledger/*.
+
+Feature flags: LEDGER_ENABLED, LEDGER_DEV_ENDPOINTS_ENABLED (false in prod ⇒ /dev/* must 403).
+
+Do not change ledger invariants/DB schema/error codes. This task only addresses auth interceptor, token version mismatch, interceptor lifecycle, and type coercion already handled in previous prompt (keep it intact).
+
+1) Problems to fix (as observed)
+
+Critical bug: Interceptor checks accessToken truthiness on 401; since access is expired/missing, refresh logic never runs ⇒ infinite 401 loop.
+
+Token version mismatch: /api/auth/refresh returns a new token, but /api/me rejects it with Token version mismatch immediately after. Indicates inconsistent tokenVersion semantics between issued JWT and DB state.
+
+Inconsistent interceptor cleanup: Interceptors are being cleared/re‑registered unpredictably, causing duplicate handling.
+
+Condition confusion: /api/me is considered protected, but refresh fails (tokenVersion), so retry path is never reached; logs show “401 error but not handling”.
+
+2) Deliverables (what to implement)
+A) Client — robust axios auth interceptor (single‑flight refresh, retry‑once)
+
+Create or refactor a centralized HTTP module (e.g., client/src/lib/http.ts) and a single installer for interceptors.
+
+Requirements:
+
+Protected endpoints predicate: A pure function isProtectedRequest(config) that returns true for calls requiring auth, e.g.:
+
+Include: /api/me, /api/v1/ledger/*, other authenticated endpoints.
+
+Exclude: login, refresh, health, static.
+
+401 handling: On a 401 from a protected request and when config._retry !== true:
+
+Use a single‑flight mechanism so only one refresh is in flight; concurrent 401s wait for it (queue subscribers, resolve once).
+
+Attempt exactly one refresh; mark config._retry = true and replay once if refresh succeeded.
+
+If refresh fails (401/403/5xx) → perform logout (clear tokens/state, route to login). No loops.
+
+Token source of truth: Ensure the Authorization header is set from the latest access token after refresh before replaying queued requests.
+
+Idempotent install: Provide a module‑level guard so interceptors are installed once. Avoid “clear all interceptors”; instead eject by stored IDs in a predictable lifecycle (e.g., app unmount).
+
+Debug logging toggle: Gate verbose logs behind DEBUG_AUTH env/flag to avoid noisy consoles in prod.
+
+Acceptance:
+
+Expired access + valid refresh → one refresh, all pending protected requests succeed after replay.
+
+Invalid/expired refresh → one refresh attempt then logout; no infinite loops.
+
+Three parallel requests with expired token → only one refresh executed; all three succeed after.
+
+B) Server — consistent tokenVersion semantics (access & refresh)
+
+Align the backend so newly issued tokens are immediately accepted by /api/me.
+
+Model (recommended minimal):
+
+Users table has tokenVersion (integer). Access tokens carry claim tv (tokenVersion). Do not increment tokenVersion on normal refresh; increment only on global invalidation events (password change, session reset, forced logout).
+
+Optionally, if you use per‑device sessions: keep session_id in JWT and validate that session is active.
+
+Refresh endpoint (POST /api/auth/refresh) must:
+
+Validate the refresh token (signature, exp, subject, and if applicable session_id & tv).
+
+Not increment tokenVersion during a routine refresh.
+
+Issue both new access & refresh tokens where claim tv equals the stored user.tokenVersion at issuance time.
+
+Persist any rotation state (e.g., refresh token rotation / jti blacklisting) before returning tokens to avoid race.
+
+Protected endpoints (e.g., /api/me) must:
+
+Verify JWT signature/exp.
+
+Compare claim tv to current user.tokenVersion from DB. If mismatch → 401 { error: 'UNAUTHENTICATED', message: 'Token version mismatch' }.
+
+Ensure the same user record is read as in refresh; no stale read / replica lag for this path (use primary connection if necessary).
+
+Acceptance:
+
+Immediately after a successful refresh, /api/me returns 200 with user data (no mismatch).
+
+If user.tokenVersion is incremented manually (simulate forced logout), subsequent calls with old access → 401 mismatch; a new refresh should also fail → logout.
+
+C) Interceptor lifecycle — predictable install/eject
+
+Export a single function installAuthInterceptors(http, authStore) that returns { eject() }.
+
+Install it once at app bootstrap (e.g., in AdminAuthProvider or root). On unmount, call eject().
+
+Remove any blanket “Clearing all axios interceptors” logic. Use stored interceptor IDs to eject only what you installed.
+
+Acceptance:
+
+Logs no longer show multiple installs/clears during navigation.
+
+No duplicate request/response handlers are observed.
+
+D) Documentation updates
+
+Short README or inline doc comment that states:
+
+When refresh is attempted, when it’s avoided, and when logout happens.
+
+Single‑flight rationale and how to toggle DEBUG_AUTH.
+
+TokenVersion policy (not bumped on routine refresh).
+
+3) Test plan (manual + automated smoke)
+
+Case 1: Expired access, valid refresh → first protected request 401 → refresh → replay success.
+
+Case 2: Invalid refresh token → one refresh attempt → logout; following protected request redirects to login.
+
+Case 3: Parallel 3 protected requests with expired token → only one refresh; all succeed.
+
+Case 4: Force user.tokenVersion++ in DB → existing access denied with mismatch; refresh also denied; user logged out.
+
+Case 5: Navigation across app does not multiply interceptors; only one set is installed.
+
+4) Commits
+
+fix(auth-client): robust 401 handling (single-flight refresh, retry-once, logout-on-fail) + idempotent interceptors
+
+fix(auth-server): consistent tokenVersion on refresh + strict validation in /api/me
+
+docs(auth): document refresh flow, DEBUG_AUTH toggle, tokenVersion policy
+
+5) Rollback
+
+Client: keep previous interceptor under a tag; rollback by swapping the installer and disabling the new one.
+
+Server: feature flag a strict tokenVersion check if needed; revert to prior refresh issuance while investigating.
+
+6) Success criteria (must all pass)
+
+No infinite 401 loops; refresh triggers exactly once per expiry event.
+
+/api/me works immediately after refresh; no Token version mismatch.
+
+Interceptors are installed once; no duplicate handling.
+
+End‑to‑end flows for ledger dev page work when LEDGER_ENABLED=true and user is admin.
