@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Plus, Coffee, ChevronDown, ChevronUp } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 import { formatCurrency } from "@/utils/currency";
 import { ledgerClient } from "@/lib/api/ledgerClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,7 +21,7 @@ export default function CustomerHistory() {
 
   const { data: historyData, isLoading } = useQuery({
     queryKey: ["/api/me/history", { type: filter }],
-    queryFn: () => api.get(`/api/me/history?type=${filter}`),
+    queryFn: () => httpClient.get(`/api/me/history?type=${filter}`),
     enabled: filter !== "ledger"
   });
 

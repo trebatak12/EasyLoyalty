@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowLeft, RotateCcw, Copy, QrCode, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 import { useToast } from "@/hooks/use-toast";
 import { StyledQR } from "@/components/ui/styled-qr";
 
@@ -19,7 +19,7 @@ export default function CustomerQR() {
 
   const { data: qrData, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["/api/me/qr", refreshKey],
-    queryFn: () => api.post("/api/me/qr", {}),
+    queryFn: () => httpClient.post("/api/me/qr", {}),
     refetchInterval: false,
     staleTime: 0,
     refetchOnWindowFocus: false

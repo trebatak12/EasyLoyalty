@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Coffee, LogOut, Users, Wallet, Gift, TrendingUp, RefreshCw, ArrowLeft, Activity, DollarSign } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 import { useLocation } from "wouter";
 
 function StatCard({ title, value, icon: Icon, subtitle }: {
@@ -56,7 +56,7 @@ export default function AdminSummaries() {
 
   const { data: summaryData, isLoading, refetch } = useQuery({
     queryKey: ["/api/admin/summary"],
-    queryFn: () => api.get("/api/admin/summary"),
+    queryFn: () => httpClient.get("/api/admin/summary"),
     enabled: isAuthenticated,
     refetchInterval: 60000 // Auto-refresh every minute
   });

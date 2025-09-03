@@ -5,7 +5,7 @@ import { Coffee, Plus, QrCode, History, LogOut, Wallet, CreditCard } from "lucid
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 import { formatCurrency } from "@/utils/currency";
 import { ledgerClient } from "@/lib/api/ledgerClient";
 
@@ -28,7 +28,7 @@ export default function CustomerHome() {
     lastActivity: string;
   }>({
     queryKey: ["/api/me/wallet"],
-    enabled: isAuthenticated && !!api.authToken, // Wait for token to be set
+    enabled: isAuthenticated, // httpClient handles auth automatically
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
@@ -45,7 +45,7 @@ export default function CustomerHome() {
         return null;
       }
     },
-    enabled: isAuthenticated && !!api.authToken && !!user?.id,
+    enabled: isAuthenticated && !!user?.id,
     retry: false, // Don't retry if ledger system is not available
     staleTime: 30000 // Cache for 30 seconds
   });
@@ -54,7 +54,7 @@ export default function CustomerHome() {
     transactions: any[];
   }>({
     queryKey: ["/api/me/history"], 
-    enabled: isAuthenticated && !!api.authToken, // Wait for token to be set
+    enabled: isAuthenticated, // httpClient handles auth automatically
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });

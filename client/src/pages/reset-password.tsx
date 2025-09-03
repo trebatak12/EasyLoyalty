@@ -8,7 +8,7 @@ import { ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Shield } from "
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
@@ -52,7 +52,7 @@ export default function ResetPassword() {
 
   const validateToken = async (tokenToValidate: string) => {
     try {
-      const response = await api.get(`/api/auth/reset-password/validate?token=${encodeURIComponent(tokenToValidate)}`);
+      const response = await httpClient.get(`/api/auth/reset-password/validate?token=${encodeURIComponent(tokenToValidate)}`);
       
       if (response.valid) {
         setIsTokenValid(true);
@@ -137,7 +137,7 @@ export default function ResetPassword() {
     setIsLoading(true);
 
     try {
-      const response = await api.post("/api/auth/reset-password", {
+      const response = await httpClient.post("/api/auth/reset-password", {
         token,
         newPassword: password,
       });

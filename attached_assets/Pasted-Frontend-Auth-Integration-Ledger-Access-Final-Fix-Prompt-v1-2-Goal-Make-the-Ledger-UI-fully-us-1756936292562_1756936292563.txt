@@ -1,0 +1,233 @@
+Frontend Auth Integration & Ledger Access Final Fix Prompt (v1.2)
+
+Goal: Make the Ledger UI fully usable by fixing frontend auth integration and client usage so all ledger endpoints work end-to-end.
+Do not change ledger business logic, schemas, or error codes. Keep existing AdminAuthProvider.
+
+0) Context & Non-negotiables
+
+Repo layout: server/, client/src/, shared/schema.ts, migrations in /migrations/.
+
+Auth (client): AdminAuthProvider in client/src/hooks/use-admin-auth.tsx is the source of truth for tokens/admin role.
+
+Ledger routes: backend mounted under /server/routes/ledger/ → /api/v1/ledger/*.
+
+Feature flags: LEDGER_ENABLED, LEDGER_DEV_ENDPOINTS_ENABLED (false in prod ⇒ /dev/* must 403).
+
+HTTP client (must use): client/src/lib/http.ts (axios instance) with single-flight refresh interceptors installed once.
+
+Do not modify ledger invariants, DB schema, or mapping rules.
+
+1) Phase A — Migrate EVERYTHING to httpClient
+
+Problems observed:
+
+Customer endpoints still use legacy client/src/services/api.ts → requests go without Authorization.
+
+Admin endpoints partially migrated; mixed axios instances cause missing interceptors.
+
+Implement:
+
+Ensure shared client exists: in client/src/lib/http.ts, export:
+
+export const http = axios.create(/* baseURL, withCredentials as required */);
+
+export function installAuthInterceptors(http, authStore): { eject(): void }
+(single-flight refresh, retry-once, logout-on-fail; already defined in prior tasks—use that one.)
+
+Repo-wide refactor: Replace all imports/usages of legacy api with the shared http:
+
+Replace imports from client/src/services/api.ts (or similar “api” module) across client/src/**.
+
+Update customer pages and admin pages to use http consistently.
+
+Delete or deprecate client/src/services/api.ts.
+
+Ban regressions:
+
+Add ESLint rule (no-restricted-imports) to forbid importing client/src/services/api.
+
+CI/lint must fail if any new usage appears.
+
+Acceptance:
+
+Console logs no longer show “with auth: false”; every protected call uses Authorization automatically.
+
+No “Clearing all axios interceptors” spam; only one interceptor stack is installed.
+
+2) Phase B — Fix Interceptor Logic (no accessToken && gate)
+
+Problems observed:
+
+401 handling still checks accessToken && before refresh, which is false during 401; refresh never happens.
+
+Logs show: ⚠️ 401 error but not handling: { status:401, url:'/api/me', isCustomerEndpoint:true }.
+
+Implement (in client/src/lib/http.ts):
+
+Protected predicate: isProtectedRequest(config) returns true for /api/me, /api/v1/ledger/*, other private endpoints; false for login/refresh/health/static.
+
+Response interceptor (401):
+
+If status===401, !config._retry, and isProtectedRequest(config):
+
+Set config._retry = true.
+
+Run single-flight refresh. Pending requests wait; only one network refresh happens.
+
+On success: update tokens in store, set latest Authorization on replay, retry once and resolve.
+
+On failure: logout (clear tokens, redirect), no loops.
+
+Request interceptor: inject current access token from AdminAuthProvider store right before send.
+
+Never refresh on refresh/login endpoints; guard relative vs absolute URLs.
+
+Hide verbose logs behind DEBUG_AUTH to keep prod clean.
+
+Acceptance:
+
+Expired access + valid refresh ⇒ one refresh, then replay success.
+
+Invalid refresh ⇒ one attempt then logout; no infinite loops.
+
+3 parallel protected calls during expiry ⇒ only one refresh; all succeed after.
+
+3) Phase C — Integrate Auth into ledgerClient
+
+Problems observed:
+
+client/src/lib/api/ledgerClient.ts uses fetch() without auth headers.
+
+Implement (choose ONE and apply repo-wide):
+
+Preferred: Rewrite ledgerClient.ts to use the shared http client:
+
+Example signatures:
+
+getHealth(): Promise<HealthDTO>
+
+getBalance(userId: string): Promise<BalanceDTO>
+
+postDevTopup(body: TopupReq): Promise<{ txId: string }>
+
+All requests go through http.get/post/..., which already injects Authorization.
+
+If fetch must be kept (not recommended): create authFetch wrapper that always attaches Authorization from AdminAuthProvider and use only this wrapper in ledgerClient.ts. Ban raw fetch via ESLint.
+
+Acceptance:
+
+Every ledger call in ledgerClient automatically carries Authorization.
+
+Admin ledger endpoints are reachable by admins; 403 for non-admins or when flag disabled.
+
+4) Phase D — Admin Auth Connectivity (UI + API)
+
+Problems observed:
+
+Admin logged in, but some admin requests still use the old axios instance (no interceptors).
+
+Ledger page not fully integrated with AdminAuthProvider.
+
+Implement:
+
+Install interceptors once at app bootstrap (e.g., inside AdminAuthProvider mount) → const { eject } = installAuthInterceptors(http, authStore).
+
+Ensure the Ledger Health page and ledger actions are visible only if:
+
+LEDGER_ENABLED === true, and
+
+current user is admin (via AdminAuthProvider).
+
+Graceful UX: a direct hit to the ledger page by non-admin shows a guarded message; API returns 403 (already enforced on server).
+
+Acceptance:
+
+Admin Dashboard ✅ and Admin Ledger ✅ both use the same http client (one interceptor stack).
+
+Non-admins never see ledger dev controls; in prod, /dev/* always 403 regardless of role.
+
+5) Phase E — Unified Interceptor Cleanup
+
+Implement:
+
+Export installAuthInterceptors(http, authStore) -> { eject() }.
+
+On app unmount or provider unmount, call eject().
+
+Remove any “clear all axios interceptors” logic; never install interceptors twice.
+
+Acceptance:
+
+No duplicate interceptors; navigation doesn’t reinstall them.
+
+Debug logs (when enabled) confirm a single pair of interceptors is active.
+
+6) Tests & Verification
+
+Manual smoke (dev):
+
+As admin, open Ledger Health:
+
+With expired access + valid refresh: first call 401 → one refresh → page loads (health OK, actions usable).
+
+Invalidate refresh token, then navigate:
+
+First protected call 401 → one refresh attempt → logout → no loop.
+
+Trigger 3 parallel ledger calls with expired access:
+
+Observe single-flight refresh; all 3 replay succeed.
+
+Non-admin tries direct link to ledger page:
+
+UI shows guarded message; server returns 403 on any /dev/*.
+
+Toggle flags:
+
+LEDGER_ENABLED=false → page hidden; LEDGER_DEV_ENDPOINTS_ENABLED=false → /dev/* 403 for everyone.
+
+Validator:
+
+Ensure scripts/validate-must1.ts authenticates as admin (env creds) and passes all steps, including dev endpoints when flag enabled.
+
+7) Anti-Regression Guards
+
+ESLint: Add no-restricted-imports rule to forbid client/src/services/api and forbid raw fetch in ledgerClient.ts (if you adopted http).
+
+CI: Add a grep/check step that fails build if services/api.ts is imported anywhere in client/src/**.
+
+Unit smoke: a tiny test that installAuthInterceptors is called exactly once and returns valid eject IDs.
+
+8) Commits (split exactly like this)
+
+refactor(client): migrate all modules to shared http client; remove services/api.ts; ban legacy api via ESLint
+
+fix(auth-client): interceptor 401 flow (no accessToken gate); single-flight refresh; retry-once; logout-on-fail
+
+feat(client): ledgerClient switched to http (auth by default) + optional authFetch wrapper
+
+chore(client): interceptor lifecycle (install once in AdminAuthProvider; predictable eject; remove blanket clears)
+
+test(e2e): admin smoke for ledger UI + validator runs with admin creds; add CI import guard
+
+9) Rollback Plan
+
+Feature-flag the new interceptor (USE_NEW_INTERCEPTOR); quick switch back if needed.
+
+Keep the old API module in a graveyard/ folder for reference (not imported) during a short grace period, then delete.
+
+If issues arise with ledger UI access, set LEDGER_ENABLED=false temporarily (backend ledger remains intact).
+
+10) Final Acceptance (must ALL pass)
+
+All customer and admin pages use the same http client; no requests go out “with auth: false”.
+
+Ledger dev page is visible only for admin and only when LEDGER_ENABLED=true; /dev/* respects flags (403 in prod).
+
+No infinite 401 loops; expired tokens trigger exactly one refresh; parallel requests are handled by single-flight.
+
+client/src/services/api.ts is unused/removed; ESLint/CI will fail if reintroduced.
+
+scripts/validate-must1.ts passes locally and in CI.
+
+Deliver exactly this.

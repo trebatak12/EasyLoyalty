@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Plus, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/utils/currency";
 
@@ -59,7 +59,7 @@ export default function CustomerTopup() {
       // Generate idempotency key to prevent duplicate submissions
       const idempotencyKey = Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-      return api.post("/api/me/topup", { packageCode }, {
+      return httpClient.post("/api/me/topup", { packageCode }, {
         headers: {
           'Idempotency-Key': idempotencyKey
         }

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Coffee, LogOut, Download, Search, DollarSign, History, ArrowLeft } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
@@ -36,7 +36,7 @@ export default function AdminCustomers() {
 
   const { data: customersData, isLoading } = useQuery({
     queryKey: ["/api/admin/customers", { query: debouncedSearch }],
-    queryFn: () => api.get(`/api/admin/customers?query=${encodeURIComponent(debouncedSearch)}`),
+    queryFn: () => httpClient.get(`/api/admin/customers?query=${encodeURIComponent(debouncedSearch)}`),
     enabled: isAuthenticated
   });
 

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Mail, AlertCircle, CheckCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/services/api";
+import { httpClient } from "@/lib/http";
 
 export default function ForgotPassword() {
   const [, setLocation] = useLocation();
@@ -32,7 +32,7 @@ export default function ForgotPassword() {
     setIsLoading(true);
 
     try {
-      await api.post("/api/auth/forgot-password", {
+      await httpClient.post("/api/auth/forgot-password", {
         email: email.trim().toLowerCase(),
       });
 
