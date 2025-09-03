@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
 import { setupLedgerRoutes } from "./routes/ledger/index";
+import { ledgerService } from "./routes/ledger/service";
 import { 
   hashPassword, 
   verifyPassword, 
@@ -39,6 +40,9 @@ import { metrics } from "./metrics";
 
 // Production flag for cookie security
 const isProd = process.env.NODE_ENV === "production";
+
+// Ledger integration feature flag
+const LEDGER_POS_INTEGRATION = process.env.LEDGER_POS_INTEGRATION === 'true';
 import { TOP_UP_PACKAGES, type PackageCode, forgotPasswordSchema, resetPasswordSchema } from "@shared/schema";
 import { z } from "zod";
 import cookieParser from "cookie-parser";
@@ -90,7 +94,7 @@ const googleAuthSchema = z.object({
 
 // In-memory stores for demo (should be Redis in production)
 const qrCodes = new Map<string, { userId: string; expiresAt: number; used: boolean }>();
-const pendingCharges = new Map<string, { userId: string; amountCents: number; createdAt: number; adminId: string }>();
+const pendingCharges = new Map<string, { userId: string; amountCents: number; createdAt: number; adminId: string; ledgerTxId?: string }>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use(addRequestId);
@@ -1269,6 +1273,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const chargeId = randomUUID();
+      
+      // Store charge initialization for later confirmation
+      pendingCharges.set(chargeId, {
+        userId,
+        amountCents: 0, // Will be set during confirmation
+        createdAt: Date.now(),
+        adminId: req.admin.id
+      });
+      
       res.json({
         userId: user.id,
         customerName: user.name,
@@ -1298,29 +1311,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       await storage.setIdempotency(idempotencyKey, JSON.stringify(body));
 
-      // For demo, we'll use pending charges to track charge session
-      // In production, this would be in database
+      // Get the pending charge that was initialized
       const pendingCharge = pendingCharges.get(chargeId);
       if (!pendingCharge) {
-        // Create pending charge for demo
-        pendingCharges.set(chargeId, {
-          userId: body.chargeId, // This is a hack for demo
-          amountCents,
-          createdAt: Date.now(),
-          adminId: req.admin.id
-        });
+        return res.status(404).json(createErrorResponse("NotFound", "Charge session not found", "E_NOT_FOUND"));
       }
 
-      // Find user from amount (demo hack - in production we'd have proper charge tracking)
-      const adminWallet = await storage.getWalletByUserId(chargeId);
-      let userId = chargeId;
-
-      // Try to find any user with sufficient balance for this demo
-      const customers = await storage.getCustomersList();
-      const eligibleCustomer = customers.users.find(u => u.wallet.balanceCents >= amountCents);
-      if (eligibleCustomer) {
-        userId = eligibleCustomer.id;
-      }
+      // Update the pending charge with the amount
+      const userId = pendingCharge.userId;
+      pendingCharge.amountCents = amountCents;
 
       const wallet = await storage.getWalletByUserId(userId);
       if (!wallet) {
@@ -1332,7 +1331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(422).json(createErrorResponse("InsufficientFunds", "Insufficient balance", "E_INSUFFICIENT_FUNDS"));
       }
 
-      // Create charge transaction
+      // Create charge transaction (legacy system)
       const transaction = await storage.createTransaction({
         userId,
         type: "charge",
@@ -1346,16 +1345,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Update wallet balance
+      // Update wallet balance (legacy system)
       const newBalance = wallet.balanceCents - amountCents;
       await storage.updateWalletBalance(userId, newBalance);
 
-      // Store charge for void window
+      // LEDGER INTEGRATION: If enabled, also record in ledger system
+      let ledgerTxId: string | null = null;
+      if (LEDGER_POS_INTEGRATION) {
+        try {
+          const ledgerResult = await ledgerService.charge({
+            userId,
+            amountMinor: amountCents, // Convert cents to minor currency units
+            note: `POS charge ${chargeId}`
+          });
+          ledgerTxId = ledgerResult.txId;
+          console.log(`[LEDGER] POS charge recorded: ${ledgerTxId} for user ${userId}, amount ${amountCents}`);
+        } catch (ledgerError) {
+          console.warn(`[LEDGER] Failed to record POS charge in ledger: ${ledgerError}`);
+          // Continue with legacy system - don't fail the entire transaction
+        }
+      }
+
+      // Store charge for void window (include ledger transaction ID if available)
       pendingCharges.set(chargeId, {
         userId,
         amountCents,
         createdAt: Date.now(),
-        adminId: req.admin.id
+        adminId: req.admin.id,
+        ledgerTxId: ledgerTxId || undefined // Store ledger transaction ID for void support
       });
 
       // Audit log
@@ -1394,7 +1411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(422).json(createErrorResponse("VoidWindowExpired", "Void window has expired", "E_VOID_EXPIRED"));
       }
 
-      // Create void transaction
+      // Create void transaction (legacy system)
       const transaction = await storage.createTransaction({
         userId: pendingCharge.userId,
         type: "void",
@@ -1408,11 +1425,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Restore wallet balance
+      // Restore wallet balance (legacy system)
       const wallet = await storage.getWalletByUserId(pendingCharge.userId);
       if (wallet) {
         const newBalance = wallet.balanceCents + pendingCharge.amountCents;
         await storage.updateWalletBalance(pendingCharge.userId, newBalance);
+      }
+
+      // LEDGER INTEGRATION: If enabled and we have a ledger transaction, also reverse in ledger
+      if (LEDGER_POS_INTEGRATION && pendingCharge.ledgerTxId) {
+        try {
+          const reversalResult = await ledgerService.reversal({
+            txId: pendingCharge.ledgerTxId
+          });
+          console.log(`[LEDGER] POS void recorded: ${reversalResult.txId} for original tx ${pendingCharge.ledgerTxId}`);
+        } catch (ledgerError) {
+          console.warn(`[LEDGER] Failed to reverse transaction in ledger: ${ledgerError}`);
+          // Continue with legacy system - don't fail the void operation
+        }
       }
 
       // Remove from pending charges
