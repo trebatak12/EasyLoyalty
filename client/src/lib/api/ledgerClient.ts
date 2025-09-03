@@ -10,6 +10,8 @@ import {
   DevReversalRequest,
   DevOperationResponse,
   DevReversalResponse,
+  CustomerSearchQuery,
+  CustomerSearchResponse,
   TrialBalanceRunResponse,
   LedgerErrorResponse
 } from '@shared/contracts/ledger'
@@ -127,7 +129,23 @@ export class LedgerClient {
     return response.json()
   }
 
-  // 4.4 Trial balance
+  // 4.4 Customer search
+  async searchCustomers(query: CustomerSearchQuery = {}): Promise<CustomerSearchResponse> {
+    const params = new URLSearchParams()
+    if (query.q) params.append('q', query.q)
+    if (query.limit) params.append('limit', query.limit.toString())
+
+    const url = `${this.baseUrl}/customers${params.toString() ? '?' + params.toString() : ''}`
+    const response = await fetch(url)
+    
+    if (!response.ok) {
+      const error: LedgerErrorResponse = await response.json()
+      throw new Error(`${error.error}: ${error.message}`)
+    }
+    return response.json()
+  }
+
+  // 4.5 Trial balance
   async runTrialBalance(): Promise<TrialBalanceRunResponse> {
     const response = await fetch(`${this.baseUrl}/trial-balance/run`, {
       method: 'POST',

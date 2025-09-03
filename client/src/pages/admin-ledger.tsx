@@ -28,7 +28,9 @@ import { formatCurrency } from "@/utils/currency";
 interface Customer {
   id: string;
   email: string;
-  name?: string;
+  name: string;
+  ledgerBalance: number;
+  legacyBalance: number;
 }
 
 interface LedgerTransaction {
@@ -70,14 +72,13 @@ export default function AdminLedger() {
   const customersQuery = useQuery({
     queryKey: ["customers", searchTerm],
     queryFn: async () => {
-      if (!searchTerm || searchTerm.length < 2) return [];
+      if (!searchTerm || searchTerm.length < 2) return { customers: [] };
       
-      // Mock customer search - replace with actual API call
-      return [
-        { id: "1", email: "user@example.com", name: "Test User" }
-      ] as Customer[];
+      // Use real customer search API
+      return await ledgerClient.searchCustomers({ q: searchTerm, limit: 20 });
     },
-    enabled: searchTerm.length >= 2
+    enabled: searchTerm.length >= 2,
+    select: (data) => data.customers
   });
 
   // Get customer balance

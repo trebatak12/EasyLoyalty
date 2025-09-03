@@ -146,17 +146,17 @@ export class LedgerService {
    * Execute top-up operation: Dr 1000 +X, Cr 2000(user) +X
    */
   async topup(request: DevTopupRequest): Promise<LedgerOperationResult> {
-    return this.executeTransaction('topup', async (txId) => {
+    return this.executeTransaction('topup', async () => {
       const entries: InsertLedgerEntry[] = [
         {
-          txId,
+          txId: '', // Will be set by executeTransaction
           accountCode: 1000, // Cash/Top-up Clearing (assets)
           userId: null, // Global account
           side: 'debit',
           amountMinor: request.amountMinor
         },
         {
-          txId,
+          txId: '', // Will be set by executeTransaction
           accountCode: 2000, // Customer Credits (liabilities)
           userId: request.userId,
           side: 'credit',
@@ -189,17 +189,17 @@ export class LedgerService {
         `Insufficient funds. Current balance: ${currentBalance.balanceMinor}, required: ${request.amountMinor}`)
     }
     
-    return this.executeTransaction('charge', async (txId) => {
+    return this.executeTransaction('charge', async () => {
       const entries: InsertLedgerEntry[] = [
         {
-          txId,
+          txId: '', // Will be set by executeTransaction
           accountCode: 2000, // Customer Credits (liabilities)
           userId: request.userId,
           side: 'debit',
           amountMinor: request.amountMinor
         },
         {
-          txId,
+          txId: '', // Will be set by executeTransaction
           accountCode: 4000, // Sales Revenue (revenue)
           userId: null, // Global account
           side: 'credit',
@@ -224,17 +224,17 @@ export class LedgerService {
    * Execute bonus operation: Dr 5000 +X, Cr 2000(user) +X
    */
   async bonus(request: DevBonusRequest): Promise<LedgerOperationResult> {
-    return this.executeTransaction('bonus', async (txId) => {
+    return this.executeTransaction('bonus', async () => {
       const entries: InsertLedgerEntry[] = [
         {
-          txId,
+          txId: '', // Will be set by executeTransaction
           accountCode: 5000, // Marketing Expense (expense)
           userId: null, // Global account
           side: 'debit',
           amountMinor: request.amountMinor
         },
         {
-          txId,
+          txId: '', // Will be set by executeTransaction
           accountCode: 2000, // Customer Credits (liabilities)
           userId: request.userId,
           side: 'credit',
@@ -283,10 +283,10 @@ export class LedgerService {
         `Transaction ${request.txId} has already been reversed`)
     }
     
-    return this.executeTransaction('reversal', async (txId) => {
+    return this.executeTransaction('reversal', async () => {
       // Create mirror entries (opposite sides)
       const entries: InsertLedgerEntry[] = original.entries.map(entry => ({
-        txId,
+        txId: '', // Will be set by executeTransaction
         accountCode: entry.accountCode,
         userId: entry.userId,
         side: entry.side === 'debit' ? 'credit' : 'debit' as LedgerEntrySide,
@@ -370,17 +370,15 @@ export class LedgerService {
    */
   private async executeTransaction(
     type: LedgerTransactionType,
-    operation: (txId: string) => Promise<{
+    operation: () => Promise<{
       type: LedgerTransactionType
       context: Record<string, any>
       entries: InsertLedgerEntry[]
       reversalOf?: string
     }>
   ): Promise<LedgerOperationResult> {
-    const txId = randomUUID()
-    
     // Execute the operation to get transaction details
-    const { type: txType, context, entries, reversalOf } = await operation(txId)
+    const { type: txType, context, entries, reversalOf } = await operation()
     
     // Validate entries (must be exactly 2: 1 debit + 1 credit)
     if (entries.length !== 2) {
@@ -405,9 +403,8 @@ export class LedgerService {
         `Debit/Credit mismatch: ${totalDebit} != ${totalCredit}`)
     }
     
-    // Create transaction record with explicit txId - Step 1
+    // Create transaction record - Step 1
     const txRecord: InsertLedgerTransaction = {
-      id: txId, // Explicitly set the ID
       type: txType,
       context,
       reversalOf: reversalOf || null,
@@ -416,12 +413,17 @@ export class LedgerService {
     }
     
     const result = await db.insert(ledgerTransactions).values(txRecord).returning()
+    const actualTxId = result[0].id
     
-    // Create entries - Step 2
-    const createdEntries = await db.insert(ledgerEntries).values(entries).returning()
+    // Update entries with actual transaction ID - Step 2
+    const entriesWithActualTxId = entries.map(entry => ({
+      ...entry,
+      txId: actualTxId
+    }))
+    const createdEntries = await db.insert(ledgerEntries).values(entriesWithActualTxId).returning()
     
     return {
-      txId,
+      txId: actualTxId,
       entries: createdEntries
     }
   }

@@ -155,7 +155,28 @@ export const DevReversalResponse = z.object({
 })
 export type DevReversalResponse = z.infer<typeof DevReversalResponse>
 
-// 4.4 Trial balance
+// 4.4 Customer search
+export const CustomerSearchQuery = z.object({
+  q: z.string().optional(),
+  limit: z.number().int().min(1).max(50).default(20).optional()
+})
+export type CustomerSearchQuery = z.infer<typeof CustomerSearchQuery>
+
+export const CustomerInfo = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: z.string().email(),
+  ledgerBalance: z.number().int(),
+  legacyBalance: z.number().int()
+})
+export type CustomerInfo = z.infer<typeof CustomerInfo>
+
+export const CustomerSearchResponse = z.object({
+  customers: z.array(CustomerInfo)
+})
+export type CustomerSearchResponse = z.infer<typeof CustomerSearchResponse>
+
+// 4.5 Trial balance
 export const TrialBalanceRunResponse = z.object({
   status: TrialBalanceStatus,
   sumDebit: z.number().int(),

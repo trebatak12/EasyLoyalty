@@ -13,12 +13,16 @@ import {
   DevReversalRequest,
   DevOperationResponse,
   DevReversalResponse,
+  CustomerSearchQuery,
+  CustomerSearchResponse,
+  CustomerInfo,
   TrialBalanceRunResponse,
   LedgerErrorResponse,
   createLedgerError,
   getHttpStatusForError
 } from '@shared/contracts/ledger'
 import { ledgerService } from './service'
+import { storage } from '../../storage'
 
 const router = Router()
 
@@ -101,7 +105,14 @@ router.get('/tx/:txId', async (req, res) => {
       return res.status(getHttpStatusForError('TX_NOT_FOUND')).json(error)
     }
     
-    const response: GetTransactionResponse = result
+    const response: GetTransactionResponse = {
+      transaction: {
+        ...result.transaction,
+        createdAt: result.transaction.createdAt.toISOString(),
+        context: result.transaction.context as Record<string, any>
+      },
+      entries: result.entries
+    }
     res.json(response)
   } catch (error: any) {
     console.error('Transaction lookup error:', error)
@@ -125,7 +136,14 @@ router.get('/tx', async (req, res) => {
       query.cursor
     )
     
-    const response: GetTransactionsResponse = result
+    const response: GetTransactionsResponse = {
+      ...result,
+      transactions: result.transactions.map(tx => ({
+        ...tx,
+        createdAt: tx.createdAt.toISOString(),
+        context: tx.context as Record<string, any>
+      }))
+    }
     res.json(response)
   } catch (error: any) {
     console.error('Transaction listing error:', error)
@@ -253,7 +271,49 @@ router.post('/dev/reversal', async (req, res) => {
   }
 })
 
-// 4.4 Trial balance
+// 4.4 Customer search
+router.get('/customers', async (req, res) => {
+  // TODO: Check admin auth here using existing AdminAuthProvider
+  
+  try {
+    const query = CustomerSearchQuery.parse(req.query)
+    
+    // Get customers from existing storage system
+    const { users } = await storage.getCustomersList(query.q, query.limit || 20, 0)
+    
+    // Get ledger balances for all users in parallel
+    const customerInfoPromises = users.map(async (userRecord): Promise<CustomerInfo> => {
+      const ledgerBalance = await ledgerService.getBalance(userRecord.id)
+      
+      return {
+        id: userRecord.id,
+        name: userRecord.name,
+        email: userRecord.email,
+        ledgerBalance: ledgerBalance?.balanceMinor || 0,
+        legacyBalance: userRecord.wallet?.balanceCents || 0
+      }
+    })
+    
+    const customers = await Promise.all(customerInfoPromises)
+    
+    const response: CustomerSearchResponse = {
+      customers
+    }
+    res.json(response)
+  } catch (error: any) {
+    console.error('Customer search error:', error)
+    
+    if (error instanceof z.ZodError) {
+      const ledgerError = createLedgerError('VALIDATION_FAILED', 'Invalid search parameters', error.errors)
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(ledgerError)
+    }
+    
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during customer search')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
+  }
+})
+
+// 4.5 Trial balance
 router.post('/trial-balance/run', async (req, res) => {
   // TODO: Check admin auth here using existing AdminAuthProvider
   
