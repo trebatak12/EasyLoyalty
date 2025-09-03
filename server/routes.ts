@@ -1030,10 +1030,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update last login
       await storage.updateAdminLastLogin(admin.id);
 
-      // Generate secure tokens with version info
+      // Generate secure tokens with version info using keystore
       const deviceId = `admin_${ip}_${userAgent.substring(0, 50)}`;
-      const accessToken = generateAdminAccessToken(admin.id, admin.tokenVersion, admin.passwordChangedAt || undefined);
-      const refreshToken = generateRefreshToken(admin.id, deviceId, admin.tokenVersion, admin.passwordChangedAt || undefined);
+      const accessToken = await generateKeystoreAccessToken(admin.id, ["admin"], admin.tokenVersion, admin.passwordChangedAt || undefined);
+      const refreshToken = await generateKeystoreRefreshToken(admin.id, deviceId, admin.tokenVersion, admin.passwordChangedAt || undefined);
 
       // Store refresh token in database for rotation detection
       try {
@@ -1156,7 +1156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate new keystore access token with current tokenVersion
-      const newAccessToken = generateAdminAccessToken(admin.id, admin.tokenVersion, admin.passwordChangedAt || undefined);
+      const newAccessToken = await generateKeystoreAccessToken(admin.id, ["admin"], admin.tokenVersion, admin.passwordChangedAt || undefined);
 
       // Rotate keystore refresh token with current tokenVersion
       const newRefreshToken = await generateKeystoreRefreshToken(admin.id, (payload as any).deviceId || "unknown", admin.tokenVersion, admin.passwordChangedAt || undefined);
