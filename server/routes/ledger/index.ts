@@ -1,10 +1,16 @@
 import type { Express } from 'express'
 import { Router } from 'express'
+import { z } from 'zod'
 import { 
   HealthResponse,
   GetBalanceResponse, 
   GetTransactionResponse,
   GetTransactionsResponse,
+  GetTransactionsQuery,
+  DevTopupRequest,
+  DevChargeRequest,
+  DevBonusRequest,
+  DevReversalRequest,
   DevOperationResponse,
   DevReversalResponse,
   TrialBalanceRunResponse,
@@ -12,6 +18,7 @@ import {
   createLedgerError,
   getHttpStatusForError
 } from '@shared/contracts/ledger'
+import { ledgerService } from './service'
 
 const router = Router()
 
@@ -47,85 +54,224 @@ router.get('/health', (req, res) => {
 })
 
 // 4.2 Balances & transactions
-router.get('/balances/:userId', (req, res) => {
-  // TODO: Implement balance lookup
-  const response: GetBalanceResponse = {
-    userId: req.params.userId,
-    balanceMinor: 0,
-    updatedAt: new Date().toISOString()
+router.get('/balances/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId
+    
+    // Validate UUID format
+    if (!z.string().uuid().safeParse(userId).success) {
+      const error = createLedgerError('VALIDATION_FAILED', 'Invalid user ID format')
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(error)
+    }
+    
+    const balance = await ledgerService.getBalance(userId)
+    if (!balance) {
+      const error = createLedgerError('TX_NOT_FOUND', 'User balance not found')
+      return res.status(getHttpStatusForError('TX_NOT_FOUND')).json(error)
+    }
+    
+    const response: GetBalanceResponse = balance
+    res.json(response)
+  } catch (error: any) {
+    console.error('Balance lookup error:', error)
+    
+    if (error.error) {
+      // Already a ledger error
+      return res.status(getHttpStatusForError(error.error)).json(error)
+    }
+    
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during balance lookup')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
   }
-  res.json(response)
 })
 
-router.get('/tx/:txId', (req, res) => {
-  // TODO: Implement transaction lookup
-  const error = createLedgerError('TX_NOT_FOUND', 'Transaction not found')
-  res.status(getHttpStatusForError('TX_NOT_FOUND')).json(error)
+router.get('/tx/:txId', async (req, res) => {
+  try {
+    const txId = req.params.txId
+    
+    // Validate UUID format
+    if (!z.string().uuid().safeParse(txId).success) {
+      const error = createLedgerError('VALIDATION_FAILED', 'Invalid transaction ID format')
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(error)
+    }
+    
+    const result = await ledgerService.getTransaction(txId)
+    if (!result) {
+      const error = createLedgerError('TX_NOT_FOUND', 'Transaction not found')
+      return res.status(getHttpStatusForError('TX_NOT_FOUND')).json(error)
+    }
+    
+    const response: GetTransactionResponse = result
+    res.json(response)
+  } catch (error: any) {
+    console.error('Transaction lookup error:', error)
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during transaction lookup')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
+  }
 })
 
-router.get('/tx', (req, res) => {
-  // TODO: Implement transaction listing with pagination
-  const response: GetTransactionsResponse = {
-    transactions: [],
-    nextCursor: null,
-    hasMore: false
+router.get('/tx', async (req, res) => {
+  try {
+    const query = GetTransactionsQuery.parse(req.query)
+    
+    if (!query.userId) {
+      const error = createLedgerError('VALIDATION_FAILED', 'userId is required')
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(error)
+    }
+    
+    const result = await ledgerService.getTransactions(
+      query.userId,
+      query.limit || 20,
+      query.cursor
+    )
+    
+    const response: GetTransactionsResponse = result
+    res.json(response)
+  } catch (error: any) {
+    console.error('Transaction listing error:', error)
+    
+    if (error instanceof z.ZodError) {
+      const ledgerError = createLedgerError('VALIDATION_FAILED', 'Invalid query parameters', error.errors)
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(ledgerError)
+    }
+    
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during transaction listing')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
   }
-  res.json(response)
 })
 
 // 4.3 Dev-only operations
-router.post('/dev/topup', (req, res) => {
+router.post('/dev/topup', async (req, res) => {
   if (!checkDevEndpointAccess(req, res)) return
   
-  // TODO: Implement topup operation
-  const response: DevOperationResponse = {
-    txId: 'stub-tx-id'
+  try {
+    const request = DevTopupRequest.parse(req.body)
+    const result = await ledgerService.topup(request)
+    
+    const response: DevOperationResponse = {
+      txId: result.txId
+    }
+    res.status(201).json(response)
+  } catch (error: any) {
+    console.error('Topup error:', error)
+    
+    if (error instanceof z.ZodError) {
+      const ledgerError = createLedgerError('VALIDATION_FAILED', 'Invalid request body', error.errors)
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(ledgerError)
+    }
+    
+    if (error.error) {
+      return res.status(getHttpStatusForError(error.error)).json(error)
+    }
+    
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during topup')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
   }
-  res.status(201).json(response)
 })
 
-router.post('/dev/charge', (req, res) => {
+router.post('/dev/charge', async (req, res) => {
   if (!checkDevEndpointAccess(req, res)) return
   
-  // TODO: Implement charge operation
-  const response: DevOperationResponse = {
-    txId: 'stub-tx-id'
+  try {
+    const request = DevChargeRequest.parse(req.body)
+    const result = await ledgerService.charge(request)
+    
+    const response: DevOperationResponse = {
+      txId: result.txId
+    }
+    res.status(201).json(response)
+  } catch (error: any) {
+    console.error('Charge error:', error)
+    
+    if (error instanceof z.ZodError) {
+      const ledgerError = createLedgerError('VALIDATION_FAILED', 'Invalid request body', error.errors)
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(ledgerError)
+    }
+    
+    if (error.error) {
+      return res.status(getHttpStatusForError(error.error)).json(error)
+    }
+    
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during charge')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
   }
-  res.status(201).json(response)
 })
 
-router.post('/dev/bonus', (req, res) => {
+router.post('/dev/bonus', async (req, res) => {
   if (!checkDevEndpointAccess(req, res)) return
   
-  // TODO: Implement bonus operation
-  const response: DevOperationResponse = {
-    txId: 'stub-tx-id'
+  try {
+    const request = DevBonusRequest.parse(req.body)
+    const result = await ledgerService.bonus(request)
+    
+    const response: DevOperationResponse = {
+      txId: result.txId
+    }
+    res.status(201).json(response)
+  } catch (error: any) {
+    console.error('Bonus error:', error)
+    
+    if (error instanceof z.ZodError) {
+      const ledgerError = createLedgerError('VALIDATION_FAILED', 'Invalid request body', error.errors)
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(ledgerError)
+    }
+    
+    if (error.error) {
+      return res.status(getHttpStatusForError(error.error)).json(error)
+    }
+    
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during bonus')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
   }
-  res.status(201).json(response)
 })
 
-router.post('/dev/reversal', (req, res) => {
+router.post('/dev/reversal', async (req, res) => {
   if (!checkDevEndpointAccess(req, res)) return
   
-  // TODO: Implement reversal operation
-  const response: DevReversalResponse = {
-    reversalTxId: 'stub-reversal-tx-id'
+  try {
+    const request = DevReversalRequest.parse(req.body)
+    const result = await ledgerService.reversal(request)
+    
+    const response: DevReversalResponse = {
+      reversalTxId: result.txId
+    }
+    res.status(201).json(response)
+  } catch (error: any) {
+    console.error('Reversal error:', error)
+    
+    if (error instanceof z.ZodError) {
+      const ledgerError = createLedgerError('VALIDATION_FAILED', 'Invalid request body', error.errors)
+      return res.status(getHttpStatusForError('VALIDATION_FAILED')).json(ledgerError)
+    }
+    
+    if (error.error) {
+      return res.status(getHttpStatusForError(error.error)).json(error)
+    }
+    
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during reversal')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
   }
-  res.status(201).json(response)
 })
 
 // 4.4 Trial balance
-router.post('/trial-balance/run', (req, res) => {
+router.post('/trial-balance/run', async (req, res) => {
   // TODO: Check admin auth here using existing AdminAuthProvider
   
-  // TODO: Implement trial balance calculation
-  const response: TrialBalanceRunResponse = {
-    status: 'ok',
-    sumDebit: 0,
-    sumCredit: 0,
-    delta: 0
+  try {
+    const result = await ledgerService.runTrialBalance()
+    
+    const response: TrialBalanceRunResponse = result
+    res.json(response)
+  } catch (error: any) {
+    console.error('Trial balance error:', error)
+    
+    if (error.error) {
+      return res.status(getHttpStatusForError(error.error)).json(error)
+    }
+    
+    const ledgerError = createLedgerError('LEDGER_INVARIANT_BROKEN', 'Internal error during trial balance calculation')
+    res.status(getHttpStatusForError('LEDGER_INVARIANT_BROKEN')).json(ledgerError)
   }
-  res.json(response)
 })
 
 export function setupLedgerRoutes(app: Express) {
