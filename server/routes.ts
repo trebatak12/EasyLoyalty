@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
+import { setupLedgerRoutes } from "./routes/ledger/index";
 import { 
   hashPassword, 
   verifyPassword, 
@@ -114,6 +115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       builtAt: new Date().toISOString()
     });
   });
+
+  // Setup ledger routes
+  setupLedgerRoutes(app);
 
   // Metrics endpoint (pouze development)
   app.get("/api/metrics", async (req, res) => {

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, uuid, timestamp, jsonb, pgEnum, boolean, inet, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, uuid, timestamp, jsonb, pgEnum, boolean, inet, unique, index, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -15,6 +15,11 @@ export const resetTokenStatusEnum = pgEnum("reset_token_status", ["active", "use
 export const keyPurposeEnum = pgEnum("key_purpose", ["access_jwt", "refresh_jwt", "qr_jwt", "webhook_hmac"]);
 export const keyStatusEnum = pgEnum("key_status", ["active", "retiring", "retired", "revoked"]);
 export const keyEventEnum = pgEnum("key_event", ["sign_ok", "sign_fail", "verify_ok", "verify_fail", "jwks_served"]);
+
+// Ledger enums
+export const ledgerTransactionTypeEnum = pgEnum("ledger_transaction_type", ["topup", "charge", "bonus", "reversal"]);
+export const ledgerEntrySideEnum = pgEnum("ledger_entry_side", ["debit", "credit"]);
+export const trialBalanceStatusEnum = pgEnum("trial_balance_status", ["ok", "mismatch"]);
 
 // Users table
 export const users = pgTable("users", {
@@ -166,6 +171,60 @@ export const keyAudit = pgTable("key_audit", {
   context: jsonb("context").default({}).notNull()
 });
 
+// Ledger transactions table
+export const ledgerTransactions = pgTable("ledger_transactions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  type: ledgerTransactionTypeEnum("type").notNull(),
+  originRef: text("origin_ref"),
+  reversalOf: uuid("reversal_of"),
+  createdBy: uuid("created_by"),
+  context: jsonb("context").default({}).notNull()
+}, (table) => ({
+  reversalOfUnique: unique("ledger_tx_reversal_of_unique").on(table.reversalOf),
+  createdAtIdx: index("idx_ledger_tx_created_at").on(table.createdAt),
+  reversalOfFk: sql`FOREIGN KEY (reversal_of) REFERENCES ledger_transactions(id)`
+}));
+
+// Ledger entries table
+export const ledgerEntries = pgTable("ledger_entries", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  txId: uuid("tx_id").references(() => ledgerTransactions.id, { onDelete: "cascade" }).notNull(),
+  accountCode: integer("account_code").notNull(),
+  userId: uuid("user_id"),
+  side: ledgerEntrySideEnum("side").notNull(),
+  amountMinor: bigint("amount_minor", { mode: "number" }).notNull()
+}, (table) => ({
+  txIdIdx: index("idx_ledger_entries_tx_id").on(table.txId),
+  userAccountTxIdx: index("idx_ledger_entries_user_account_tx").on(table.userId, table.accountCode, table.txId),
+  amountPositiveCheck: sql`CHECK (amount_minor > 0)`
+}));
+
+// Account balances table (cache)
+export const accountBalances = pgTable("account_balances", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountCode: integer("account_code").notNull(),
+  userId: uuid("user_id"),
+  balanceMinor: bigint("balance_minor", { mode: "number" }).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull()
+}, (table) => ({
+  accountCodeIdx: index("idx_account_balances_account_code").on(table.accountCode),
+  // Check constraints for account/user relationships
+  customerCreditsUserRequired: sql`CHECK ((account_code = 2000 AND user_id IS NOT NULL) OR account_code != 2000)`,
+  globalAccountsUserNull: sql`CHECK ((account_code IN (1000, 4000, 5000) AND user_id IS NULL) OR account_code NOT IN (1000, 4000, 5000))`,
+  customerCreditsBalanceNonNegative: sql`CHECK ((account_code != 2000) OR (account_code = 2000 AND balance_minor >= 0))`
+}));
+
+// Trial balance daily table
+export const trialBalanceDaily = pgTable("trial_balance_daily", {
+  asOfDate: text("as_of_date").primaryKey(), // YYYY-MM-DD format (UTC date)
+  sumDebit: bigint("sum_debit", { mode: "number" }).notNull(),
+  sumCredit: bigint("sum_credit", { mode: "number" }).notNull(),
+  delta: bigint("delta", { mode: "number" }).notNull(),
+  status: trialBalanceStatusEnum("status").notNull(),
+  details: jsonb("details")
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   wallet: one(wallets),
@@ -210,6 +269,25 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   user: one(users, {
     fields: [transactions.userId],
     references: [users.id]
+  })
+}));
+
+export const ledgerTransactionsRelations = relations(ledgerTransactions, ({ many, one }) => ({
+  entries: many(ledgerEntries),
+  reversals: many(ledgerTransactions, {
+    relationName: "reversals"
+  }),
+  original: one(ledgerTransactions, {
+    fields: [ledgerTransactions.reversalOf],
+    references: [ledgerTransactions.id],
+    relationName: "reversals"
+  })
+}));
+
+export const ledgerEntriesRelations = relations(ledgerEntries, ({ one }) => ({
+  transaction: one(ledgerTransactions, {
+    fields: [ledgerEntries.txId],
+    references: [ledgerTransactions.id]
   })
 }));
 
@@ -278,6 +356,22 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true
 });
 
+export const insertLedgerTransactionSchema = createInsertSchema(ledgerTransactions).omit({
+  id: true,
+  createdAt: true
+});
+
+export const insertLedgerEntrySchema = createInsertSchema(ledgerEntries).omit({
+  id: true
+});
+
+export const insertAccountBalanceSchema = createInsertSchema(accountBalances).omit({
+  id: true,
+  updatedAt: true
+});
+
+export const insertTrialBalanceDailySchema = createInsertSchema(trialBalanceDaily);
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -301,6 +395,14 @@ export type Key = typeof keys.$inferSelect;
 export type InsertKey = z.infer<typeof insertKeySchema>;
 export type KeyAudit = typeof keyAudit.$inferSelect;
 export type InsertKeyAudit = z.infer<typeof insertKeyAuditSchema>;
+export type LedgerTransaction = typeof ledgerTransactions.$inferSelect;
+export type InsertLedgerTransaction = z.infer<typeof insertLedgerTransactionSchema>;
+export type LedgerEntry = typeof ledgerEntries.$inferSelect;
+export type InsertLedgerEntry = z.infer<typeof insertLedgerEntrySchema>;
+export type AccountBalance = typeof accountBalances.$inferSelect;
+export type InsertAccountBalance = z.infer<typeof insertAccountBalanceSchema>;
+export type TrialBalanceDaily = typeof trialBalanceDaily.$inferSelect;
+export type InsertTrialBalanceDaily = z.infer<typeof insertTrialBalanceDailySchema>;
 
 // Top-up package constants
 export const TOP_UP_PACKAGES = {
