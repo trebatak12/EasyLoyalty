@@ -28,7 +28,8 @@ import { storage } from '../../storage'
 const router = Router()
 
 // Feature flags from environment
-const LEDGER_ENABLED = process.env.LEDGER_ENABLED === 'true'
+const isDevelopment = process.env.NODE_ENV === 'development'
+const LEDGER_ENABLED = process.env.LEDGER_ENABLED === 'true' || isDevelopment
 const LEDGER_DEV_ENDPOINTS_ENABLED = process.env.LEDGER_DEV_ENDPOINTS_ENABLED !== 'false'
 
 // Helper to check dev endpoints access
