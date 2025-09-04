@@ -1,0 +1,212 @@
+# MUST #1 — Frontend Wiring, Dashboards & CI Finalization — Replit Agent Prompt (v1.4)
+
+> **Goal for agent:** Finish the remaining MUST #1 gaps so the ledger is **fully usable** from the frontend and **observable** in environments, with CI running the validator on PRs. Do **not** change ledger business logic, DB schema, or error codes. Keep `AdminAuthProvider` and feature‑flags for access control.
+
+---
+
+## 0) Context & constraints (do not break)
+
+* **Repo layout:** `server/`, `client/src/`, `shared/schema.ts`, migrations in `/migrations/`.
+* **Ledger routes:** already mounted at `/server/routes/ledger/` → `/api/v1/ledger/*`.
+* **Shared contracts:** `/shared/contracts/ledger.ts` (source of truth for FE+BE types).
+* **HTTP client (must use):** `client/src/lib/http.ts` (axios + single‑flight refresh). **All client calls must use this.**
+* **Flags:** `LEDGER_ENABLED`, `LEDGER_DEV_ENDPOINTS_ENABLED` (false in prod ⇒ `/dev/*` must 403 for everyone).
+* **Auth:** Use the existing `AdminAuthProvider` in `client/src/hooks/use-admin-auth.tsx`.
+
+---
+
+## 1) Frontend Wiring (Checkpoint C) — COMPLETE IT
+
+### 1.1 Route gating & visibility
+
+**Files to update:**
+
+* `client/src/pages/admin-ledger.tsx` (or your actual page file)
+* `client/src/router/*` or wherever routes/nav are declared
+
+**Implement:**
+
+* Route the page at `/admin/ledger` under the admin section.
+* **Gate rendering** with a small wrapper `LedgerGate`:
+
+  * Show the page only if **`LEDGER_ENABLED === true`** **and** current user **is admin** (from `AdminAuthProvider`).
+  * Otherwise show a friendly, non‑leaky message (e.g., "Ledger tools are unavailable").
+* In **production builds**, do not render the nav link nor route (keep server‑side 403s for `/dev/*`).
+
+**Acceptance:**
+
+* Admin + `LEDGER_ENABLED=true` → page visible and usable.
+* Non‑admin or `LEDGER_ENABLED=false` → page/links hidden; direct URL shows the guard message only.
+* Prod build → page not rendered; server still enforces 403 on `/dev/*`.
+
+### 1.2 Use the shared HTTP client everywhere (no legacy/fetch)
+
+**Files to update:**
+
+* `client/src/pages/admin-ledger.tsx`
+* `client/src/lib/api/ledgerClient.ts`
+* Any remaining imports from `client/src/services/api.ts`
+
+**Implement:**
+
+* Ensure **all** ledger calls go through **`http`** from `client/src/lib/http.ts` (which injects `Authorization`).
+* In `ledgerClient.ts`, replace raw `fetch` with `http.get/post/...` **or** wrap `fetch` in a dedicated `authFetch` that attaches `Authorization` from `AdminAuthProvider` (preferred: use `http`).
+* Remove or deprecate `client/src/services/api.ts` and migrate all callers.
+
+**Anti‑regression:**
+
+* Add ESLint rule `no-restricted-imports` to forbid importing `client/src/services/api`.
+* Optionally forbid raw `fetch` in `ledgerClient.ts`.
+
+**Acceptance:**
+
+* Console no longer logs requests "with auth: false" for protected endpoints.
+* Only one interceptor stack is installed; no duplicate handling.
+
+### 1.3 Page contents (dev‑only tools)
+
+**Implement (respect shared contracts):**
+
+* **Health panel** → `GET /api/v1/ledger/health` (show `version`, featureFlags).
+* **User balance** panel → input `userId` (UUID) → `GET /balances/:userId` → show `balanceMinor`, `updatedAt`.
+* **Dev actions** (disable if `LEDGER_DEV_ENDPOINTS_ENABLED=false`):
+
+  * Top‑up → `POST /dev/topup`
+  * Charge → `POST /dev/charge`
+  * Bonus → `POST /dev/bonus`
+  * Reversal → `POST /dev/reversal`
+* **Trial‑Balance run** → button → `POST /trial-balance/run` → show `{ status, sumDebit, sumCredit, delta }`.
+* Display errors using the unified envelope `{ error, message }`.
+
+**Acceptance:** All actions work for admin in dev/stage with flags enabled; correct error handling otherwise.
+
+### 1.4 UX polish
+
+* Banner that indicates dev/stage vs prod and the current flag state.
+* Disable action buttons when dev endpoints are disabled by flag.
+
+---
+
+## 2) Dashboards & Monitoring (Checkpoint E)
+
+### 2.1 Metrics availability
+
+Confirm the backend emits at least:
+
+* `ledger_tx_total{type=topup|charge|bonus|reversal}` (counter)
+* `ledger_trial_balance_status{status=ok|mismatch}` (counter) and/or `ledger_trial_balance_delta` (gauge)
+* Optional: `ledger_error_total{error}` (counter)
+
+### 2.2 Dashboard option A — Grafana/Prometheus (preferred)
+
+**Files to add:**
+
+* `ops/dashboards/ledger-must1.json`
+* `ops/dashboards/README.md`
+
+**Panels to include:**
+
+1. **Trial Balance Status** (stat or pie) by `status` (last 24h)
+2. **Ledger TX Rate by Type**: `sum(rate(ledger_tx_total[5m])) by (type)`
+3. **Errors by Code**: `sum(rate(ledger_error_total[5m])) by (error)`
+4. **Latest Delta**: stat for `ledger_trial_balance_delta` (or last `delta` value)
+
+**Docs:** short README with Grafana import instructions.
+
+### 2.3 Dashboard option B — In‑app (fallback if no Grafana)
+
+**Files to add:**
+
+* `client/src/pages/admin-metrics.tsx`
+
+**Implement:**
+
+* Admin‑only page that shows:
+
+  * Latest `trial-balance/run` result (status, delta)
+  * Aggregated counts by tx type (via existing metrics endpoint if available, or add a dev‑only summary endpoint `/api/v1/ledger/metrics/summary`)
+* Link from admin nav (dev/stage only).
+
+### 2.4 Enable in dev/stage
+
+**Files to update:** `.env.development`, `.env.staging`, `.env.production`
+
+* `.env.development`: `LEDGER_ENABLED=true`, `LEDGER_DEV_ENDPOINTS_ENABLED=true`
+* `.env.staging`:    `LEDGER_ENABLED=true`, `LEDGER_DEV_ENDPOINTS_ENABLED=true`
+* `.env.production`: `LEDGER_ENABLED=false`, `LEDGER_DEV_ENDPOINTS_ENABLED=false`
+
+**Acceptance:**
+
+* Dev/stage: page and dev actions available to admins only.
+* Prod: page hidden; `/dev/*` always 403.
+
+---
+
+## 3) CI Integration — run validator on PRs (Checkpoint D add‑on)
+
+**Files to add:** `.github/workflows/validate-must1.yml`
+
+**Workflow requirements:**
+
+* Trigger on `pull_request` to `main`.
+* Use Node LTS (e.g., 20.x) and cache npm.
+* Steps:
+
+  1. `checkout`
+  2. `setup-node`
+  3. `npm ci`
+  4. **Set env** for validator admin creds (use repository secrets):
+
+     * `VALIDATOR_ADMIN_EMAIL`
+     * `VALIDATOR_ADMIN_PASSWORD`
+  5. Start server (either `npm run dev:server &` with wait-on, or use a script that runs an ephemeral server suitable for tests).
+  6. `npm run validate:must1`
+
+**Acceptance:**
+
+* New PRs show a required status check **Validate MUST #1** that must pass.
+
+---
+
+## 4) Tests & verification (manual smoke)
+
+1. Admin + dev flags ON → `/admin/ledger` loads; Health, Balance, Dev Actions, Trial‑Balance all work.
+2. Toggle `LEDGER_DEV_ENDPOINTS_ENABLED=false` → dev buttons disabled; backend returns 403 for `/dev/*`.
+3. Non‑admin → cannot see `/admin/ledger` in nav; direct URL shows guard message; `/dev/*` always 403.
+4. Prod build → `/admin/ledger` not rendered; `/dev/*` 403.
+5. CI PR → validator job runs and passes all 11 steps.
+
+---
+
+## 5) Anti‑regression guards
+
+* ESLint `no-restricted-imports`: forbid `client/src/services/api` in the client.
+* Optionally, forbid raw `fetch` in `client/src/lib/api/ledgerClient.ts`.
+* Keep a unit smoke that `installAuthInterceptors` is called once and returns valid `eject` IDs.
+
+---
+
+## 6) Commits (split exactly like this)
+
+1. `feat(ledger-fe): admin ledger page gated by LEDGER_ENABLED + admin; prod-hidden; guard component`
+2. `refactor(client): migrate ledgerClient and admin-ledger to shared http client; remove legacy api imports; add ESLint guard`
+3. `feat(metrics): add Grafana dashboard JSON (or admin-metrics page fallback) + README`
+4. `chore(env): enable LEDGER flags in dev/stage; keep disabled in prod`
+5. `ci: add validate-must1 GitHub Action (PR to main)`
+
+---
+
+## 7) Rollback plan
+
+* If UI access misbehaves, set `LEDGER_ENABLED=false` in env and redeploy; backend ledger remains intact.
+* Revert the ESLint rule temporarily if migration blocks builds; re‑enable after fixes.
+* CI workflow can be disabled by marking the job optional while investigating.
+
+---
+
+## 8) Final acceptance (ALL must pass)
+
+* Frontend wiring complete: admin‑only, flag‑gated, no raw fetch, shared http client everywhere.
+* Dev actions behave according to flags; prod always 403 for `/dev/*`.
+* Metrics dashboard (Grafana JSON or in‑app page) is available and useful.
+* CI runs `validate:must1` on PR and must pass before merge.

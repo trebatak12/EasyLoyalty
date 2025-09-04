@@ -1,0 +1,498 @@
+EasyLoyalty – MUST #1: Double‑Entry Ledger (Final Replit Agent Prompt v2.3)
+
+Goal for agent: Implement the Double‑Entry Ledger end‑to‑end exactly as specified below. Work only inside the ledger scope. Do not modify auth or other modules. Implement in phases A→B→C→D→E and pause after each checkpoint (wait for my "continue"). Contracts are the single source of truth; if anything must change, STOP and explain why.
+
+0) Project guardrails (do not break)
+0.1 Repo‑specific bindings (this project)
+
+Admin auth: For /dev/* and /trial-balance/run use the existing AdminAuthProvider (do not add a new middleware). Non‑admin → 403.
+
+Legacy tables: There is a legacy transactions table (wallet operations). Do not touch it; the new accounting layer lives in ledger_transactions / ledger_entries. If you must reference legacy rows, use origin_ref (string). Historical backfill is handled in Appendix A.
+
+Wallet vs balances: wallets.balance_cents is a read‑model (projection). The source of truth is the ledger + account_balances. During the transition, use dual‑write from the ledger to wallets.balance_cents (see Appendix A), or replace it with a view if feasible.
+
+Contracts location: Use /shared/contracts/ledger.ts for shared Zod/TS contracts (imported by both BE & FE).
+
+Name collision: transactions (legacy) and ledger_transactions (new) are distinct → no DB name collision.
+
+0.2 Path mappings & migrations (this project)
+
+Current structure: server/, client/src/, shared/schema.ts, Drizzle migrations in /migrations/.
+
+Auth middleware path: client/src/hooks/use-admin-auth.tsx (AdminAuthProvider).
+
+Paths mapping:
+
+Backend routes under /server/routes/ledger/ (mount all /api/v1/ledger/* handlers here).
+
+FE typed client at /client/src/lib/api/ledgerClient.ts (imports shared contracts only).
+
+Shared contracts at /shared/contracts/ledger.ts.
+
+Drizzle specifics:
+
+Migrations: create a new SQL file migrations/05_ledger_schema.sql implementing all tables/indexes/constraints from §3.
+
+Schema: add ledger_transactions, ledger_entries, account_balances, trial_balance_daily to shared/schema.ts alongside existing users, wallets, etc.
+
+0.3 Feature flags & environment
+
+LEDGER_ENABLED (bool) — default OFF; enables the dev FE page and FE wiring when true.
+
+LEDGER_DEV_ENDPOINTS_ENABLED (bool) — default true in dev/stage, false in prod; controls /dev/* routes. In prod (i.e., when this flag is false) /dev/* must return 403.
+
+0.4 Error envelope, time & DB‑tx rules
+
+Error envelope: All errors return JSON { error: CODE, message: string, details?: any } using codes in §4.5.
+
+Time: All server timestamps and trial_balance logic use UTC. as_of_date is a UTC date.
+
+DB transaction rule: Write entries and balances in one DB transaction; emit telemetry/notifications after commit. No external calls inside the transaction.
+
+1) Scope & objectives
+
+Provide double‑entry accounting for customer credits:
+
+Every transaction must satisfy Σdebit = Σcredit.
+
+Nothing is overwritten; mistakes are fixed via a reversal transaction.
+
+Deliverables:
+
+DB schema (Drizzle/Postgres) + indexes/constraints.
+
+Backend logic implementing operations & invariants.
+
+Dev‑only API for manual tests.
+
+Basic metrics & daily trial‑balance check (Σdebit − Σcredit = 0).
+
+FE wiring (dev‑only page) using the shared contracts.
+
+Validator script npm run validate:must1 (E2E smoke) + CI job.
+
+Out‑of‑scope: Idempotence, DB locks beyond the single‑tx write, QR/payments, device‑trust, safe‑mode, etc.
+
+2) Accounts & operation mapping (MVP)
+
+Accounts:
+
+1000 Cash/Top‑up Clearing (assets; global, user_id must be NULL)
+
+2000 Customer Credits (liabilities; per user, user_id required)
+
+4000 Sales Revenue (revenue; global)
+
+5000 Marketing Expense (expense; global)
+
+Operations:
+
+Top‑up X: Dr 1000 +X, Cr 2000(user) +X
+
+Charge X: Dr 2000(user) +X, Cr 4000 +X (reject if 2000(user) would go < 0)
+
+Bonus X: Dr 5000 +X, Cr 2000(user) +X
+
+Reversal: A new transaction with exact mirror entries of the origin (same accounts & amounts, opposite sides), linked via reversal_of = origin_tx_id. Max 1× reversal per origin. Reversal of a reversal is forbidden.
+
+3) Database schema (Drizzle + Postgres)
+
+Note: Provide full Drizzle migrations; the shapes below are the normative spec. Use bigint for all monetary amounts to prevent overflow. In this repo:
+
+Create migrations/05_ledger_schema.sql with SQL for the schema in §3 (tables, indexes, partial uniques, checks).
+
+Mirror the schema in shared/schema.ts using Drizzle models so both FE & BE can reference typed entities.
+
+3.1 Tables
+
+ledger_transactions
+
+id UUID PK
+
+created_at timestamptz (UTC, default now)
+
+type enum('topup'|'charge'|'bonus'|'reversal')
+
+origin_ref text nullable (informational, not unique)
+
+reversal_of UUID nullable FK → ledger_transactions.id, with a UNIQUE constraint to enforce max 1 reversal per origin
+
+created_by UUID nullable (opaque; no FK to users)
+
+context jsonb (may include { note?: string, idempotency_key?: string }) — store only; no idempotency logic here
+
+ledger_entries
+
+id UUID PK
+
+tx_id UUID FK → ledger_transactions.id ON DELETE CASCADE
+
+account_code int (one of 1000|2000|4000|5000)
+
+user_id UUID nullable (required when account_code=2000; must be NULL for 1000/4000/5000)
+
+side enum('debit'|'credit')
+
+amount_minor bigint > 0 (CHECK (amount_minor > 0))
+
+Transaction invariants (enforced in app logic within a single DB tx):
+
+Each transaction has exactly 2 entries: 1× debit + 1× credit.
+
+For each tx_id: Σdebit = Σcredit.
+
+account_balances (cache)
+
+id UUID PK
+
+account_code int
+
+user_id UUID nullable
+
+balance_minor bigint (for 2000 must never be < 0)
+
+updated_at timestamptz (UTC)
+
+account_balances constraints/indexes
+
+CHECKs:
+
+If account_code = 2000 → user_id IS NOT NULL.
+
+If account_code IN (1000, 4000, 5000) → user_id IS NULL.
+
+Partial uniques:
+
+UNIQUE (account_code) WHERE user_id IS NULL — one row per global account (1000/4000/5000).
+
+UNIQUE (account_code, user_id) WHERE user_id IS NOT NULL — one row per user for account 2000.
+
+trial_balance_daily
+
+as_of_date date PK (UTC date)
+
+sum_debit bigint
+
+sum_credit bigint
+
+delta bigint (must be 0 for ok)
+
+status enum('ok'|'mismatch')
+
+details jsonb (optional diagnostics)
+
+3.2 Indexing (minimum)
+
+ledger_entries (tx_id)
+
+ledger_entries (user_id, account_code, tx_id)
+
+ledger_transactions (created_at)
+
+account_balances (account_code) + the two partial uniques above
+
+4) API contracts (v1) — all under /api/v1/ledger
+
+Implement with existing auth middleware; do not modify auth. Responses are typed by /shared/contracts/ledger.ts and used by both BE and FE. All errors use the envelope { error, message, details? }.
+
+4.1 Health
+
+GET /health → 200 { ok: true, version: string, accounts: ["1000","2000","4000","5000"], featureFlags: { LEDGER_ENABLED: boolean, LEDGER_DEV_ENDPOINTS_ENABLED: boolean } }
+
+4.2 Balances & transactions
+
+GET /balances/:userId → 200 { userId: string, balanceMinor: number, updatedAt: string }
+
+GET /tx/:txId → 200 { transaction, entries } (returns full tx + its two entries)
+
+GET /tx?userId=&limit=&cursor= → cursor‑paginated feed for a user
+
+limit ≤ 100, default 20
+
+Ordering: created_at DESC, id DESC
+
+Cursor: base64 of "<created_at_iso>|<tx_id_uuid>"
+
+4.3 Dev‑only operations (return 403 when LEDGER_DEV_ENDPOINTS_ENABLED=false)
+
+POST /dev/topup — body: { userId: uuid, amountMinor: bigint>0, note?: string } → 201 { txId }
+
+POST /dev/charge — body: { userId: uuid, amountMinor: bigint>0, note?: string } → 201 { txId } (reject with 409 if 2000(user) would be < 0)
+
+POST /dev/bonus — body: { userId: uuid, amountMinor: bigint>0, reason: string } → 201 { txId }
+
+POST /dev/reversal — body: { txId: uuid } → 201 { reversalTxId }
+
+4.4 Trial balance
+
+POST /trial-balance/run (admin only) → 200 { status: 'ok'|'mismatch', sumDebit: bigint, sumCredit: bigint, delta: bigint }
+
+4.5 Error codes (HTTP mapping)
+
+INSUFFICIENT_FUNDS → 409
+
+TX_NOT_FOUND → 404
+
+REVERSAL_ALREADY_EXISTS → 409
+
+REVERSAL_FORBIDDEN_TYPE (e.g., reversal of a reversal) → 409
+
+VALIDATION_FAILED → 422
+
+LEDGER_INVARIANT_BROKEN → 500
+
+FORBIDDEN_DEV_ENDPOINT (any /dev/* when disabled) → 403
+
+5) Transaction rules (one DB tx)
+
+Build the two ledger_entries first (exactly one debit + one credit), verify Σdebit = Σcredit.
+
+Apply account_balances updates in the same DB transaction using UPSERTs.
+
+Order: update 2000(user) first; reject if it would go below 0; then write global account(s).
+
+Commit; only after commit emit metrics/logs/notifications.
+
+Reversal semantics:
+
+Only one reversal per origin (UNIQUE (reversal_of) in ledger_transactions).
+
+Reversal over a reversal is forbidden.
+
+Reversal must exactly mirror the origin’s entries (same accounts & amounts, opposite sides). Validate this.
+
+6) Telemetry & audit (minimum)
+
+Metrics (dev OK):
+
+ledger_tx_total{type=topup|charge|bonus|reversal}
+
+ledger_error_total{error=…}
+
+ledger_trial_balance_status{status=ok|mismatch}
+
+Audit: Store minimal context in ledger_transactions.context (no PII). Include note, reason, optional idempotency_key.
+
+7) Frontend wiring (v1, dev‑only page)
+
+FE must only use /shared/contracts/ledger.ts types and call /api/v1/ledger/*. No direct ad‑hoc JSON.
+
+Add a small dev‑only page “Ledger Health” (visible when LEDGER_ENABLED=true and not prod):
+
+Show Health info (/health) and feature flags.
+
+Panel User balance (input userId, calls /balances/:userId).
+
+Buttons to run Top‑up / Charge / Bonus / Reversal (these call /dev/*).
+
+Button Run Trial‑Balance (POST /trial-balance/run).
+
+Create a thin typed FE wrapper client at /client/src/lib/api/ledgerClient.ts that imports only the shared contracts and hits /api/v1/ledger/* routes. No UI logic here.
+
+Do not modify existing auth or routes; reuse existing auth middleware for protected calls.
+
+8) Validator & CI (E2E smoke)
+
+Add scripts/validate-must1.ts (TypeScript) performing this exact flow (fail = non‑zero exit):
+
+Ensure server is running (or start locally).
+
+Generate testUserId (UUID v4).
+
+POST /api/v1/ledger/dev/topup {1000} → expect 201, then GET /balances/:userId → balance=1000.
+
+POST /api/v1/ledger/dev/charge {400} → 201, balance =600.
+
+POST /api/v1/ledger/dev/bonus {50} → 201, balance =650.
+
+POST /api/v1/ledger/dev/reversal { txId:<charge_tx> } → 201, balance =1000.
+
+POST /api/v1/ledger/trial-balance/run → status='ok' and delta=0.
+
+Negative: charge {2000} → 409 INSUFFICIENT_FUNDS.
+
+Negative: second reversal of same tx → 409 REVERSAL_ALREADY_EXISTS.
+
+Prod‑guard simulation: set LEDGER_DEV_ENDPOINTS_ENABLED=false → any /dev/* returns 403 FORBIDDEN_DEV_ENDPOINT.
+
+Optional parity check (if legacy wallet exists): verify that the projection wallets.balance_cents (if read via the existing BE service) matches account_balances for account 2000(user) after steps 3–6.
+
+Create npm script validate:must1 → runs the validator and exits 0 only if all steps pass.
+
+In CI, run validate:must1 on PRs targeting main.
+
+9) Files & structure (expected locations)
+
+/shared/contracts/ledger.ts — Zod schemas & TS types for all requests/responses/enums/error codes (shared by BE & FE).
+
+/shared/schema.ts — Drizzle models including new tables: ledger_transactions, ledger_entries, account_balances, trial_balance_daily (placed alongside existing users, wallets, ...).
+
+/server/routes/ledger/ — All routes mounted under /api/v1/ledger/* and their handlers; call into your service layer if you use one.
+
+/client/src/lib/api/ledgerClient.ts — Thin typed wrapper that imports from /shared/contracts/ledger.ts and calls the ledger API. No UI logic.
+
+/client/... — The small Ledger Health dev page (gated by LEDGER_ENABLED and non‑prod env).
+
+/scripts/validate-must1.ts — The E2E validator.
+
+/migrations/05_ledger_schema.sql — SQL migration creating all ledger tables & constraints.
+
+Integration guarantee: The build must fail if FE or BE diverge from shared/contracts/ledger.ts. FE wrapper and BE handlers must import the same types.
+
+10) Checkpoints & commits (pause at each)
+
+A) Contracts & DB (stub) — CHECKPOINT A — STOP
+
+Drizzle migrations (tables + indexes/constraints per §3).
+
+Shared types in /shared/contracts/ledger.ts (requests/responses, enums, error codes).
+
+Stub endpoints /api/v1/ledger/* with correct shapes (no logic).
+
+Typed FE client wrapper file created (no UI yet).
+
+NPM script validate:must1 (temporary: just build + route map dump).
+
+Commit: feat(ledger): contracts+db stub.
+
+B) Backend implementation — CHECKPOINT B — STOP
+
+Implement ledger service: entries writing, account_balances UPSERTs, reversal semantics, trial‑balance job.
+
+Map error codes exactly as in §4.5 with the unified error envelope.
+
+Metrics + audit context writes.
+
+Extend validate:must1 to include backend smoke (see §8 steps up to 7).
+
+Commit: feat(ledger): backend logic.
+
+C) Frontend wiring (v1) — CHECKPOINT C — STOP
+
+FE uses only /shared/contracts/ledger.ts + /api/v1/ledger/*.
+
+Add the Ledger Health dev page as in §7.
+
+Feature‑flag LEDGER_ENABLED (default OFF).
+
+Do not alter auth or non‑ledger endpoints.
+
+Commit: feat(ledger): frontend wiring (dev page).
+
+D) Validator & CI — CHECKPOINT D — STOP
+
+Implement full scripts/validate-must1.ts E2E (all 11 steps in §8).
+
+npm run validate:must1 exits 0 only when all pass.
+
+CI job runs validator on PR → main.
+
+Commit: chore(ledger): validator+ci.
+
+E) Enable & dashboards
+
+Enable LEDGER_ENABLED in dev/stage.
+
+Add basic metrics tiles: trial_balance_status, ledger_tx_total{type}.
+
+Commit: ops(ledger): enable + dashboards.
+
+11) Security & access notes
+
+Dev endpoints /dev/* require AdminAuthProvider (admin role) even in non‑prod; otherwise respond 403.
+
+user_id is opaque UUID (no FK). Do not join to users.
+
+No PII in logs/metrics; context is informational only.
+
+If wallets.balance_cents exists, treat it as a read‑model; keep it consistent via a one‑way projection from the ledger (see Appendix A — dual‑write or async projector).
+
+12) Final acceptance (all must be true)
+
+trial_balance/run returns status='ok' and delta=0 after the validator sequence.
+
+Charge never allows 2000(user) to drop below 0.
+
+Exactly one reversal per origin; reversal of a reversal forbidden; reversal mirrors origin entries.
+
+/dev/* returns 403 when LEDGER_DEV_ENDPOINTS_ENABLED=false (and requires admin in non‑prod).
+
+The E2E validator passes all steps; CI green.
+
+FE builds and compiles using shared contracts, and the dev page works when LEDGER_ENABLED=true.
+
+If anything here conflicts with reality
+
+STOP and write a comment explaining:
+
+what conflicts,
+
+proposed minimal change,
+
+impact on FE/BE/DB,
+
+migration/compat plan.
+
+Reminder: Do not modify auth, legacy endpoints, or other modules. Keep everything under /api/v1/ledger/* and the shared contracts in /shared/contracts/ledger.ts. The purpose of this spec is to remove all ambiguity and guarantee FE↔BE fit via shared types + validator.
+
+Appendix A — Compatibility & Migration Plan (M0–M5)
+
+Goal: introduce the ledger as the source of truth without breaking the legacy wallet flow. The steps below are safe and reversible.
+
+M0 — Pre‑flight
+
+Identify where wallets.balance_cents and transactions are currently read/written.
+
+Turn on feature flags in dev/stage only: LEDGER_ENABLED=true, LEDGER_DEV_ENDPOINTS_ENABLED=true.
+
+M1 — Parallel ledger schema
+
+Create new tables ledger_transactions, ledger_entries, account_balances, trial_balance_daily per §3 (no changes to legacy tables).
+
+Deploy GET /api/v1/ledger/health and stub endpoints (Checkpoint A).
+
+M2 — Dual‑write adapter (temporary)
+
+Implement ledger operations (Checkpoint B) and the projection: after commit of a ledger transaction:
+
+Update account_balances (part of the same DB transaction).
+
+After commit synchronize wallets.balance_cents for the affected user (same value as account_balances for 2000). If you cannot write directly, add a small projection worker/job.
+
+Goal: keep legacy readers working while the ledger is fully accurate.
+
+M3 — Backfill (if you need history)
+
+If you need historical data from transactions, write a one‑off script that:
+
+Converts legacy transactions rows into paired entries in the ledger with correct mapping (topup/charge/bonus),
+
+Ensures Σdebit=Σcredit and updates account_balances,
+
+Saves origin_ref (e.g., original transactions.id).
+
+Verify trial_balance/run = ok.
+
+M4 — Flip‑read (controlled switch to ledger)
+
+New features should read only from GET /api/v1/ledger/tx and GET /balances/:userId.
+
+Keep legacy screens on wallets.balance_cents until they are rewritten; dual‑write keeps them consistent.
+
+M5 — Decommission
+
+Once all readers use the ledger, keep wallets.balance_cents as a view or remove it gradually.
+
+Disable dual‑write and keep only the projection (if needed for old reports).
+
+Rollback
+
+If something fails, turn off LEDGER_ENABLED and continue using legacy (dual‑write can be switched to read‑only). Ledger tables remain intact → you can debug and fix.
+
+Compatibility acceptance
+
+Daily trial_balance equals 0.
+
+After validator operations, ledger balance equals legacy wallet balance for the test user.
+
+No changes to auth/legacy endpoints; all ledger routes live under /api/v1/ledger/* and share types from /shared/contracts/ledger.ts.
